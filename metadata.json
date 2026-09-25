@@ -1,0 +1,6 @@
+{
+  "name": "Titufaris - Catálogo, Precios & POS",
+  "description": "Tienda web pública y catálogo digital, lista de precios exportable a PDF, códigos QR dinámicos, control de inventario offline-first, pasarela de cobros y terminal POS para tablets.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
