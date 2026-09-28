@@ -3,16 +3,14 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy package descriptors
+# Copy dependency manifests
 COPY package*.json ./
 
 # Install dependencies cleanly
 RUN npm install
 
-# Copy application source files and Firebase config
-COPY tsconfig.json vite.config.ts index.html firebase-applet-config.json ./
-COPY public/ ./public/
-COPY src/ ./src/
+# Copy all project source files
+COPY . .
 
 # Compile production bundle
 RUN npm run build

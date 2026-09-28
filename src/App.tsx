@@ -26,6 +26,7 @@ import {
   ArrowDown,
   Check,
   RotateCcw,
+  Share2,
 } from 'lucide-react';
 
 import {
@@ -111,6 +112,7 @@ import { NotificationsDrawer } from './components/NotificationsDrawer';
 import { OfflineBanner } from './components/OfflineBanner';
 import { AuthLoginModal } from './components/AuthLoginModal';
 import { UnderConstructionModal } from './components/UnderConstructionModal';
+import { ShareProductModal } from './components/ShareProductModal';
 
 // Code-split heavy views and administrative modals with React.lazy
 const CategoryManagerModal = lazy(() => import('./components/CategoryManagerModal').then(m => ({ default: m.CategoryManagerModal })));
@@ -203,6 +205,7 @@ export default function App() {
 
   // Modals & Drawers
   const [detailProduct, setDetailProduct] = useState<Product | null>(null);
+  const [shareProduct, setShareProduct] = useState<Product | null>(null);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isDuplicateMode, setIsDuplicateMode] = useState(false);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
@@ -247,13 +250,13 @@ export default function App() {
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
-    // Deep link query check for QR codes and direct product URLs (?view=product&id=... or &sku=...)
+    // Deep link query check for QR codes and direct product URLs (?p=... or ?id=... or &sku=...)
     try {
       const urlParams = new URLSearchParams(window.location.search);
-      const prodId = urlParams.get('id');
+      const prodId = urlParams.get('p') || urlParams.get('id') || urlParams.get('producto') || urlParams.get('product');
       const sku = urlParams.get('sku');
       if (prodId || sku) {
-        const found = products.find(p => (prodId && p.id === prodId) || (sku && p.sku === sku));
+        const found = products.find(p => (prodId && (p.id === prodId || (p as any).slug === prodId)) || (sku && p.sku.toLowerCase() === sku.toLowerCase()));
         if (found) {
           setDetailProduct(found);
         }
@@ -274,11 +277,11 @@ export default function App() {
     if (products.length === 0 || hasProcessedDeepLinkRef.current) return;
     try {
       const urlParams = new URLSearchParams(window.location.search);
-      const prodId = urlParams.get('id');
+      const prodId = urlParams.get('p') || urlParams.get('id') || urlParams.get('producto') || urlParams.get('product');
       const sku = urlParams.get('sku');
       if (prodId || sku) {
         const found = products.find(
-          p => (prodId && p.id === prodId) || (sku && p.sku.toLowerCase() === sku.toLowerCase())
+          p => (prodId && (p.id === prodId || (p as any).slug === prodId)) || (sku && p.sku.toLowerCase() === sku.toLowerCase())
         );
         if (found) {
           setDetailProduct(found);
@@ -288,6 +291,55 @@ export default function App() {
     } catch {
       // Safe catch
     }
+  }, [products]);
+
+  // Dynamic URL Synchronization: updates URL bar with ?p=productId when opening a product, and restores on close
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    if (detailProduct) {
+      const currentUrl = new URL(window.location.href);
+      currentUrl.searchParams.set('p', detailProduct.id);
+      window.history.replaceState({ productId: detailProduct.id }, '', currentUrl.toString());
+      document.title = `${detailProduct.name} - ${formatCurrency(detailProduct.retailPrice)} | Titufaris`;
+    } else {
+      const currentUrl = new URL(window.location.href);
+      if (currentUrl.searchParams.has('p') || currentUrl.searchParams.has('id') || currentUrl.searchParams.has('view')) {
+        currentUrl.searchParams.delete('p');
+        currentUrl.searchParams.delete('id');
+        currentUrl.searchParams.delete('view');
+        currentUrl.searchParams.delete('sku');
+        currentUrl.searchParams.delete('from');
+        const cleanPath = currentUrl.pathname + (currentUrl.searchParams.toString() ? `?${currentUrl.searchParams.toString()}` : '');
+        window.history.replaceState({}, '', cleanPath);
+      }
+      document.title = 'Titufaris - Catálogo, Precios & POS';
+    }
+  }, [detailProduct]);
+
+  // Handle browser back/forward buttons (popstate)
+  useEffect(() => {
+    const handlePopState = () => {
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const prodId = urlParams.get('p') || urlParams.get('id') || urlParams.get('producto') || urlParams.get('product');
+        const sku = urlParams.get('sku');
+        if (prodId || sku) {
+          const found = products.find(
+            p => (prodId && (p.id === prodId || (p as any).slug === prodId)) || (sku && p.sku.toLowerCase() === sku.toLowerCase())
+          );
+          if (found) {
+            setDetailProduct(found);
+          }
+        } else {
+          setDetailProduct(null);
+        }
+      } catch {
+        // Safe catch
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
   }, [products]);
 
   // Sync from high-capacity IndexedDB and Firebase Firestore on startup
@@ -1454,6 +1506,7 @@ export default function App() {
             onSelectCategory={setSelectedCategory}
             onOpenProductDetail={setDetailProduct}
             onOpenQR={setQrProduct}
+            onShareProduct={setShareProduct}
             onAddToCart={(p) => handleAddToCart(p, 'retail')}
             onOpenCatalogPDF={() => setIsExportModalOpen(true)}
             onSwitchToStaffMode={handleRequestStaffMode}
@@ -1919,6 +1972,7 @@ export default function App() {
                   dropPosition={dropTargetProductId === p.id ? dropPosition : null}
                   onOpenDetail={setDetailProduct}
                   onOpenQR={setQrProduct}
+                  onShareProduct={setShareProduct}
                   onAddToCart={handleAddToCart}
                   onStockChange={handleStockChange}
                   onOpenEdit={(productToEdit) => {
@@ -2072,6 +2126,13 @@ export default function App() {
                         <td className="px-4 py-3 text-right" onClick={e => e.stopPropagation()}>
                           <div className="flex items-center justify-end gap-1.5">
                             <button
+                              onClick={() => setShareProduct(p)}
+                              title="Compartir enlace propio"
+                              className="p-1.5 rounded-lg text-slate-500 hover:text-orange-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                            >
+                              <Share2 className="w-4 h-4" />
+                            </button>
+                            <button
                               onClick={() => setQrProduct(p)}
                               title="Ver Código QR"
                               className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
@@ -2181,6 +2242,7 @@ export default function App() {
           setIsProductFormOpen(true);
         }}
         onOpenQR={setQrProduct}
+        onShareProduct={setShareProduct}
         onAddToCart={handleAddToCart}
         onStockChange={handleStockChange}
         onDuplicateProduct={handleDuplicateProduct}
@@ -2247,6 +2309,16 @@ export default function App() {
         isOpen={!!qrProduct}
         onClose={() => setQrProduct(null)}
         onOpenProductDetail={setDetailProduct}
+      />
+
+      {/* Share Product Modal */}
+      <ShareProductModal
+        isOpen={!!shareProduct}
+        onClose={() => setShareProduct(null)}
+        product={shareProduct}
+        company={company}
+        isAdmin={(appMode === 'staff' || isStaffAuthenticated) && (currentUser.role === 'admin' || currentUser.permissions.canManageInventory)}
+        onOpenQR={(p) => setQrProduct(p)}
       />
 
       {/* 4. Export PDF / Excel Modal */}

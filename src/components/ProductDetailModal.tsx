@@ -32,11 +32,14 @@ import {
   Check,
   SlidersHorizontal,
   MessageCircle,
+  Share2,
+  ExternalLink,
 } from 'lucide-react';
 import { Product, Category, User, CompanyProfile } from '../types';
 import { formatCurrency } from '../utils/storage';
 import { compressImageFile } from '../utils/imageCompression';
 import { openWhatsAppProductInquiry } from '../utils/whatsAppCatalog';
+import { getProductShareUrl } from '../utils/productShare';
 
 interface ProductDetailModalProps {
   product: Product | null;
@@ -47,6 +50,7 @@ interface ProductDetailModalProps {
   onClose: () => void;
   onOpenEdit: (product: Product) => void;
   onOpenQR: (product: Product) => void;
+  onShareProduct?: (product: Product) => void;
   onAddToCart: (product: Product, priceType?: 'retail' | 'wholesale') => void;
   onStockChange: (product: Product, newStock: number) => void;
   onDuplicateProduct?: (product: Product) => void;
@@ -64,6 +68,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   onClose,
   onOpenEdit,
   onOpenQR,
+  onShareProduct,
   onAddToCart,
   onStockChange,
   onDuplicateProduct,
@@ -73,12 +78,36 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 }) => {
   // Photo Gallery State
   const [selectedImageIdx, setSelectedImageIdx] = useState(0);
+  const [copiedDirectLink, setCopiedDirectLink] = useState(false);
   const [showUrlInput, setShowUrlInput] = useState(false);
   const [urlInputMode, setUrlInputMode] = useState<'replace' | 'add'>('add');
   const [copiedSpecs, setCopiedSpecs] = useState(false);
   const [customImageUrl, setCustomImageUrl] = useState('');
   const [isDragOver, setIsDragOver] = useState(false);
   const [isCompressing, setIsCompressing] = useState(false);
+
+  const handleCopyDirectLink = async () => {
+    if (!product) return;
+    const url = getProductShareUrl(product);
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(url);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = url;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
+      setCopiedDirectLink(true);
+      setTimeout(() => setCopiedDirectLink(false), 2500);
+    } catch (err) {
+      console.error('Failed to copy direct product link:', err);
+    }
+  };
 
   const fileInputReplaceRef = useRef<HTMLInputElement | null>(null);
   const fileInputAddRef = useRef<HTMLInputElement | null>(null);
@@ -425,6 +454,19 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               })()}
             </div>
             <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => {
+                  if (onShareProduct) {
+                    onShareProduct(product);
+                  } else {
+                    handleCopyDirectLink();
+                  }
+                }}
+                title="Compartir enlace propio de este producto"
+                className="p-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                <Share2 className="w-5 h-5" />
+              </button>
               <button
                 onClick={() => onOpenQR(product)}
                 title="Ver y compartir Código QR"
@@ -881,6 +923,69 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                   )}
                 </div>
 
+                {/* Enlace propio para compartir */}
+                <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                      <Share2 className="w-3.5 h-3.5 text-orange-600" />
+                      <span>Enlace propio para compartir</span>
+                    </span>
+                    <a
+                      href={getProductShareUrl(product)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[10.5px] font-semibold text-orange-600 hover:text-orange-700 flex items-center gap-1 cursor-pointer"
+                    >
+                      <span>Abrir</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </div>
+
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="text"
+                      readOnly
+                      value={getProductShareUrl(product)}
+                      className="flex-1 px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-lg font-mono text-slate-800 select-all focus:outline-hidden"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleCopyDirectLink}
+                      className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-2xs cursor-pointer ${
+                        copiedDirectLink
+                          ? 'bg-emerald-600 text-white'
+                          : 'bg-orange-600 hover:bg-orange-700 text-white'
+                      }`}
+                    >
+                      {copiedDirectLink ? (
+                        <>
+                          <Check className="w-3.5 h-3.5" />
+                          <span>¡Copiado!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3.5 h-3.5" />
+                          <span>Copiar</span>
+                        </>
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (onShareProduct) {
+                          onShareProduct(product);
+                        } else {
+                          handleCopyDirectLink();
+                        }
+                      }}
+                      title="Más opciones para compartir"
+                      className="p-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 cursor-pointer"
+                    >
+                      <Share2 className="w-3.5 h-3.5 text-slate-600" />
+                    </button>
+                  </div>
+                </div>
+
                 {/* Delivery & Production Status Banner */}
                 <div
                   className={`p-3.5 rounded-xl border ${
@@ -1082,6 +1187,21 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
           {/* Footer Actions */}
           <div className="p-3 sm:p-4 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 shrink-0 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]">
             <div className="flex items-center gap-2 justify-between sm:justify-start">
+              <button
+                type="button"
+                onClick={() => {
+                  if (onShareProduct) {
+                    onShareProduct(product);
+                  } else {
+                    handleCopyDirectLink();
+                  }
+                }}
+                title="Compartir enlace propio de este producto"
+                className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border border-orange-200 bg-orange-50 hover:bg-orange-100 font-bold text-orange-800 text-xs transition-colors cursor-pointer"
+              >
+                <Share2 className="w-4 h-4 text-orange-600" />
+                <span>Compartir</span>
+              </button>
               <button
                 type="button"
                 onClick={() => onOpenQR(product)}

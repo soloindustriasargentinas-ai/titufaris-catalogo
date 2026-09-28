@@ -16,6 +16,7 @@ import {
   ArrowRight,
   ChevronsLeft,
   ChevronsRight,
+  Share2,
 } from 'lucide-react';
 import { Product, Category, User } from '../types';
 import { formatCurrency } from '../utils/storage';
@@ -27,6 +28,7 @@ interface ProductCardProps {
   currentUser: User;
   onOpenDetail: (product: Product) => void;
   onOpenQR: (product: Product) => void;
+  onShareProduct?: (product: Product) => void;
   onAddToCart: (product: Product, priceType?: 'retail' | 'wholesale') => void;
   onStockChange: (product: Product, newStock: number) => void;
   onOpenEdit?: (product: Product) => void;
@@ -53,6 +55,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   currentUser,
   onOpenDetail,
   onOpenQR,
+  onShareProduct,
   onAddToCart,
   onStockChange,
   onOpenEdit,
@@ -238,6 +241,18 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               <span className="bg-orange-600 text-white text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full shadow-xs">
                 Destacado
               </span>
+            )}
+            {onShareProduct && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onShareProduct(product);
+                }}
+                title="Compartir enlace de este producto"
+                className="w-7 h-7 rounded-lg bg-white/90 backdrop-blur-xs text-slate-700 hover:text-orange-600 hover:bg-white flex items-center justify-center shadow-xs transition-colors pointer-events-auto cursor-pointer"
+              >
+                <Share2 className="w-3.5 h-3.5" />
+              </button>
             )}
             <button
               onClick={(e) => {

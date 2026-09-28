@@ -54,6 +54,7 @@ export interface Product {
   images?: string[];
   barcode: string;
   tags: string[];
+  dimensions?: string;
   specifications: ProductSpecification[];
   featured?: boolean;
   sortOrder?: number;

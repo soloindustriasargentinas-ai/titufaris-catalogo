@@ -21,10 +21,12 @@ import {
   ChevronUp,
   SlidersHorizontal,
   QrCode,
+  Share2,
 } from 'lucide-react';
 import { Product, Category, CompanyProfile } from '../types';
 import { formatCurrency } from '../utils/storage';
 import { getWhatsAppBusinessCatalogUrl } from '../utils/whatsAppCatalog';
+import { copyOrShareProduct } from '../utils/productShare';
 
 export type PublicStoreSortOption =
   | 'featured_first'
@@ -42,6 +44,7 @@ interface PublicStoreViewProps {
   onSelectCategory: (catId: string) => void;
   onOpenProductDetail: (p: Product) => void;
   onOpenQR?: (p: Product) => void;
+  onShareProduct?: (p: Product) => void;
   onAddToCart: (p: Product) => void;
   onOpenCatalogPDF: () => void;
   onSwitchToStaffMode: () => void;
@@ -59,6 +62,7 @@ export const PublicStoreView: React.FC<PublicStoreViewProps> = ({
   onSelectCategory,
   onOpenProductDetail,
   onOpenQR,
+  onShareProduct,
   onAddToCart,
   onOpenCatalogPDF,
   onSwitchToStaffMode,
@@ -594,7 +598,7 @@ export const PublicStoreView: React.FC<PublicStoreViewProps> = ({
                       </span>
                     </div>
 
-                    {/* Top right badges & QR action */}
+                    {/* Top right badges & Share / QR action */}
                     <div className="absolute top-2.5 right-2.5 z-20 flex items-center gap-1.5">
                       {product.featured && (
                         <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-gradient-to-r from-amber-500 to-orange-600 text-white text-[10px] font-black uppercase tracking-wider shadow-md">
@@ -602,6 +606,21 @@ export const PublicStoreView: React.FC<PublicStoreViewProps> = ({
                           <span>Destacado</span>
                         </span>
                       )}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (onShareProduct) {
+                            onShareProduct(product);
+                          } else {
+                            copyOrShareProduct(product, company.name);
+                          }
+                        }}
+                        title="Compartir enlace propio de este producto"
+                        className="p-1.5 rounded-full bg-white/95 hover:bg-white text-slate-700 hover:text-orange-600 shadow-md transition-all cursor-pointer hover:scale-110 border border-slate-200"
+                      >
+                        <Share2 className="w-3.5 h-3.5" />
+                      </button>
                       {onOpenQR && (
                         <button
                           type="button"
@@ -778,19 +797,44 @@ export const PublicStoreView: React.FC<PublicStoreViewProps> = ({
                         </button>
                       </div>
 
-                      {onOpenQR && (
-                        <div className="pt-0.5" onClick={e => e.stopPropagation()}>
+                      {/* Share and QR actions */}
+                      <div className="grid grid-cols-2 gap-2 pt-0.5" onClick={e => e.stopPropagation()}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (onShareProduct) {
+                              onShareProduct(product);
+                            } else {
+                              copyOrShareProduct(product, company.name);
+                            }
+                          }}
+                          title="Compartir enlace propio y ficha de este producto"
+                          className="flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-xl bg-orange-50 hover:bg-orange-100 border border-orange-200 text-orange-800 text-[11px] font-bold transition-all cursor-pointer"
+                        >
+                          <Share2 className="w-3.5 h-3.5 text-orange-600" />
+                          <span>Compartir</span>
+                        </button>
+
+                        {onOpenQR ? (
                           <button
                             type="button"
                             onClick={() => onOpenQR(product)}
                             title="Ver Código QR para catálogo impreso o escanear con el móvil"
-                            className="w-full flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-xl bg-slate-100 hover:bg-orange-50 hover:border-orange-200 hover:text-orange-700 text-slate-700 text-[11px] font-semibold transition-all cursor-pointer border border-slate-200/80"
+                            className="flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 text-[11px] font-semibold transition-all cursor-pointer"
                           >
-                            <QrCode className="w-3.5 h-3.5 text-orange-600" />
-                            <span>Ver Código QR</span>
+                            <QrCode className="w-3.5 h-3.5 text-slate-600" />
+                            <span>Código QR</span>
                           </button>
-                        </div>
-                      )}
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => onOpenProductDetail(product)}
+                            className="flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 text-[11px] font-semibold transition-all cursor-pointer"
+                          >
+                            <span>Ver Ficha</span>
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
