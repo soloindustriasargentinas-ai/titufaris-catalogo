@@ -113,9 +113,7 @@ import { OfflineBanner } from './components/OfflineBanner';
 import { AuthLoginModal } from './components/AuthLoginModal';
 import { UnderConstructionModal } from './components/UnderConstructionModal';
 import { ShareProductModal } from './components/ShareProductModal';
-import { DemoModeBanner } from './components/DemoModeBanner';
 import { SiteMapModal } from './components/SiteMapModal';
-import { genericCompany, genericCategories, genericProducts, genericUsers } from './data/genericStoreData';
 import { updateSeoMetadata, slugify } from './utils/seoAndRouting';
 
 // Code-split heavy views and administrative modals with React.lazy
@@ -236,102 +234,6 @@ export default function App() {
     setIsLegalModalOpen(true);
   };
 
-  // ---------------- GENERIC STORE DEMO MODE (MARCA BLANCA) ----------------
-  const [isDemoMode, setIsDemoMode] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false;
-    try {
-      const p = new URLSearchParams(window.location.search);
-      return (
-        p.get('demo') === 'generica' ||
-        p.get('demo') === 'true' ||
-        p.get('demo') === '1' ||
-        p.get('tienda') === 'demo' ||
-        p.get('tienda') === 'generica'
-      );
-    } catch {
-      return false;
-    }
-  });
-
-  const isDemoModeRef = useRef(isDemoMode);
-  isDemoModeRef.current = isDemoMode;
-
-  const realDataBackupRef = useRef<{
-    products: Product[];
-    categories: Category[];
-    company: CompanyProfile;
-    users: User[];
-  } | null>(null);
-
-  const handleEnterDemoMode = () => {
-    realDataBackupRef.current = {
-      products,
-      categories,
-      company,
-      users,
-    };
-    setProducts(genericProducts);
-    setCategories(genericCategories);
-    setCompany(genericCompany);
-    setUsers(genericUsers);
-    setSelectedCategory('all');
-    setSearchQuery('');
-    setDetailProduct(null);
-    setIsDemoMode(true);
-    try {
-      const url = new URL(window.location.href);
-      url.searchParams.set('demo', 'generica');
-      window.history.pushState({}, '', url.toString());
-      document.title = 'Mi Tienda - Demostración de Catálogo Genérico';
-    } catch {}
-  };
-
-  const handleExitDemoMode = () => {
-    if (realDataBackupRef.current) {
-      setProducts(realDataBackupRef.current.products);
-      setCategories(realDataBackupRef.current.categories);
-      setCompany(realDataBackupRef.current.company);
-      setUsers(realDataBackupRef.current.users);
-    } else {
-      setProducts(loadProducts());
-      setCategories(loadCategories());
-      setCompany(loadCompany());
-      setUsers(loadUsers());
-    }
-    setSelectedCategory('all');
-    setSearchQuery('');
-    setDetailProduct(null);
-    setIsDemoMode(false);
-    try {
-      const url = new URL(window.location.href);
-      url.searchParams.delete('demo');
-      url.searchParams.delete('tienda');
-      window.history.pushState(
-        {},
-        '',
-        url.pathname + (url.searchParams.toString() ? `?${url.searchParams.toString()}` : '')
-      );
-      document.title = 'Titufaris - Catálogo, Precios & POS';
-    } catch {}
-  };
-
-  // If initial URL had demo=generica, initialize demo data on mount
-  useEffect(() => {
-    if (isDemoMode) {
-      realDataBackupRef.current = {
-        products: loadProducts(),
-        categories: loadCategories(),
-        company: loadCompany(),
-        users: loadUsers(),
-      };
-      setProducts(genericProducts);
-      setCategories(genericCategories);
-      setCompany(genericCompany);
-      setUsers(genericUsers);
-      document.title = 'Mi Tienda - Demostración de Catálogo Genérico';
-    }
-  }, []);
-
   // Catalog Reordering & Drag-and-Drop States
   const [draggedProductId, setDraggedProductId] = useState<string | null>(null);
   const [dropTargetProductId, setDropTargetProductId] = useState<string | null>(null);
@@ -440,8 +342,8 @@ export default function App() {
 
       const pageTitle = `${detailProduct.name} | ${company.name}`;
       const pageDesc = `${detailProduct.name} (${detailProduct.sku}) en ${company.name}: ${
-        detailProduct.description ? detailProduct.description.slice(0, 110) : 'Equipamiento comercial'
-      }. Precio: ${formatCurrency(detailProduct.retailPrice)}. Atención y envíos por WhatsApp.`;
+        detailProduct.description ? detailProduct.description.slice(0, 110) : 'Catálogo online'
+      }. Precio: ${formatCurrency(detailProduct.retailPrice)}. Pedidos y envíos por WhatsApp.`;
       const prodImg = (detailProduct.images && detailProduct.images[0]) || detailProduct.imageUrl;
 
       updateSeoMetadata({
@@ -507,17 +409,15 @@ export default function App() {
           canonicalUrl: currentUrl.toString(),
         });
       } else {
-        const homeTitle = isDemoMode
-          ? 'Mi Tienda | Catálogo Digital & POS'
-          : company.heroTitle
+        const homeTitle = company.heroTitle
           ? `${company.name} | ${company.heroTitle.slice(0, 48)}`
-          : 'Titufaris | Góndolas, Estanterías Metálicas y Racks';
+          : `${company.name} | Catálogo Digital & POS`;
 
         const homeDesc =
           company.metaDescription ||
-          (isDemoMode
-            ? 'Demostración interactiva de catálogo digital multirubro y punto de venta para negocios y empresas: diseño responsivo, stock en vivo y pedidos a WhatsApp.'
-            : 'Fabricación directa de góndolas comerciales, estanterías metálicas, racks y lockers para comercios e industrias. Envíos a todo el país y atención personalizada.');
+          (company.heroSubtitle
+            ? company.heroSubtitle.slice(0, 150)
+            : 'Catálogo online interactivo y punto de venta para comercios y empresas. Pedidos automáticos por WhatsApp y control de inventario.');
 
         updateSeoMetadata({
           title: homeTitle,
@@ -527,7 +427,7 @@ export default function App() {
         });
       }
     }
-  }, [detailProduct, isSitemapModalOpen, selectedCategory, company, isDemoMode]);
+  }, [detailProduct, isSitemapModalOpen, selectedCategory, company]);
 
   // Handle browser back/forward buttons (popstate)
   useEffect(() => {
@@ -572,14 +472,8 @@ export default function App() {
 
   // Sync from high-capacity IndexedDB and Firebase Firestore on startup
   useEffect(() => {
-    if (isDemoModeRef.current) {
-      // In Demo Mode, keep isolated generic demonstration data
-      return;
-    }
-
     // 1. First sync from IndexedDB
     syncProductsFromIndexedDB().then(idbProducts => {
-      if (isDemoModeRef.current) return;
       if (idbProducts && Array.isArray(idbProducts) && idbProducts.length > 0) {
         setProducts(idbProducts);
       }
@@ -587,7 +481,6 @@ export default function App() {
 
     // 2. Validate Firestore connection & synchronize strictly with cloud database
     validateFirestoreConnection().then(async () => {
-      if (isDemoModeRef.current) return;
       try {
         const response = await fetchProductsFromFirestore();
         if (response.success && Array.isArray(response.data) && response.data.length > 0) {
@@ -597,39 +490,14 @@ export default function App() {
           setSyncStatus('synced');
         }
 
-        // Sync categories from cloud ensuring strictly the 6 defined categories exist
+        // Sync categories from cloud or local defaults
         const remoteCategories = await fetchCategoriesFromFirestore();
-        const validCategoryIds = new Set([
-          'gondolas',
-          'estanterias-metalicas',
-          'racks-livianos',
-          'racks-selectivos',
-          'lockers-guardarropas',
-          'otros-productos'
-        ]);
-
-        const hasInvalidRemote = remoteCategories && remoteCategories.some(c => !validCategoryIds.has(c.id));
-        const hasAllSix =
-          remoteCategories &&
-          validCategoryIds.size === remoteCategories.length &&
-          remoteCategories.every(c => validCategoryIds.has(c.id));
-
-        if (hasAllSix && !hasInvalidRemote) {
+        if (remoteCategories && remoteCategories.length > 0) {
           setCategories(remoteCategories);
           saveCategories(remoteCategories);
         } else {
-          // Purge any outdated or legacy categories from Firestore
-          if (remoteCategories && remoteCategories.length > 0) {
-            for (const cat of remoteCategories) {
-              if (!validCategoryIds.has(cat.id)) {
-                await deleteCategoryFromFirestore(cat.id).catch(() => {});
-              }
-            }
-          }
-          // Enforce and seed the 6 exact categories
           setCategories(initialCategories);
           saveCategories(initialCategories);
-          await seedCategoriesToFirestore(initialCategories);
         }
 
         // Sync company profile
@@ -752,11 +620,6 @@ export default function App() {
 
   // Cloud Sync Handler: Reconciles all local data with Firestore
   const triggerCloudSync = async () => {
-    if (isDemoModeRef.current) {
-      setSyncStatus('synced');
-      return;
-    }
-
     if (isSimulatedOffline || !isOnline) {
       setSyncStatus('offline');
       return;
@@ -849,30 +712,6 @@ export default function App() {
     productData: Omit<Product, 'id' | 'updatedAt' | 'updatedBy'> & { id?: string }
   ) => {
     const now = new Date().toISOString();
-
-    if (isDemoMode) {
-      if (productData.id) {
-        const updatedProduct = {
-          ...productData,
-          updatedAt: now,
-          updatedBy: currentUser.name,
-        } as Product;
-        setProducts(prev => prev.map(p => (p.id === productData.id ? updatedProduct : p)));
-        if (detailProduct?.id === productData.id) setDetailProduct(updatedProduct);
-        if (editingProduct?.id === productData.id) setEditingProduct(null);
-      } else {
-        const newProduct = {
-          ...productData,
-          id: `demo-${Date.now()}`,
-          createdAt: now,
-          updatedAt: now,
-          updatedBy: currentUser.name,
-        } as Product;
-        setProducts(prev => [newProduct, ...prev]);
-      }
-      setIsProductFormOpen(false);
-      return;
-    }
 
     if (productData.id) {
       unmarkProductAsDeleted(productData.id);
@@ -1005,14 +844,6 @@ export default function App() {
   };
 
   const handleDeleteProduct = (product: Product) => {
-    if (isDemoMode) {
-      setProducts(prev => prev.filter(p => p.id !== product.id));
-      removeByProductId(product.id);
-      if (detailProduct?.id === product.id) setDetailProduct(null);
-      setProductToDelete(null);
-      return;
-    }
-
     // 0. Mark permanently as deleted so it can never be resurrected
     markProductAsDeleted(product.id);
 
@@ -1516,9 +1347,6 @@ export default function App() {
 
   const handleSaveCompany = (updatedCompany: CompanyProfile) => {
     setCompany(updatedCompany);
-    if (isDemoMode) {
-      return;
-    }
     saveCompany(updatedCompany);
     saveCompanyToFirestore(updatedCompany);
     addActivity(
@@ -1759,9 +1587,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-100 text-slate-900 selection:bg-orange-500 selection:text-white">
-      {/* Generic Store Demo Mode Banner */}
-      {isDemoMode && <DemoModeBanner onExitDemo={handleExitDemoMode} />}
-
       {/* ---------------- PUBLIC STOREFRONT MODE (CLIENTES) ---------------- */}
       {appMode === 'store' ? (
         <>
@@ -1774,8 +1599,6 @@ export default function App() {
             onOpenCart={() => setIsCustomerCartOpen(true)}
             onOpenCatalogPDF={() => setIsExportModalOpen(true)}
             onSwitchToStaffMode={handleRequestStaffMode}
-            isDemoMode={isDemoMode}
-            onToggleDemoMode={() => (isDemoMode ? handleExitDemoMode() : handleEnterDemoMode())}
           />
 
           <PublicStoreView
@@ -1792,10 +1615,8 @@ export default function App() {
             onSwitchToStaffMode={handleRequestStaffMode}
             onOpenLegalModal={handleOpenLegalModal}
             onOpenCart={() => setIsCustomerCartOpen(true)}
-            onOpenSitemap={() => setIsSitemapModalOpen(true)}
             cartCount={cartItemCount}
             cartTotal={cartSubtotal}
-            isDemoMode={isDemoMode}
           />
 
           {/* Customer Cart Drawer */}
@@ -2784,22 +2605,7 @@ export default function App() {
         )}
       </Suspense>
 
-      {/* 13. Visual Site Map & XML Sitemap Modal */}
-      <SiteMapModal
-        isOpen={isSitemapModalOpen}
-        onClose={() => setIsSitemapModalOpen(false)}
-        products={products}
-        categories={categories}
-        company={company}
-        isDemoMode={isDemoMode}
-        onSelectCategory={setSelectedCategory}
-        onOpenProductDetail={setDetailProduct}
-        onOpenLegalModal={handleOpenLegalModal}
-        onOpenCart={() => setIsCustomerCartOpen(true)}
-        onSwitchToStaffMode={handleRequestStaffMode}
-      />
-
-      {/* 14. Toast Notification when adding product to cart */}
+      {/* 13. Toast Notification when adding product to cart */}
       <CartConfirmationToast
         toast={cartToast}
         onClose={clearCartToast}

@@ -1,0 +1,153 @@
+{
+  "entities": {
+    "Product": {
+      "title": "Product",
+      "description": "Equipment product item in Titufaris catalog",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "sku": { "type": "string" },
+        "name": { "type": "string" },
+        "category": { "type": "string" },
+        "description": { "type": "string" },
+        "costPrice": { "type": "number" },
+        "wholesalePrice": { "type": "number" },
+        "retailPrice": { "type": "number" },
+        "stock": { "type": "number" },
+        "minStock": { "type": "number" },
+        "unit": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "barcode": { "type": "string" },
+        "featured": { "type": "boolean" },
+        "active": { "type": "boolean" },
+        "updatedAt": { "type": "string" },
+        "updatedBy": { "type": "string" }
+      },
+      "required": ["id", "sku", "name", "category", "retailPrice", "stock"]
+    },
+    "Category": {
+      "title": "Category",
+      "description": "Product category",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "icon": { "type": "string" },
+        "color": { "type": "string" }
+      },
+      "required": ["id", "name"]
+    },
+    "CompanyProfile": {
+      "title": "CompanyProfile",
+      "description": "Titufaris commercial contact and identity profile",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "tagline": { "type": "string" },
+        "cuit": { "type": "string" },
+        "address": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "website": { "type": "string" },
+        "whatsappCatalogUrl": { "type": "string" },
+        "showWhatsAppCatalogButton": { "type": "boolean" }
+      },
+      "required": ["name"]
+    },
+    "Sale": {
+      "title": "Sale",
+      "description": "Point of sale or quote transaction record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "date": { "type": "string" },
+        "total": { "type": "number" },
+        "paymentMethod": { "type": "string" },
+        "status": { "type": "string" }
+      },
+      "required": ["id", "date", "total"]
+    },
+    "User": {
+      "title": "User",
+      "description": "Authorized staff user account with credentials and role",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string" },
+        "status": { "type": "string" },
+        "password": { "type": "string" },
+        "mustChangePassword": { "type": "boolean" },
+        "lastActive": { "type": "string" }
+      },
+      "required": ["id", "name", "email", "role"]
+    },
+    "ActivityLog": {
+      "title": "ActivityLog",
+      "description": "System audit and activity log entry",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "userRole": { "type": "string" },
+        "action": { "type": "string" },
+        "title": { "type": "string" },
+        "details": { "type": "string" },
+        "productId": { "type": "string" },
+        "amount": { "type": "number" }
+      },
+      "required": ["id", "timestamp", "userName", "action", "title"]
+    },
+    "Customer": {
+      "title": "Customer",
+      "description": "Customer remarketing profile and purchase summary",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "doc": { "type": "string" },
+        "taxPayerType": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "ordersCount": { "type": "number" },
+        "totalSpent": { "type": "number" }
+      },
+      "required": ["id", "name"]
+    }
+  },
+  "firestore": {
+    "/products/{productId}": {
+      "schema": "Product",
+      "description": "Titufaris commercial products collection"
+    },
+    "/categories/{categoryId}": {
+      "schema": "Category",
+      "description": "Product categories collection"
+    },
+    "/companyProfile/{docId}": {
+      "schema": "CompanyProfile",
+      "description": "Company profile information"
+    },
+    "/sales/{saleId}": {
+      "schema": "Sale",
+      "description": "Sales and quotations orders"
+    },
+    "/customers/{customerId}": {
+      "schema": "Customer",
+      "description": "Customer profiles and remarketing database"
+    },
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Staff users and credentials"
+    },
+    "/activityLogs/{logId}": {
+      "schema": "ActivityLog",
+      "description": "Audit and activity trail"
+    }
+  }
+}
+

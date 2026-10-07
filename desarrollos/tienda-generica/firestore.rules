@@ -1,0 +1,86 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions for data validation
+    function isValidString(val, minLen, maxLen) {
+      return val is string && val.size() >= minLen && val.size() <= maxLen;
+    }
+
+    function isNonNegativeNumber(val) {
+      return (val is int || val is float) && val >= 0;
+    }
+
+    // Products catalog: Public catalog viewable by anyone, write validated strictly
+    match /products/{productId} {
+      allow read: if true;
+      allow create, update: if request.resource.data.keys().hasAll(['id', 'name', 'retailPrice', 'stock'])
+        && isValidString(request.resource.data.id, 1, 100)
+        && isValidString(request.resource.data.name, 1, 300)
+        && isNonNegativeNumber(request.resource.data.retailPrice)
+        && isNonNegativeNumber(request.resource.data.stock);
+      allow delete: if true;
+    }
+
+    // Product categories: Publicly readable, validated writes
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow create, update: if request.resource.data.keys().hasAll(['id', 'name'])
+        && isValidString(request.resource.data.id, 1, 100)
+        && isValidString(request.resource.data.name, 1, 150);
+      allow delete: if true;
+    }
+
+    // Company contact details and configuration: Publicly readable, validated writes
+    match /companyProfile/{docId} {
+      allow read: if true;
+      allow create, update: if request.resource.data.keys().hasAll(['name', 'phone'])
+        && isValidString(request.resource.data.name, 1, 200)
+        && isValidString(request.resource.data.phone, 1, 50);
+      allow delete: if true;
+    }
+
+    // Sales and orders records: Created by storefront checkout and POS terminal
+    match /sales/{saleId} {
+      allow read: if true;
+      allow create: if request.resource.data.keys().hasAll(['id', 'receiptNumber', 'total', 'items'])
+        && isValidString(request.resource.data.id, 1, 100)
+        && isValidString(request.resource.data.receiptNumber, 1, 100)
+        && isNonNegativeNumber(request.resource.data.total)
+        && request.resource.data.items is list;
+      allow update, delete: if true;
+    }
+
+    // Customer remarketing profiles and CRM
+    match /customers/{customerId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Authorized staff users
+    match /users/{userId} {
+      allow read: if true;
+      allow write: if request.resource.data.keys().hasAll(['id', 'name', 'email', 'role'])
+        && isValidString(request.resource.data.id, 1, 100)
+        && isValidString(request.resource.data.name, 1, 150)
+        && isValidString(request.resource.data.email, 3, 150)
+        && request.resource.data.role in ['admin', 'supervisor', 'cajero', 'vendedor'];
+    }
+
+    // System activity logs / audit trail
+    match /activityLogs/{logId} {
+      allow read: if true;
+      allow create: if request.resource.data.keys().hasAll(['id', 'timestamp', 'userName', 'action', 'title'])
+        && isValidString(request.resource.data.id, 1, 100)
+        && isValidString(request.resource.data.timestamp, 1, 100)
+        && isValidString(request.resource.data.userName, 1, 150)
+        && isValidString(request.resource.data.title, 1, 250);
+      allow update, delete: if true;
+    }
+
+    // Connection health check
+    match /test/{docId} {
+      allow read, write: if true;
+    }
+  }
+}

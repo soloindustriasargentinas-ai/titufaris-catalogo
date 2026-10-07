@@ -3,8 +3,8 @@ import { CompanyProfile, Product, Category, User, ActivityLog, PushNotification,
 export const initialCompany: CompanyProfile = {
   name: 'Titufaris',
   tagline: 'EQUIPAMIENTO COMERCIAL & LAYOUT',
-  legalName: 'Titufaris Soluciones Comerciales S.R.L.',
-  taxId: '30-71648291-8',
+  legalName: 'Marta Irene Carrera',
+  taxId: '27-25578358-6',
   address: 'Av. Juan B. Justo 4850, Parque Industrial',
   city: 'Córdoba / Buenos Aires, Argentina',
   phone: '+54 9 11 5824-9100',
@@ -16,14 +16,19 @@ export const initialCompany: CompanyProfile = {
     bank: 'Banco Santander Río',
     alias: 'TITUFARIS.EQUIPAMIENTO',
     cbu: '0720045820000001849201',
-    holder: 'Titufaris Soluciones Comerciales S.R.L.',
+    holder: 'Marta Irene Carrera',
     mercadoPagoAlias: 'TITUFARIS.MP',
     mercadoPagoLink: 'https://link.mercadopago.com.ar/titufaris'
   },
   catalogNotes: 'Precios sujetos a variaciones sin previo aviso. Diseños a medida y renders de layout incluidos en proyectos integrales. Envíos a todo el país y armado en obra.',
   termsAndConditions: 'Garantía estructural de 12 meses. Formas de pago: Transferencia bancaria, eCheq, tarjeta de crédito y Mercado Pago. Descuentos por volumen para compras mayoristas a partir de 10 unidades.',
   whatsappCatalogUrl: 'https://wa.me/c/5491158249100',
-  showWhatsAppCatalogButton: true
+  showWhatsAppCatalogButton: true,
+  heroTitle: 'Instalaciones comerciales e industriales: Góndolas, Estanterías Metálicas, Racks y Lockers',
+  heroSubtitle: 'Fabricación directa de soluciones de exhibición y almacenamiento: Góndolas comerciales reforzadas, Estanterías Metálicas de alta durabilidad, Racks Livianos para carga manual, Racks Selectivos para cargas pesadas paletizadas, Lockers y Guardarropas para personal e instituciones, y Otros Productos a medida. Asesoramiento técnico en layouts y envíos a todo el país.',
+  heroImageUrl: 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&w=1200&q=80',
+  heroCtaText: 'Asesoramiento por WhatsApp',
+  metaDescription: 'Fabricación directa de góndolas comerciales, estanterías metálicas, racks y lockers para comercios e industrias. Envíos a todo el país y atención personalizada.'
 };
 
 export const initialCategories: Category[] = [
@@ -1265,7 +1270,7 @@ export const DEFAULT_INITIAL_PASSWORD = 'Titufaris2025!';
 export const initialUsers: User[] = [
   {
     id: 'usr-1',
-    name: 'Administrador Titufaris',
+    name: 'Roberto Martínez',
     email: 'admin@titufaris.com.ar',
     role: 'admin',
     avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
@@ -1285,8 +1290,8 @@ export const initialUsers: User[] = [
   },
   {
     id: 'usr-2',
-    name: 'Carolina Gómez',
-    email: 'carolina@titufaris.com.ar',
+    name: 'Ana Morales',
+    email: 'ana.morales@titufaris.com.ar',
     role: 'supervisor',
     avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=200&q=80',
     status: 'active',
