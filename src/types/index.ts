@@ -101,6 +101,14 @@ export interface CompanyProfile {
   heroImageUrl?: string;
   heroCtaText?: string;
   metaDescription?: string;
+
+  // Redes Sociales Oficiales
+  socialLinks?: {
+    instagram?: string;
+    facebook?: string;
+    linkedin?: string;
+    tiktok?: string;
+  };
 }
 
 export interface MetaCatalogConfig {

@@ -1,14 +1,22 @@
 import { Product, CompanyProfile } from '../types';
 import { getPublicStoreBaseUrl } from './qrCode';
 import { formatCurrency } from './storage';
+import { slugify } from './seoAndRouting';
 
 /**
  * Returns the unique, canonical shareable URL for a specific product in the online store.
- * Example: https://titufaris.online/?p=prod_12345
+ * The link contains a descriptive human-readable slug and the product identifier.
+ * Example: https://titufaris.online/?producto=gondola-central-doble-reforzada-sku-gon-01&p=prod_12345
  */
 export function getProductShareUrl(product: Product, baseUrl?: string): string {
   const origin = getPublicStoreBaseUrl(baseUrl);
-  return `${origin}/?p=${encodeURIComponent(product.id)}`;
+  const nameSlug = slugify(product.name);
+  const skuSlug = product.sku ? slugify(product.sku) : '';
+  const descriptiveSlug = skuSlug && !nameSlug.includes(skuSlug)
+    ? `${nameSlug}-sku-${skuSlug}`
+    : nameSlug;
+
+  return `${origin}/?producto=${encodeURIComponent(descriptiveSlug)}&p=${encodeURIComponent(product.id)}`;
 }
 
 /**

@@ -249,13 +249,19 @@ export default function App() {
   const [isDemoMode, setIsDemoMode] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
     try {
+      const hostname = window.location.hostname.toLowerCase();
+      // tiendas.titufaris.online siempre muestra la tienda genérica con la oferta de 3 meses gratis
+      if (hostname === 'tiendas.titufaris.online' || hostname === 'www.tiendas.titufaris.online') {
+        return true;
+      }
       const p = new URLSearchParams(window.location.search);
       return (
         p.get('demo') === 'generica' ||
         p.get('demo') === 'true' ||
         p.get('demo') === '1' ||
         p.get('tienda') === 'demo' ||
-        p.get('tienda') === 'generica'
+        p.get('tienda') === 'generica' ||
+        p.get('tienda') === 'tiendas'
       );
     } catch {
       return false;
@@ -346,6 +352,11 @@ export default function App() {
   const [activeTenantId, setActiveTenantIdState] = useState<string>(getActiveTenantId);
   const [isMasterPanelOpen, setIsMasterPanelOpen] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
+    const hostname = window.location.hostname.toLowerCase();
+    // admin.titufaris.online abre directamente las herramientas de administración de la SaaS con contraseña
+    if (hostname === 'admin.titufaris.online' || hostname === 'www.admin.titufaris.online') {
+      return true;
+    }
     const p = new URLSearchParams(window.location.search);
     return p.get('panel') === 'maestro' || p.get('admin') === 'saas' || p.get('saas') === '1';
   });
@@ -506,9 +517,14 @@ export default function App() {
     const currentUrl = new URL(window.location.href);
 
     if (detailProduct) {
-      // Product Detail View
-      const prodSlug = slugify(detailProduct.name);
-      currentUrl.searchParams.set('producto', prodSlug);
+      // Product Detail View: URL descriptiva con nombre y SKU
+      const nameSlug = slugify(detailProduct.name);
+      const skuSlug = detailProduct.sku ? slugify(detailProduct.sku) : '';
+      const descriptiveSlug = skuSlug && !nameSlug.includes(skuSlug)
+        ? `${nameSlug}-sku-${skuSlug}`
+        : nameSlug;
+
+      currentUrl.searchParams.set('producto', descriptiveSlug);
       currentUrl.searchParams.set('p', detailProduct.id);
       currentUrl.searchParams.delete('vista');
       window.history.replaceState({ productId: detailProduct.id }, '', currentUrl.toString());
@@ -1863,7 +1879,12 @@ export default function App() {
       )}
 
       {/* Generic Store Demo Mode Banner */}
-      {isDemoMode && <DemoModeBanner onExitDemo={handleExitDemoMode} />}
+      {isDemoMode && (
+        <DemoModeBanner
+          onExitDemo={handleExitDemoMode}
+          onOpenCreateStore={() => setIsCreateTenantModalOpen(true)}
+        />
+      )}
 
       {/* ---------------- PUBLIC STOREFRONT MODE (CLIENTES) ---------------- */}
       {appMode === 'store' ? (

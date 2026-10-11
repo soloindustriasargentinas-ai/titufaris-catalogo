@@ -50,6 +50,50 @@ export const initialSaaSTenants: SaaSTenantStore[] = [
     }
   },
   {
+    id: 'demo-generica',
+    name: 'Mi Tienda Online — Modelo Genérico',
+    slug: 'tiendas',
+    customDomain: 'tiendas.titufaris.online',
+    domainStatus: 'ssl_active',
+    domainConfig: {
+      domain: 'tiendas.titufaris.online',
+      status: 'ssl_active',
+      sslActive: true,
+      sslIssuer: "Let's Encrypt Authority X3",
+      sslExpiresAt: '2026-12-31T23:59:59.000Z',
+      forceHttps: true,
+      verificationToken: 'tiendas-verify=saas-portal-generic-key',
+      dnsRecords: [
+        { type: 'CNAME', name: 'tiendas', target: 'cname.titufaris.online', status: 'resolved', ttl: 3600, description: 'Portal de Tiendas Genérica y SaaS' }
+      ],
+      verifiedAt: '2025-01-10T12:00:00.000Z',
+      lastDnsCheckAt: new Date().toISOString()
+    },
+    ownerName: 'Plataforma SaaS Titufaris',
+    ownerEmail: 'contacto@tiendas.titufaris.online',
+    ownerPhone: '+54 9 11 5829-4310',
+    planId: 'trial',
+    subscriptionStatus: 'trial',
+    pricePerMonthARS: 0,
+    billingCycle: 'monthly',
+    mercadoPagoSubscriptionId: 'TRIAL-90D-FREE-TIENDAS',
+    createdAt: '2025-01-01T10:00:00.000Z',
+    trialEndsAt: new Date(Date.now() + 3600000 * 24 * 90).toISOString(),
+    nextBillingDate: new Date(Date.now() + 3600000 * 24 * 90).toISOString(),
+    notes: 'Portal oficial de demostración y onboarding SaaS (tiendas.titufaris.online). Catálogo multirubro, carrito y 3 meses gratis.',
+    technicalHealth: {
+      status: 'healthy',
+      productsCount: 12,
+      categoriesCount: 4,
+      salesCount: 35,
+      lastSyncAt: new Date().toISOString(),
+      storageKB: 120,
+      maintenanceMode: false,
+      issuesDetected: [],
+      lastDiagnosticAt: new Date().toISOString()
+    }
+  },
+  {
     id: 'bazar-gourmet',
     name: 'Bazar Gourmet & Café',
     slug: 'bazargourmet',

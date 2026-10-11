@@ -91,6 +91,18 @@ export function getActiveTenantId(): string {
     // 2. Check window.location.hostname in production or custom domain mapping
     const hostname = window.location.hostname.toLowerCase().trim();
     if (hostname && hostname !== 'localhost' && !hostname.endsWith('.run.app') && !hostname.includes('webcontainer')) {
+      // Subdominio especial: tiendas.titufaris.online muestra la tienda genérica SaaS
+      if (hostname === 'tiendas.titufaris.online' || hostname === 'www.tiendas.titufaris.online') {
+        const genericMatch = tenants.find(t => t.id === 'demo-generica' || t.slug === 'generica' || t.slug === 'mitienda');
+        if (genericMatch) return genericMatch.id;
+        return 'demo-generica';
+      }
+
+      // Subdominio especial: admin.titufaris.online (panel maestro SaaS de administración)
+      if (hostname === 'admin.titufaris.online' || hostname === 'www.admin.titufaris.online') {
+        return 'titufaris';
+      }
+
       // Direct custom domain match
       const matchedDomain = tenants.find(t => {
         if (!t.customDomain) return false;

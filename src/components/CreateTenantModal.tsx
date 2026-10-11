@@ -72,11 +72,12 @@ export const CreateTenantModal: React.FC<CreateTenantModalProps> = ({
 
     try {
       const now = new Date();
+      // Período de prueba de 3 meses gratis (90 días)
       const trialEnds = new Date();
-      trialEnds.setDate(trialEnds.getDate() + 14);
+      trialEnds.setDate(trialEnds.getDate() + 90);
 
       const nextBilling = new Date();
-      nextBilling.setDate(nextBilling.getDate() + 30);
+      nextBilling.setDate(nextBilling.getDate() + 90);
 
       const priceMap: Record<SaaSPlanId, number> = {
         trial: 0,
@@ -94,10 +95,10 @@ export const CreateTenantModal: React.FC<CreateTenantModalProps> = ({
         ownerEmail: ownerEmail.trim(),
         ownerPhone: ownerPhone.trim(),
         planId: selectedPlan,
-        subscriptionStatus: selectedPlan === 'trial' ? 'trial' : 'active',
+        subscriptionStatus: 'trial', // Inicia siempre en período de prueba gratuito bonificado
         pricePerMonthARS: priceMap[selectedPlan],
         billingCycle: 'monthly',
-        mercadoPagoSubscriptionId: 'MP-SUB-' + Math.random().toString(36).substring(2, 9).toUpperCase(),
+        mercadoPagoSubscriptionId: 'TRIAL-90D-' + Math.random().toString(36).substring(2, 9).toUpperCase(),
         createdAt: now.toISOString(),
         trialEndsAt: trialEnds.toISOString(),
         nextBillingDate: nextBilling.toISOString(),
@@ -112,7 +113,7 @@ export const CreateTenantModal: React.FC<CreateTenantModalProps> = ({
           issuesDetected: [],
           lastDiagnosticAt: now.toISOString()
         },
-        notes: `Tienda creada en onboarding. Rubro seleccionado: ${categoryPreset}.`
+        notes: `Tienda creada con 3 meses gratis sin tarjeta. Rubro: ${categoryPreset}. Plan posterior elegido: ${selectedPlan.toUpperCase()}.`
       };
 
       // Guardar en Firestore y local
@@ -151,9 +152,14 @@ export const CreateTenantModal: React.FC<CreateTenantModalProps> = ({
               <Store className="w-6 h-6 text-sky-300" />
             </div>
             <div>
-              <h2 className="text-xl font-bold tracking-tight">Crear Nueva Tienda Online SaaS</h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl font-bold tracking-tight">Crear Tienda Online</h2>
+                <span className="bg-emerald-400 text-slate-950 text-[10px] font-black uppercase px-2 py-0.5 rounded-full">
+                  🎁 3 Meses Gratis
+                </span>
+              </div>
               <p className="text-xs text-blue-100">
-                Paso {step} de 3 &middot; Onboarding con suscripción Mercado Pago
+                Paso {step} de 3 &middot; Sin tarjeta de crédito ni débito en el período de prueba
               </p>
             </div>
           </div>
@@ -362,13 +368,13 @@ export const CreateTenantModal: React.FC<CreateTenantModalProps> = ({
                 </div>
               </div>
 
-              {/* Mercado Pago pre-authorization info */}
-              <div className="bg-slate-900 text-white p-4 rounded-xl space-y-2 text-xs">
-                <div className="flex items-center gap-2 text-sky-400 font-bold">
-                  <CreditCard className="w-4 h-4" /> Integración Recurrente con Mercado Pago
+              {/* Free Trial & Subscription info */}
+              <div className="bg-gradient-to-r from-emerald-950 via-slate-900 to-indigo-950 text-white p-4 rounded-xl space-y-2 text-xs border border-emerald-500/30">
+                <div className="flex items-center gap-2 text-emerald-400 font-bold">
+                  <ShieldCheck className="w-4 h-4 text-emerald-400" /> 3 Meses 100% Bonificados — Sin Tarjeta Requerida
                 </div>
                 <p className="text-slate-300">
-                  Al completar el alta, la tienda quedará aprovisionada en Firestore y configurada para el ciclo de cobro mensual mediante Mercado Pago. El titular podrá gestionar sus métodos de pago en cualquier momento.
+                  Tu tienda quedará creada de inmediato en Firestore y activa por <strong>90 días sin costo alguno</strong>. Durante este período de prueba <strong>no se te solicitará tarjeta de crédito ni de débito</strong>. Al finalizar los 3 meses podrás adherirte al plan elegido mediante débito de Mercado Pago para continuar operando.
                 </p>
               </div>
 

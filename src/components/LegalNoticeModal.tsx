@@ -165,9 +165,19 @@ export const LegalNoticeModal: React.FC<LegalNoticeModalProps> = ({
               </section>
 
               <section className="space-y-1.5">
-                <h3 className="font-black text-slate-900 text-sm">4. Almacenamiento Local (IndexedDB & LocalStorage)</h3>
+                <h3 className="font-black text-slate-900 text-sm">4. Política de Cookies y Almacenamiento Local (LocalStorage)</h3>
                 <p className="text-slate-600 text-xs">
-                  Esta plataforma web utiliza tecnologías de almacenamiento local en su propio navegador para permitir que su carrito de compras persista entre sesiones y para almacenar en caché las imágenes de los productos, garantizando una navegación ultrarrápida y catálogo disponible aún con conexión inestable.
+                  Para brindar una experiencia de compra fluida y confiable, este sitio web utiliza <strong>cookies técnicas esenciales</strong> y tecnologías de <strong>almacenamiento local del navegador (LocalStorage / SessionStorage)</strong> en el dispositivo de cada usuario que visita la web.
+                </p>
+                <div className="bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs text-slate-600 space-y-1">
+                  <p><strong>¿Qué datos se guardan en su equipo y para qué?</strong></p>
+                  <ul className="list-disc pl-4 space-y-0.5">
+                    <li><strong>Persistencia del Carrito de Compras:</strong> Los artículos y cantidades que usted agrega se guardan en el <em>LocalStorage</em> de su navegador. De esta manera, si usted cierra la pestaña, apaga la pantalla de su teléfono o sale del navegador, los productos seleccionados permanecen intactos al regresar sin necesidad de registrarse.</li>
+                    <li><strong>Cookies Técnicas de Navegación:</strong> Se utilizan exclusivamente cookies de sesión técnica indispensables para el funcionamiento y seguridad de la plataforma. No utilizamos cookies de rastreo invasivo de terceros ni vendemos información de navegación a redes publicitarias externas.</li>
+                  </ul>
+                </div>
+                <p className="text-slate-500 text-[11px]">
+                  Usted puede borrar su carrito o vaciar el almacenamiento local en cualquier momento haciendo clic en "Vaciar Carrito" o mediante la configuración de privacidad y limpieza de cookies de su navegador web.
                 </p>
               </section>
             </div>

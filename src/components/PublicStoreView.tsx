@@ -26,6 +26,9 @@ import {
   Edit3,
   Layers,
   Check,
+  Instagram,
+  Facebook,
+  Linkedin,
 } from 'lucide-react';
 import { Product, Category, CompanyProfile } from '../types';
 import { formatCurrency } from '../utils/storage';
@@ -998,7 +1001,7 @@ export const PublicStoreView: React.FC<PublicStoreViewProps> = ({
 
       {/* Public Footer */}
       <footer id="public-store-footer" className="mt-20 border-t border-slate-200 bg-white pt-12 pb-8 px-4 sm:px-6 text-slate-600">
-        <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
+        <div className="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8 mb-8">
           <div className="space-y-3">
             {company.logo ? (
               <img
@@ -1052,6 +1055,68 @@ export const PublicStoreView: React.FC<PublicStoreViewProps> = ({
                   </a>
                 </li>
               ))}
+            </ul>
+          </div>
+
+          {/* Columna: Redes Sociales Oficiales */}
+          <div className="space-y-2">
+            <h4 className="text-xs font-bold uppercase text-slate-900 tracking-wider">
+              Redes Sociales
+            </h4>
+            <p className="text-[11px] text-slate-500">
+              Seguinos en nuestras plataformas oficiales:
+            </p>
+            <ul className="text-xs space-y-2.5 text-slate-600 pt-0.5">
+              <li>
+                <a
+                  href={company.socialLinks?.instagram || 'https://instagram.com/titufaris'}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-2 text-slate-600 hover:text-pink-600 transition-colors py-0.5 group cursor-pointer"
+                  title="Seguinos en Instagram"
+                >
+                  <Instagram className="w-4 h-4 text-pink-500 group-hover:scale-115 transition-transform shrink-0" />
+                  <span className="font-medium group-hover:underline">Instagram</span>
+                </a>
+              </li>
+              <li>
+                <a
+                  href={company.socialLinks?.facebook || 'https://facebook.com/titufaris'}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-2 text-slate-600 hover:text-blue-600 transition-colors py-0.5 group cursor-pointer"
+                  title="Seguinos en Facebook"
+                >
+                  <Facebook className="w-4 h-4 text-blue-600 group-hover:scale-115 transition-transform shrink-0" />
+                  <span className="font-medium group-hover:underline">Facebook</span>
+                </a>
+              </li>
+              <li>
+                <a
+                  href={company.socialLinks?.linkedin || 'https://linkedin.com/company/titufaris'}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-2 text-slate-600 hover:text-sky-700 transition-colors py-0.5 group cursor-pointer"
+                  title="Conectá con nosotros en LinkedIn"
+                >
+                  <Linkedin className="w-4 h-4 text-sky-700 group-hover:scale-115 transition-transform shrink-0" />
+                  <span className="font-medium group-hover:underline">LinkedIn</span>
+                </a>
+              </li>
+              <li>
+                <a
+                  href={company.socialLinks?.tiktok || 'https://tiktok.com/@titufaris'}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-2 text-slate-600 hover:text-slate-950 transition-colors py-0.5 group cursor-pointer"
+                  title="Mirá nuestros videos y novedades en TikTok"
+                >
+                  <span className="w-4 h-4 flex items-center justify-center font-bold text-xs text-slate-900 group-hover:scale-115 transition-transform shrink-0">
+                    🎵
+                  </span>
+                  <span className="font-medium group-hover:underline">TikTok</span>
+                </a>
+              </li>
             </ul>
           </div>
 

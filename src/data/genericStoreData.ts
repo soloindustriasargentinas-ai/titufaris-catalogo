@@ -28,7 +28,13 @@ export const genericCompany: CompanyProfile = {
   heroSubtitle: 'Demostración de catálogo comercial moderno: diseño ultra responsivo, sincronización instantánea de stock, listas de precios mayorista/minorista, pasarela de cobros y pedidos directos a WhatsApp para potenciar las ventas de tu negocio.',
   heroImageUrl: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=1200&q=80',
   heroCtaText: 'Hacer Consulta por WhatsApp',
-  metaDescription: 'Catálogo digital interactivo, pasarela de cobros y punto de venta para empresas. Pedidos automáticos por WhatsApp y control de inventario en vivo.'
+  metaDescription: 'Catálogo digital interactivo, pasarela de cobros y punto de venta para empresas. Pedidos automáticos por WhatsApp y control de inventario en vivo.',
+  socialLinks: {
+    instagram: 'https://instagram.com/mitienda',
+    facebook: 'https://facebook.com/mitienda',
+    linkedin: 'https://linkedin.com/company/mitienda',
+    tiktok: 'https://tiktok.com/@mitienda'
+  }
 };
 
 export const genericCategories: Category[] = [

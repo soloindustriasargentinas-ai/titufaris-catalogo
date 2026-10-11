@@ -232,6 +232,48 @@ export const MasterAdminPanelModal: React.FC<MasterAdminPanelModalProps> = ({
   const [simulatedTenantId, setSimulatedTenantId] = useState<string>(tenants[0]?.id || '');
   const [simulatedEventType, setSimulatedEventType] = useState<'approved' | 'rejected' | 'canceled' | 'reactivated'>('approved');
 
+  // Master SaaS Security Gate / Authentication (admin.titufaris.online)
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    try {
+      return sessionStorage.getItem('titufaris_master_auth') === 'true';
+    } catch {
+      return false;
+    }
+  });
+  const [authUsername, setAuthUsername] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
+  const [authError, setAuthError] = useState<string | null>(null);
+
+  const handleMasterLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanUser = authUsername.trim().toLowerCase();
+    const cleanPass = authPassword.trim();
+    // Credenciales de acceso master del administrador de la plataforma
+    if (
+      (cleanUser === 'admin' || cleanUser === 'superadmin' || cleanUser === 'titufaris' || cleanUser === 'soloindustriasargentinas@gmail.com') &&
+      (cleanPass === 'admin1234' || cleanPass === 'titufaris2026' || cleanPass === 'master2026' || cleanPass === 'admin')
+    ) {
+      setIsAuthenticated(true);
+      setAuthError(null);
+      try {
+        sessionStorage.setItem('titufaris_master_auth', 'true');
+      } catch {}
+      showToast('Sesión de Administrador Maestro iniciada correctamente');
+    } else {
+      setAuthError('Usuario o contraseña incorrectos. Verifique sus credenciales maestras.');
+    }
+  };
+
+  const handleMasterLogout = () => {
+    setIsAuthenticated(false);
+    try {
+      sessionStorage.removeItem('titufaris_master_auth');
+    } catch {}
+    setAuthUsername('');
+    setAuthPassword('');
+  };
+
   const metrics: SaaSBillingMetrics = calculateSaaSBillingMetrics(tenants);
 
   const showToast = (msg: string) => {
@@ -677,6 +719,103 @@ export const MasterAdminPanelModal: React.FC<MasterAdminPanelModalProps> = ({
     showToast(`Tienda "${newStore.name}" creada y registrada en Firestore`);
   };
 
+  if (!isAuthenticated) {
+    return (
+      <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
+        <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-md overflow-hidden text-slate-800 animate-in zoom-in-95">
+          {/* Header */}
+          <div className="bg-gradient-to-r from-slate-950 via-indigo-950 to-slate-900 text-white p-6 relative">
+            <button
+              onClick={onClose}
+              className="absolute top-5 right-5 p-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+            <div className="w-14 h-14 rounded-2xl bg-indigo-500/20 border border-indigo-400/40 flex items-center justify-center text-indigo-300 mb-3 shadow-inner">
+              <Lock className="w-7 h-7 text-indigo-400" />
+            </div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-xl font-black text-white">admin.titufaris.online</h2>
+              <span className="bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 text-[10px] font-black px-2 py-0.5 rounded-full">
+                SaaS Master
+              </span>
+            </div>
+            <p className="text-xs text-indigo-200 mt-1">
+              Acceso restringido para el Administrador Maestro de Plataforma y gestión de suscripciones.
+            </p>
+          </div>
+
+          {/* Form */}
+          <form onSubmit={handleMasterLogin} className="p-6 space-y-4">
+            {authError && (
+              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-center gap-2 animate-shake">
+                <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                <span>{authError}</span>
+              </div>
+            )}
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Usuario o Email de Administrador *
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  required
+                  value={authUsername}
+                  onChange={e => setAuthUsername(e.target.value)}
+                  placeholder="admin o superadmin"
+                  className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50 focus:bg-white"
+                  autoFocus
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Contraseña de Seguridad Maestra *
+              </label>
+              <div className="relative">
+                <input
+                  type="password"
+                  required
+                  value={authPassword}
+                  onChange={e => setAuthPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50 focus:bg-white"
+                />
+              </div>
+            </div>
+
+            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-[11px] text-slate-500 flex items-start gap-2">
+              <ShieldCheck className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
+              <span>
+                Acceso exclusivo para gestión técnica de tiendas, asignación de dominios, control de bajas y métricas de facturación Mercado Pago.
+              </span>
+            </div>
+
+            <div className="pt-2 flex items-center justify-between gap-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:text-slate-900 transition cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-slate-900 hover:from-indigo-500 hover:to-slate-800 text-white font-bold text-xs shadow-md transition cursor-pointer flex items-center gap-2"
+              >
+                <Key className="w-3.5 h-3.5 text-amber-300" />
+                <span>Ingresar al Panel Maestro</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 animate-in fade-in duration-200">
       <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-6xl max-h-[94vh] flex flex-col overflow-hidden text-slate-800">
@@ -703,6 +842,15 @@ export const MasterAdminPanelModal: React.FC<MasterAdminPanelModalProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Cerrar Sesión Maestra */}
+            <button
+              onClick={handleMasterLogout}
+              className="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-rose-500/20 text-slate-300 hover:text-rose-200 text-xs font-semibold transition border border-white/20 hover:border-rose-400/40 cursor-pointer"
+              title="Cerrar sesión de Administrador Maestro"
+            >
+              <span>🔒 Salir</span>
+            </button>
+
             {/* Quick Button to Switch back to Flagship Titufaris Store */}
             <button
               onClick={() => {

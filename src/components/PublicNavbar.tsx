@@ -102,24 +102,20 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
               )}
             </button>
 
-            {/* Demo Mode Switcher Button */}
-            {onToggleDemoMode && (
+            {/* On Titufaris Flagship storefront (titufaris.online), do not show direct SaaS or generic store pills */}
+            {isDemoMode && onToggleDemoMode && (
               <button
                 onClick={onToggleDemoMode}
-                title={isDemoMode ? "Volver a Titufaris" : "Ver cómo se ve la tienda genérica para reventa"}
-                className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold transition shadow-xs cursor-pointer ${
-                  isDemoMode
-                    ? "bg-amber-400 hover:bg-amber-300 text-slate-950 font-black"
-                    : "bg-indigo-600/80 hover:bg-indigo-500 text-white border border-indigo-400/40"
-                }`}
+                title="Volver a Titufaris"
+                className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-black transition shadow-xs cursor-pointer bg-amber-400 hover:bg-amber-300 text-slate-950"
               >
                 <Eye className="w-3 h-3" />
-                <span>{isDemoMode ? "🔙 Salir de Demo" : "👁️ Ver Tienda Genérica Demo"}</span>
+                <span>🔙 Volver a Titufaris</span>
               </button>
             )}
 
-            {/* SaaS Plans & Mercado Pago */}
-            {onOpenSubscriptionModal && (
+            {/* SaaS Plans & Create Store pills only appear in Demo / SaaS modes or when explicitly requested */}
+            {isDemoMode && onOpenSubscriptionModal && (
               <button
                 onClick={onOpenSubscriptionModal}
                 title="Ver Planes de Suscripción Mensual con Mercado Pago"
@@ -130,28 +126,14 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
               </button>
             )}
 
-            {/* Create Store Button */}
-            {onOpenCreateTenant && (
+            {isDemoMode && onOpenCreateTenant && (
               <button
                 onClick={onOpenCreateTenant}
-                title="Crear una nueva tienda online SaaS"
+                title="Crear una nueva tienda online SaaS con 3 meses gratis"
                 className="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-black transition shadow-xs cursor-pointer bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white"
               >
-                <span>✨</span>
-                <span className="hidden sm:inline">Crear Mi Tienda</span>
-              </button>
-            )}
-
-            {/* Master Admin Panel Button */}
-            {onOpenMasterPanel && (
-              <button
-                onClick={onOpenMasterPanel}
-                title="Abrir Panel Maestro SaaS (MRR, Tiendas, Facturación y Auditoría)"
-                className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-black transition shadow-xs cursor-pointer bg-gradient-to-r from-amber-500 to-indigo-600 hover:from-amber-400 hover:to-indigo-500 text-white"
-              >
-                <span>👑</span>
-                <span className="hidden sm:inline">Panel Maestro SaaS</span>
-                <span className="sm:hidden">Maestro</span>
+                <span>🎁</span>
+                <span className="hidden sm:inline">Crear Mi Tienda (3 Meses Gratis)</span>
               </button>
             )}
           </div>

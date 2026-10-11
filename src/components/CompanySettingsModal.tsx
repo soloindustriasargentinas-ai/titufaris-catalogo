@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Building2, Save, Check, ShieldCheck, Download, Phone, Globe, Copy, ExternalLink, MessageCircle, Upload, Loader2 } from 'lucide-react';
+import { X, Building2, Save, Check, ShieldCheck, Download, Phone, Globe, Copy, ExternalLink, MessageCircle, Upload, Loader2, Instagram, Facebook, Linkedin, Share2 } from 'lucide-react';
 import { CompanyProfile } from '../types';
 import { normalizeMercadoPagoUrl, getPublicStoreBaseUrl } from '../utils/qrCode';
 import { compressImageFile } from '../utils/imageCompression';
@@ -77,6 +77,16 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
         [field]: value,
       },
     });
+  };
+
+  const handleSocialChange = (network: 'instagram' | 'facebook' | 'linkedin' | 'tiktok', value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      socialLinks: {
+        ...(prev.socialLinks || {}),
+        [network]: value,
+      },
+    }));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -552,6 +562,86 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
                 Mostrar botón destacado "Ver Catálogo en WhatsApp" en la Tienda Pública
               </span>
             </label>
+          </div>
+
+          {/* Redes Sociales Oficiales */}
+          <div className="p-4 bg-orange-50/50 border border-orange-200/90 rounded-2xl space-y-3.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Share2 className="w-4 h-4 text-orange-600" />
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-900">
+                  Redes Sociales Oficiales (Pie de Página)
+                </span>
+              </div>
+              <span className="text-[10px] bg-orange-100 text-orange-800 font-extrabold px-2.5 py-0.5 rounded-full uppercase">
+                Tienda Online
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-600 leading-relaxed">
+              Configura los enlaces directos a las redes sociales de tu empresa. Se mostrarán entre Líneas de Producción y Marco Legal en el pie de página para que tus clientes puedan seguirte:
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+              {/* Instagram */}
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                  <Instagram className="w-3.5 h-3.5 text-pink-600" />
+                  <span>Instagram</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.socialLinks?.instagram || ''}
+                  onChange={e => handleSocialChange('instagram', e.target.value)}
+                  placeholder="https://instagram.com/titufaris"
+                  className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-xl focus:border-orange-500 outline-none text-slate-800"
+                />
+              </div>
+
+              {/* Facebook */}
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                  <Facebook className="w-3.5 h-3.5 text-blue-600" />
+                  <span>Facebook</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.socialLinks?.facebook || ''}
+                  onChange={e => handleSocialChange('facebook', e.target.value)}
+                  placeholder="https://facebook.com/titufaris"
+                  className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-xl focus:border-orange-500 outline-none text-slate-800"
+                />
+              </div>
+
+              {/* LinkedIn */}
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                  <Linkedin className="w-3.5 h-3.5 text-sky-700" />
+                  <span>LinkedIn</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.socialLinks?.linkedin || ''}
+                  onChange={e => handleSocialChange('linkedin', e.target.value)}
+                  placeholder="https://linkedin.com/company/titufaris"
+                  className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-xl focus:border-orange-500 outline-none text-slate-800"
+                />
+              </div>
+
+              {/* TikTok */}
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                  <span className="text-xs font-black">🎵</span>
+                  <span>TikTok</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.socialLinks?.tiktok || ''}
+                  onChange={e => handleSocialChange('tiktok', e.target.value)}
+                  placeholder="https://tiktok.com/@titufaris"
+                  className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-xl focus:border-orange-500 outline-none text-slate-800"
+                />
+              </div>
+            </div>
           </div>
 
           {/* Address */}

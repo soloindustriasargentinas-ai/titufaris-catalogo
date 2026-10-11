@@ -1,5 +1,6 @@
 import QRCode from 'qrcode';
 import { Product } from '../types';
+import { slugify } from './seoAndRouting';
 
 export function getPublicStoreBaseUrl(baseUrl?: string): string {
   if (baseUrl && baseUrl !== 'https://titufaris.com.ar' && baseUrl.startsWith('http')) {
@@ -16,8 +17,7 @@ export function getPublicStoreBaseUrl(baseUrl?: string): string {
 }
 
 export async function generateProductQRCode(product: Product, baseUrl?: string): Promise<string> {
-  const origin = getPublicStoreBaseUrl(baseUrl);
-  const targetUrl = `${origin}?view=product&id=${encodeURIComponent(product.id)}&sku=${encodeURIComponent(product.sku)}&from=qr`;
+  const targetUrl = getProductPublicUrl(product, baseUrl);
 
   try {
     const dataUrl = await QRCode.toDataURL(targetUrl, {
@@ -38,7 +38,13 @@ export async function generateProductQRCode(product: Product, baseUrl?: string):
 
 export function getProductPublicUrl(product: Product, baseUrl?: string): string {
   const origin = getPublicStoreBaseUrl(baseUrl);
-  return `${origin}?view=product&id=${encodeURIComponent(product.id)}&sku=${encodeURIComponent(product.sku)}&from=qr`;
+  const nameSlug = slugify(product.name);
+  const skuSlug = product.sku ? slugify(product.sku) : '';
+  const descriptiveSlug = skuSlug && !nameSlug.includes(skuSlug)
+    ? `${nameSlug}-sku-${skuSlug}`
+    : nameSlug;
+
+  return `${origin}/?producto=${encodeURIComponent(descriptiveSlug)}&p=${encodeURIComponent(product.id)}&sku=${encodeURIComponent(product.sku)}&from=qr`;
 }
 
 export function normalizeMercadoPagoUrl(rawLink?: string): string {

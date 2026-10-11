@@ -1,12 +1,38 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { CartItem, Product } from '../types';
 import { CartToastData } from '../components/CartConfirmationToast';
 import { playBeep } from '../utils/audio';
 
+const CART_STORAGE_KEY = 'titufaris_customer_cart_v1';
+
 export function useCart() {
-  const [cart, setCart] = useState<CartItem[]>([]);
+  const [cart, setCart] = useState<CartItem[]>(() => {
+    try {
+      const saved = localStorage.getItem(CART_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch {
+      // Ignore storage errors in restricted contexts
+    }
+    return [];
+  });
   const [posDiscount, setPosDiscount] = useState<number>(0);
   const [cartToast, setCartToast] = useState<CartToastData | null>(null);
+
+  // Guardar en almacenamiento local cada vez que cambia el carrito
+  useEffect(() => {
+    try {
+      if (cart.length > 0) {
+        localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cart));
+      } else {
+        localStorage.removeItem(CART_STORAGE_KEY);
+      }
+    } catch {
+      // Ignore storage errors in restricted contexts
+    }
+  }, [cart]);
 
   const clearCartToast = useCallback(() => {
     setCartToast(null);

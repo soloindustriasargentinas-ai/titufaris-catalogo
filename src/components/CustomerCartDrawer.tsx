@@ -18,9 +18,12 @@ import {
   Clock,
   CheckCircle2,
   QrCode,
+  FileDown,
+  ArrowLeft,
 } from 'lucide-react';
 import { CartItem, CompanyProfile } from '../types';
 import { formatCurrency } from '../utils/storage';
+import { generateQuotePdf } from '../utils/quotePdf';
 
 interface CustomerCartDrawerProps {
   isOpen: boolean;
@@ -55,18 +58,16 @@ export const CustomerCartDrawer: React.FC<CustomerCartDrawerProps> = ({
   const total = cart.reduce((acc, item) => acc + item.unitPrice * item.quantity, 0);
   const totalItems = cart.reduce((acc, item) => acc + item.quantity, 0);
 
-  // Generate customized WhatsApp Order Message
-  const handleSendWhatsAppOrder = () => {
-    if (cart.length === 0) return;
-
-    let text = `*SOLICITUD DE PEDIDO / PRESUPUESTO — TITUFARIS*\n`;
-    text += `-------------------------------------------\n`;
-    if (customerName.trim()) text += `👤 *Cliente:* ${customerName.trim()}\n`;
-    if (customerPhone.trim()) text += `📱 *Teléfono:* ${customerPhone.trim()}\n`;
-    if (customerLocation.trim()) text += `📍 *Destino:* ${customerLocation.trim()}\n`;
-    text += `🚚 *Modalidad:* ${deliveryMethod === 'shipping' ? 'Envío a coordinar' : 'Retiro en fábrica'}\n`;
-    text += `-------------------------------------------\n`;
-    text += `📦 *DETALLE DE PRODUCTOS:*\n`;
+  // Genera el mensaje estructurado de WhatsApp con todo el detalle de cotización
+  const buildWhatsAppQuoteText = () => {
+    let text = `📄 *SOLICITUD DE COTIZACIÓN FORMAL — ${company.name.toUpperCase()}*\n`;
+    text += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+    if (customerName.trim()) text += `👤 *Cliente / Razón Social:* ${customerName.trim()}\n`;
+    if (customerPhone.trim()) text += `📱 *Teléfono de Contacto:* ${customerPhone.trim()}\n`;
+    if (customerLocation.trim()) text += `📍 *Destino de Entrega:* ${customerLocation.trim()}\n`;
+    text += `🚚 *Modalidad:* ${deliveryMethod === 'shipping' ? 'Envío a coordinar (transporte/flete)' : 'Retiro en fábrica'}\n`;
+    text += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+    text += `📦 *DETALLE DE LA COTIZACIÓN:*\n`;
 
     cart.forEach((item, index) => {
       const prod = item.product || (item as any);
@@ -76,21 +77,49 @@ export const CustomerCartDrawer: React.FC<CustomerCartDrawerProps> = ({
       const isMadeToOrder = prod.isMadeToOrder;
       const leadTime = prod.leadTimeDays || 15;
       const deliveryStatus = isMadeToOrder
-        ? ` [Fabricación a pedido: demora aprox ${leadTime} días]`
-        : ' [Entrega inmediata]';
+        ? ` [A pedido: ${leadTime} días]`
+        : ' [Stock permanente entrega inmediata]';
       text += `${index + 1}. *${name}* (SKU: ${sku})\n`;
-      text += `   Cant: ${item.quantity} x ${formatCurrency(item.unitPrice)}${
+      text += `   • Cantidad: ${item.quantity} u. x ${formatCurrency(item.unitPrice)}${
         isWholesale ? ' [Tarifa Mayorista (+10 u.)]' : ''
-      } = *${formatCurrency(item.unitPrice * item.quantity)}*${deliveryStatus}\n`;
+      }\n`;
+      text += `   • Subtotal: *${formatCurrency(item.unitPrice * item.quantity)}*${deliveryStatus}\n`;
     });
 
-    text += `-------------------------------------------\n`;
+    text += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
     text += `💰 *TOTAL ESTIMADO: ${formatCurrency(total)}*\n\n`;
-    text += `Por favor, confírmenme disponibilidad para entrega y opciones de financiación. ¡Muchas gracias!`;
+    text += `📄 *He descargado la cotización formal en PDF.* Por favor, confírmenme disponibilidad para despacho, plazos y medios de pago para cerrar el pedido. ¡Muchas gracias!`;
+    return text;
+  };
 
+  const openWhatsAppWithText = (customText: string) => {
     const cleanNumber = company.phone.replace(/[^0-9]/g, '');
-    const waUrl = `https://wa.me/${cleanNumber}?text=${encodeURIComponent(text)}`;
+    const waUrl = `https://wa.me/${cleanNumber}?text=${encodeURIComponent(customText)}`;
     window.open(waUrl, '_blank');
+  };
+
+  // Generate customized WhatsApp Order Message
+  const handleSendWhatsAppOrder = () => {
+    if (cart.length === 0) return;
+    const text = buildWhatsAppQuoteText();
+    openWhatsAppWithText(text);
+  };
+
+  // Descarga el PDF y simultáneamente abre WhatsApp con la cotización completa
+  const handleDownloadQuotePdf = () => {
+    if (cart.length === 0) return;
+    
+    // 1. Genera y descarga el archivo PDF en el dispositivo
+    generateQuotePdf(cart, company, {
+      name: customerName,
+      phone: customerPhone,
+      location: customerLocation,
+      deliveryMethod,
+    });
+
+    // 2. Abre WhatsApp con todos los detalles de la cotización para el vendedor
+    const text = buildWhatsAppQuoteText();
+    openWhatsAppWithText(text);
   };
 
   return (
@@ -120,9 +149,25 @@ export const CustomerCartDrawer: React.FC<CustomerCartDrawerProps> = ({
           <button
             onClick={onClose}
             className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors cursor-pointer"
+            title="Cerrar carrito"
           >
             <X className="w-5 h-5" />
           </button>
+        </div>
+
+        {/* Quick action: Seguir Comprando */}
+        <div className="px-4 py-2.5 bg-orange-50/80 border-b border-orange-200/70 flex items-center justify-between gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-orange-700 hover:text-orange-900 cursor-pointer transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4 text-orange-600" />
+            <span>← Seguir Comprando / Sumar más productos</span>
+          </button>
+          <span className="text-[10.5px] text-orange-800/80 font-semibold hidden sm:inline">
+            Guardado automático
+          </span>
         </div>
 
         {/* Drawer Content */}
@@ -402,25 +447,51 @@ export const CustomerCartDrawer: React.FC<CustomerCartDrawerProps> = ({
                 id="btn-cart-whatsapp-checkout"
                 onClick={handleSendWhatsAppOrder}
                 className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md shadow-emerald-600/20 transition-all cursor-pointer"
+                title="Enviar detalle a un vendedor por WhatsApp para coordinar entrega o flete"
               >
                 <MessageCircle className="w-4 h-4 fill-white" />
-                <span>Pedir Presupuesto por WhatsApp</span>
+                <span>Pedir Cotización por WhatsApp</span>
               </button>
 
-              {/* Direct Online Payment Button */}
+              {/* Download Quote PDF Button & WhatsApp Dispatch */}
               <button
-                id="btn-cart-online-payment"
-                onClick={onProceedToOnlinePayment}
-                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-extrabold text-xs shadow-md shadow-orange-600/25 transition-all cursor-pointer"
+                id="btn-cart-download-pdf"
+                type="button"
+                onClick={handleDownloadQuotePdf}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-xs transition-all cursor-pointer border border-slate-700"
+                title="Descarga el PDF formal y abre automáticamente WhatsApp con el vendedor con todo el detalle de la cotización para cerrar la compra"
               >
-                <QrCode className="w-4 h-4" />
-                <span>Pagar por Transferencia / QR / Mercado Pago</span>
+                <FileDown className="w-4 h-4 text-orange-400" />
+                <span>Descargar Cotización (PDF) y Enviar a WhatsApp</span>
               </button>
+
+              {/* Seguir Comprando & Online Payment Buttons */}
+              <div className="grid grid-cols-2 gap-2 pt-0.5">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs border border-slate-300 transition-colors cursor-pointer"
+                  title="Continuar explorando el catálogo para sumar más artículos al pedido"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5 text-slate-600" />
+                  <span>Seguir Comprando</span>
+                </button>
+
+                <button
+                  id="btn-cart-online-payment"
+                  onClick={onProceedToOnlinePayment}
+                  className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs shadow-md shadow-orange-600/20 transition-all cursor-pointer"
+                  title="Pagar online con transferencia o Mercado Pago"
+                >
+                  <QrCode className="w-3.5 h-3.5" />
+                  <span>Pagar Online</span>
+                </button>
+              </div>
 
               <div className="bg-emerald-50/70 border border-emerald-200/80 rounded-xl p-2.5 flex items-center gap-2 text-[10.5px] text-emerald-950">
                 <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
                 <span className="leading-tight">
-                  <strong>Pago 100% Protegido:</strong> No ingresás ni guardamos datos de tus tarjetas en la web.
+                  <strong>Sin compromiso de compra:</strong> Podés guardar la cotización en PDF o conversar por WhatsApp con fábrica para cerrar el pedido.
                 </span>
               </div>
             </div>

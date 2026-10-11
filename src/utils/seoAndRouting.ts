@@ -29,14 +29,20 @@ export function getCanonicalBaseUrl(): string {
 }
 
 /**
- * Genera una URL amigable y legible para compartir un producto específico.
+ * Genera una URL amigable, descriptiva y legible para compartir un producto específico.
+ * Ejemplo: https://titufaris.online/?producto=gondola-central-doble-reforzada-sku-gon-01&p=prod_123
  */
 export function buildProductUrl(product: Product, isDemo = false): string {
   const base = getCanonicalBaseUrl();
-  const slug = slugify(product.name);
+  const nameSlug = slugify(product.name);
+  const skuSlug = product.sku ? slugify(product.sku) : '';
+  const descriptiveSlug = skuSlug && !nameSlug.includes(skuSlug)
+    ? `${nameSlug}-sku-${skuSlug}`
+    : nameSlug;
+
   const params = new URLSearchParams();
   if (isDemo) params.set('demo', 'generica');
-  params.set('producto', slug);
+  params.set('producto', descriptiveSlug);
   params.set('p', product.id);
   return `${base}?${params.toString()}`;
 }

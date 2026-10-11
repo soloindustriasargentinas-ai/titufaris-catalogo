@@ -28,7 +28,13 @@ export const initialCompany: CompanyProfile = {
   heroSubtitle: 'Fabricación directa de soluciones de exhibición y almacenamiento: Góndolas comerciales reforzadas, Estanterías Metálicas de alta durabilidad, Racks Livianos para carga manual, Racks Selectivos para cargas pesadas paletizadas, Lockers y Guardarropas para personal e instituciones, y Otros Productos a medida. Asesoramiento técnico en layouts y envíos a todo el país.',
   heroImageUrl: 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&w=1200&q=80',
   heroCtaText: 'Asesoramiento por WhatsApp',
-  metaDescription: 'Fabricación directa de góndolas comerciales, estanterías metálicas, racks y lockers para comercios e industrias. Envíos a todo el país y atención personalizada.'
+  metaDescription: 'Fabricación directa de góndolas comerciales, estanterías metálicas, racks y lockers para comercios e industrias. Envíos a todo el país y atención personalizada.',
+  socialLinks: {
+    instagram: 'https://instagram.com/titufaris',
+    facebook: 'https://facebook.com/titufaris',
+    linkedin: 'https://linkedin.com/company/titufaris',
+    tiktok: 'https://tiktok.com/@titufaris'
+  }
 };
 
 export const initialCategories: Category[] = [
