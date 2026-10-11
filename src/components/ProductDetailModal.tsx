@@ -913,7 +913,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                   <div className="pt-2 border-t border-slate-200 flex items-center justify-between">
                     <div>
                       <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">
-                        Precio Mayorista (a partir de 10 unidades)
+                        Precio Mayorista (automático con más de 10 productos en el carro)
                       </span>
                       <div className="text-base font-bold text-slate-800">
                         {formatCurrency(product.wholesalePrice)}
@@ -1266,22 +1266,11 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               <button
                 type="button"
                 onClick={() => {
-                  onAddToCart(product, 'wholesale');
-                  onClose();
-                }}
-                disabled={product.stock <= 0}
-                className="px-3 py-2.5 rounded-xl border border-slate-300 bg-white font-semibold text-slate-700 hover:bg-slate-100 text-xs transition-colors disabled:opacity-50 cursor-pointer text-center whitespace-nowrap min-h-[42px]"
-              >
-                Cargar x Mayor
-              </button>
-              <button
-                type="button"
-                onClick={() => {
                   onAddToCart(product, 'retail');
                   onClose();
                 }}
                 disabled={product.stock <= 0}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-700 active:bg-orange-800 text-white font-bold text-xs shadow-md shadow-orange-500/20 transition-all disabled:opacity-50 cursor-pointer min-h-[42px]"
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-orange-600 hover:bg-orange-700 active:bg-orange-800 text-white font-bold text-xs shadow-md shadow-orange-500/20 transition-all disabled:opacity-50 cursor-pointer min-h-[44px]"
               >
                 <ShoppingCart className="w-4 h-4" />
                 <span>{isStaffMode ? 'Añadir a Terminal POS' : 'Añadir al Carrito'}</span>

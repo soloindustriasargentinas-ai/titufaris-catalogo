@@ -23,12 +23,17 @@ import {
   QrCode,
   Share2,
   Map,
+  Edit3,
+  Layers,
+  Check,
 } from 'lucide-react';
 import { Product, Category, CompanyProfile } from '../types';
 import { formatCurrency } from '../utils/storage';
 import { getWhatsAppBusinessCatalogUrl } from '../utils/whatsAppCatalog';
 import { copyOrShareProduct } from '../utils/productShare';
+import { buildProductUrl, slugify } from '../utils/seoAndRouting';
 import { Breadcrumbs } from './Breadcrumbs';
+import { TitufarisLogo } from './TitufarisLogo';
 
 export type PublicStoreSortOption =
   | 'featured_first'
@@ -53,6 +58,7 @@ interface PublicStoreViewProps {
   onOpenLegalModal?: (tab: 'terms' | 'privacy' | 'warranty') => void;
   onOpenCart?: () => void;
   onOpenSitemap?: () => void;
+  onOpenHeroSettings?: () => void;
   cartCount?: number;
   cartTotal?: number;
   isDemoMode?: boolean;
@@ -73,6 +79,7 @@ export const PublicStoreView: React.FC<PublicStoreViewProps> = ({
   onOpenLegalModal,
   onOpenCart,
   onOpenSitemap,
+  onOpenHeroSettings,
   cartCount = 0,
   cartTotal = 0,
   isDemoMode = false,
@@ -82,6 +89,7 @@ export const PublicStoreView: React.FC<PublicStoreViewProps> = ({
   const [deliveryFilter, setDeliveryFilter] = useState<'all' | 'in_stock' | 'made_to_order'>('all');
   const [expandedSpecs, setExpandedSpecs] = useState<Record<string, boolean>>({});
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [isMobileCatMenuOpen, setIsMobileCatMenuOpen] = useState(false);
 
   // Dynamic Hero Configuration with customizable title, subtitle, image and CTA
   const displayHeroTitle = company.heroTitle?.trim() || (isDemoMode
@@ -170,7 +178,7 @@ export const PublicStoreView: React.FC<PublicStoreViewProps> = ({
     });
   }, [products, sortBy, filterFeaturedOnly, deliveryFilter]);
   return (
-    <div className="flex-1 pb-24 md:pb-16">
+    <div className="flex-1 pb-24 md:pb-16 w-full max-w-full overflow-x-hidden">
       {/* Hero Banner Comercial */}
       <section className="bg-slate-950 text-white pt-10 pb-12 px-4 sm:px-6 relative overflow-hidden border-b border-slate-800">
         {/* Ambient atmospheric gradients & structural grid pattern */}
@@ -183,13 +191,27 @@ export const PublicStoreView: React.FC<PublicStoreViewProps> = ({
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
             {/* Left Content Column */}
             <div className="lg:col-span-7 space-y-5">
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-orange-500/15 border border-orange-500/30 text-orange-400 text-xs font-bold tracking-wide shadow-xs">
-                <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
-                <span>
-                  {isDemoMode
-                    ? 'Catálogo Digital & Tienda Online Multirubro'
-                    : 'Fabricación Directa de Equipamiento Comercial'}
-                </span>
+              <div className="flex flex-wrap items-center gap-2.5">
+                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-orange-500/15 border border-orange-500/30 text-orange-400 text-xs font-bold tracking-wide shadow-xs">
+                  <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
+                  <span>
+                    {isDemoMode
+                      ? 'Catálogo Digital & Tienda Online Multirubro'
+                      : 'Fabricación Directa de Equipamiento Comercial'}
+                  </span>
+                </div>
+
+                {onOpenHeroSettings && (
+                  <button
+                    type="button"
+                    onClick={onOpenHeroSettings}
+                    title="Modificar el título (H1), texto descriptivo y foto de portada"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900/90 hover:bg-orange-600 text-amber-300 hover:text-white border border-amber-400/40 hover:border-orange-500 text-xs font-bold transition-all cursor-pointer shadow-xs hover:scale-105"
+                  >
+                    <Edit3 className="w-3.5 h-3.5 text-amber-400 group-hover:text-white" />
+                    <span>✏️ Modificar Portada & Foto</span>
+                  </button>
+                )}
               </div>
 
               {/* Single Semantic H1 for Page Root */}
@@ -302,47 +324,25 @@ export const PublicStoreView: React.FC<PublicStoreViewProps> = ({
                     referrerPolicy="no-referrer"
                     className="w-full h-[320px] sm:h-[380px] object-cover transition-transform duration-700 group-hover:scale-105"
                   />
-                  {/* Subtle darkening gradient at bottom for legibility */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/20 to-transparent pointer-events-none" />
-
-                  {/* Overlaid Inset Description */}
-                  <div className="absolute bottom-4 left-4 right-4 bg-slate-900/90 backdrop-blur-md p-3.5 rounded-2xl border border-slate-700/80 shadow-xl">
-                    <div className="flex items-center justify-between gap-2">
-                      <div>
-                        <div className="text-xs font-bold text-white flex items-center gap-1.5">
-                          {isDemoMode ? <ShoppingBag className="w-4 h-4 text-amber-400" /> : <Building2 className="w-4 h-4 text-orange-400" />}
-                          <span>{isDemoMode ? 'Showroom & Catálogo Digital Multirubro' : 'Showroom & Instalaciones de Fábrica'}</span>
-                        </div>
-                        <p className="text-[11px] text-slate-300 mt-0.5">
-                          {isDemoMode
-                            ? 'Electrónica, Hogar, Bazar, Moda y Herramientas con stock en vivo'
-                            : 'Góndolas, estanterías metálicas, racks y lockers con pintura epoxi horneada'}
-                        </p>
-                      </div>
-                      <span className="shrink-0 px-2.5 py-1 rounded-lg bg-orange-600/20 text-orange-400 border border-orange-500/30 text-[10px] font-bold uppercase">
-                        {isDemoMode ? 'DEMO EN VIVO' : company.name}
-                      </span>
-                    </div>
-                  </div>
                 </div>
 
                 {/* Floating Badge 1 */}
-                <div className="absolute -top-3 -left-3 sm:-top-4 sm:-left-4 bg-slate-900/95 backdrop-blur-md border border-slate-700/90 rounded-2xl p-3 shadow-xl flex items-center gap-3">
+                <div className="absolute top-3 left-3 sm:-top-4 sm:-left-4 bg-slate-900/95 backdrop-blur-md border border-slate-700/90 rounded-2xl p-3 shadow-xl flex items-center gap-3 z-10">
                   <div className="w-9 h-9 rounded-xl bg-orange-500/20 border border-orange-500/30 flex items-center justify-center shrink-0">
-                    {isDemoMode ? <Sparkles className="w-5 h-5 text-amber-400" /> : <ShieldCheck className="w-5 h-5 text-orange-400" />}
+                    <CheckCircle2 className="w-5 h-5 text-orange-400" />
                   </div>
                   <div>
                     <div className="text-[11px] font-bold text-white leading-tight">
-                      {isDemoMode ? '100% Personalizable' : 'Chapa de Acero SAE 1010'}
+                      Stock Permanente
                     </div>
                     <div className="text-[10px] text-slate-400">
-                      {isDemoMode ? 'Marca blanca para tu empresa' : 'Resistencia y capacidad certificada'}
+                      Entrega y despacho inmediato
                     </div>
                   </div>
                 </div>
 
                 {/* Floating Badge 2 */}
-                <div className="absolute -bottom-3 -right-3 sm:-bottom-4 sm:-right-4 bg-slate-900/95 backdrop-blur-md border border-emerald-500/30 rounded-2xl p-3 shadow-xl flex items-center gap-3">
+                <div className="absolute bottom-3 right-3 sm:-bottom-4 sm:-right-4 bg-slate-900/95 backdrop-blur-md border border-emerald-500/30 rounded-2xl p-3 shadow-xl flex items-center gap-3 z-10">
                   <div className="w-9 h-9 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center shrink-0">
                     <Truck className="w-5 h-5 text-emerald-400" />
                   </div>
@@ -421,60 +421,159 @@ export const PublicStoreView: React.FC<PublicStoreViewProps> = ({
       </section>
 
       {/* Categories Bar */}
-      <section className="bg-white border-b border-slate-200 sticky top-[112px] sm:top-[120px] md:top-[85px] z-30 shadow-2xs">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2.5 sm:py-3 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs no-scrollbar overscroll-x-contain touch-pan-x">
+      <section className="bg-white border-b border-slate-200 sticky top-[112px] sm:top-[120px] md:top-[85px] z-30 shadow-2xs w-full max-w-full">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2 sm:py-3">
+          {/* Mobile Category Dropdown (expands downwards, NO lateral scroll) */}
+          <div className="md:hidden">
             <button
-              onClick={() => onSelectCategory('all')}
-              className={`px-4 py-2 rounded-xl font-bold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${
-                selectedCategory === 'all'
-                  ? 'bg-slate-900 text-white shadow-xs'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}
+              type="button"
+              onClick={() => setIsMobileCatMenuOpen(prev => !prev)}
+              aria-expanded={isMobileCatMenuOpen}
+              className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-slate-800 text-xs font-bold transition-all shadow-2xs hover:bg-slate-100 cursor-pointer"
             >
-              <span>Todas las Líneas</span>
-              <span className="text-[10px] font-mono opacity-80">({products.length})</span>
+              <div className="flex items-center gap-2 min-w-0">
+                <Layers className="w-4 h-4 text-orange-600 shrink-0" />
+                <span className="text-slate-500 font-normal">Categoría:</span>
+                <span className="truncate text-slate-900 font-extrabold">
+                  {selectedCategory === 'all'
+                    ? 'Todas las Líneas'
+                    : categories.find(c => c.id === selectedCategory)?.name || selectedCategory}
+                </span>
+                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-700 font-bold shrink-0">
+                  {selectedCategory === 'all'
+                    ? products.length
+                    : products.filter(p => p.category === selectedCategory).length}
+                </span>
+              </div>
+              <ChevronDown
+                className={`w-4 h-4 text-slate-500 transition-transform duration-200 shrink-0 ml-2 ${
+                  isMobileCatMenuOpen ? 'rotate-180' : ''
+                }`}
+              />
             </button>
-            {activeCategories.map(c => {
-              const count = products.filter(p => p.category === c.id).length;
-              const isSelected = selectedCategory === c.id;
-              const catColor = c.color || '#F97316';
-              return (
+
+            {/* Dropdown Panel expanding downwards */}
+            {isMobileCatMenuOpen && (
+              <div className="mt-2 p-2 bg-white rounded-2xl border border-slate-200 shadow-xl space-y-1 animate-in fade-in slide-in-from-top-2 duration-150 max-h-[60vh] overflow-y-auto">
                 <button
-                  key={c.id}
-                  onClick={() => onSelectCategory(c.id)}
-                  style={
-                    isSelected
-                      ? { backgroundColor: catColor, color: '#ffffff' }
-                      : { borderColor: `${catColor}40` }
-                  }
-                  className={`px-4 py-2 rounded-xl font-bold whitespace-nowrap transition-all cursor-pointer flex items-center gap-2 border ${
-                    isSelected
-                      ? 'shadow-xs border-transparent'
-                      : 'bg-white text-slate-700 hover:bg-slate-50'
+                  type="button"
+                  onClick={() => {
+                    onSelectCategory('all');
+                    setIsMobileCatMenuOpen(false);
+                  }}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
+                    selectedCategory === 'all'
+                      ? 'bg-slate-900 text-white'
+                      : 'text-slate-700 hover:bg-slate-100'
                   }`}
                 >
-                  <span
-                    className="w-2.5 h-2.5 rounded-full shrink-0 shadow-2xs"
-                    style={{
-                      backgroundColor: isSelected ? '#ffffff' : catColor,
-                    }}
-                  />
-                  <span>{c.name}</span>
-                  <span
-                    className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full ${
-                      isSelected ? 'bg-black/20 text-white' : 'bg-slate-100 text-slate-600'
-                    }`}
-                  >
-                    {count}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-orange-500" />
+                    <span>Todas las Líneas</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-mono opacity-80 font-bold">({products.length})</span>
+                    {selectedCategory === 'all' && <Check className="w-3.5 h-3.5 text-white" />}
+                  </div>
                 </button>
-              );
-            })}
+
+                {activeCategories.map(c => {
+                  const count = products.filter(p => p.category === c.id).length;
+                  const isSelected = selectedCategory === c.id;
+                  const catColor = c.color || '#F97316';
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => {
+                        onSelectCategory(c.id);
+                        setIsMobileCatMenuOpen(false);
+                      }}
+                      className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
+                        isSelected
+                          ? 'bg-slate-900 text-white'
+                          : 'text-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span
+                          className="w-2.5 h-2.5 rounded-full shrink-0"
+                          style={{ backgroundColor: catColor }}
+                        />
+                        <span className="truncate">{c.name}</span>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span
+                          className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full font-bold ${
+                            isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
+                          }`}
+                        >
+                          {count}
+                        </span>
+                        {isSelected && <Check className="w-3.5 h-3.5 text-white" />}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
-          <div className="text-xs text-slate-500 font-semibold shrink-0 hidden md:block">
-            {products.length} productos disponibles
+          {/* Desktop Categories Bar (horizontal row only on md and up) */}
+          <div className="hidden md:flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2 flex-wrap text-xs">
+              <button
+                onClick={() => onSelectCategory('all')}
+                className={`px-4 py-2 rounded-xl font-bold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${
+                  selectedCategory === 'all'
+                    ? 'bg-slate-900 text-white shadow-xs'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                <span>Todas las Líneas</span>
+                <span className="text-[10px] font-mono opacity-80">({products.length})</span>
+              </button>
+              {activeCategories.map(c => {
+                const count = products.filter(p => p.category === c.id).length;
+                const isSelected = selectedCategory === c.id;
+                const catColor = c.color || '#F97316';
+                return (
+                  <button
+                    key={c.id}
+                    onClick={() => onSelectCategory(c.id)}
+                    style={
+                      isSelected
+                        ? { backgroundColor: catColor, color: '#ffffff' }
+                        : { borderColor: `${catColor}40` }
+                    }
+                    className={`px-4 py-2 rounded-xl font-bold whitespace-nowrap transition-all cursor-pointer flex items-center gap-2 border ${
+                      isSelected
+                        ? 'shadow-xs border-transparent'
+                        : 'bg-white text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span
+                      className="w-2.5 h-2.5 rounded-full shrink-0 shadow-2xs"
+                      style={{
+                        backgroundColor: isSelected ? '#ffffff' : catColor,
+                      }}
+                    />
+                    <span>{c.name}</span>
+                    <span
+                      className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full ${
+                        isSelected ? 'bg-black/20 text-white' : 'bg-slate-100 text-slate-600'
+                      }`}
+                    >
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="text-xs text-slate-500 font-semibold shrink-0">
+              {products.length} productos disponibles
+            </div>
           </div>
         </div>
       </section>
@@ -484,7 +583,11 @@ export const PublicStoreView: React.FC<PublicStoreViewProps> = ({
         {/* Breadcrumbs Navigation (People-First & Schema.org) */}
         <Breadcrumbs
           items={[
-            { label: 'Inicio', onClick: () => onSelectCategory('all') },
+            {
+              label: 'Inicio',
+              href: isDemoMode ? '/?demo=generica' : '/',
+              onClick: () => onSelectCategory('all'),
+            },
             ...(selectedCategory !== 'all'
               ? [
                   {
@@ -722,21 +825,6 @@ export const PublicStoreView: React.FC<PublicStoreViewProps> = ({
                         </button>
                       )}
                     </div>
-
-                    {/* Stock & Delivery badge */}
-                    <div className="absolute bottom-2.5 left-2.5 z-10">
-                      {product.isMadeToOrder ? (
-                        <span className="px-2.5 py-1 rounded-lg bg-indigo-700/95 backdrop-blur-xs text-white text-[10px] font-bold flex items-center gap-1.5 shadow-sm border border-indigo-500/30">
-                          <Clock className="w-3 h-3 text-indigo-200" />
-                          <span>Fabricación a pedido ({product.leadTimeDays ? `${product.leadTimeDays} días` : 'A coordinar'})</span>
-                        </span>
-                      ) : (
-                        <span className="px-2.5 py-1 rounded-lg bg-emerald-600/95 backdrop-blur-xs text-white text-[10px] font-bold flex items-center gap-1.5 shadow-sm border border-emerald-400/30">
-                          <CheckCircle2 className="w-3 h-3 text-emerald-200" />
-                          <span>Disponible para entrega inmediata</span>
-                        </span>
-                      )}
-                    </div>
                   </div>
 
                   {/* Product Details */}
@@ -746,7 +834,17 @@ export const PublicStoreView: React.FC<PublicStoreViewProps> = ({
                         SKU: {product.sku}
                       </span>
                       <h3 className="font-bold text-slate-900 text-sm leading-snug group-hover:text-orange-600 transition-colors line-clamp-2">
-                        {product.name}
+                        <a
+                          href={buildProductUrl(product, isDemoMode)}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            onOpenProductDetail(product);
+                          }}
+                          className="hover:underline text-inherit"
+                          title={`Ver especificaciones técnicas y detalles de ${product.name}`}
+                        >
+                          {product.name}
+                        </a>
                       </h3>
                       {product.dimensions && (
                         <p className="text-[11px] text-slate-500 font-medium line-clamp-1">
@@ -809,13 +907,17 @@ export const PublicStoreView: React.FC<PublicStoreViewProps> = ({
                               ))}
                             </div>
 
-                            <button
-                              type="button"
-                              onClick={() => onOpenProductDetail(product)}
-                              className="w-full text-center text-[10.5px] text-slate-500 hover:text-orange-600 font-medium pt-0.5 cursor-pointer block transition-colors"
+                            <a
+                              href={buildProductUrl(product, isDemoMode)}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                onOpenProductDetail(product);
+                              }}
+                              className="w-full text-center text-[10.5px] text-slate-600 hover:text-orange-600 font-semibold pt-0.5 cursor-pointer block transition-colors underline-offset-2 hover:underline"
+                              title={`Ver especificaciones completas de ${product.name}`}
                             >
-                              Ver ficha técnica completa →
-                            </button>
+                              Ver ficha técnica completa de {product.name} →
+                            </a>
                           </div>
                         );
                       })()}
@@ -849,7 +951,7 @@ export const PublicStoreView: React.FC<PublicStoreViewProps> = ({
                         </div>
                         <div className="text-right">
                           <span className="text-[9.5px] font-bold text-orange-700 bg-orange-50 border border-orange-200/80 px-2 py-0.5 rounded-full inline-block">
-                            Mayorista x10+: {formatCurrency(product.wholesalePrice)}
+                            Mayorista (+10 u.): {formatCurrency(product.wholesalePrice)}
                           </span>
                         </div>
                       </div>
@@ -885,48 +987,6 @@ export const PublicStoreView: React.FC<PublicStoreViewProps> = ({
                           <span>Comprar</span>
                         </button>
                       </div>
-
-                      {/* Share and QR actions */}
-                      <div className="grid grid-cols-2 gap-2 pt-0.5" onClick={e => e.stopPropagation()}>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (onShareProduct) {
-                              onShareProduct(product);
-                            } else {
-                              copyOrShareProduct(product, company.name);
-                            }
-                          }}
-                          aria-label={`Compartir enlace propio de ${product.name}`}
-                          title="Compartir enlace propio y ficha de este producto"
-                          className="flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-xl bg-orange-50 hover:bg-orange-100 border border-orange-200 text-orange-800 text-[11px] font-bold transition-all cursor-pointer"
-                        >
-                          <Share2 className="w-3.5 h-3.5 text-orange-600" />
-                          <span>Compartir</span>
-                        </button>
-
-                        {onOpenQR ? (
-                          <button
-                            type="button"
-                            onClick={() => onOpenQR(product)}
-                            aria-label={`Ver código QR de ${product.name}`}
-                            title="Ver Código QR para catálogo impreso o escanear con el móvil"
-                            className="flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 text-[11px] font-semibold transition-all cursor-pointer"
-                          >
-                            <QrCode className="w-3.5 h-3.5 text-slate-600" />
-                            <span>Código QR</span>
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => onOpenProductDetail(product)}
-                            aria-label={`Ver especificaciones de ${product.name}`}
-                            className="flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 text-[11px] font-semibold transition-all cursor-pointer"
-                          >
-                            <span>Ver Ficha</span>
-                          </button>
-                        )}
-                      </div>
                     </div>
                   </div>
                 </article>
@@ -938,13 +998,26 @@ export const PublicStoreView: React.FC<PublicStoreViewProps> = ({
 
       {/* Public Footer */}
       <footer id="public-store-footer" className="mt-20 border-t border-slate-200 bg-white pt-12 pb-8 px-4 sm:px-6 text-slate-600">
-        <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+        <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
           <div className="space-y-3">
-            <h4 className="text-base font-black text-slate-900">{company.name}</h4>
+            {company.logo ? (
+              <img
+                src={company.logo}
+                alt={`Logo de ${company.name}`}
+                className="h-9 sm:h-11 w-auto object-contain"
+              />
+            ) : !isDemoMode ? (
+              <TitufarisLogo className="h-9 sm:h-11 w-auto" />
+            ) : (
+              <div className="flex items-center gap-2">
+                <span className="text-2xl">🏪</span>
+                <span className="text-base font-black text-slate-900">{company.name}</span>
+              </div>
+            )}
             <p className="text-xs text-slate-600 max-w-md leading-relaxed">
               {isDemoMode
                 ? 'Plataforma integral de catálogo digital interactivo, pedidos automáticos por WhatsApp y Punto de Venta (POS) para mostrador. Solución de software comercial de marca blanca lista para operar en cualquier empresa.'
-                : 'Fabricación integral de equipamiento comercial, estanterías pesadas y checkouts. Desarrollamos soluciones a medida para optimizar el layout y las ventas de tu salón comercial.'}
+                : 'Tienda online de equipamiento comercial, estanterías pesadas y checkouts. Desarrollamos soluciones a medida para optimizar el layout y las ventas de tu salón comercial.'}
             </p>
             <div className="text-xs text-slate-600 space-y-1">
               <div>📍 <strong>{isDemoMode ? 'Casa Central / Salón:' : 'Fábrica y Ventas:'}</strong> {company.address}</div>
@@ -955,99 +1028,99 @@ export const PublicStoreView: React.FC<PublicStoreViewProps> = ({
           </div>
 
           <div className="space-y-2">
-            <h5 className="text-xs font-bold uppercase text-slate-900 tracking-wider">
+            <h4 className="text-xs font-bold uppercase text-slate-900 tracking-wider">
               {isDemoMode ? 'Departamentos & Categorías' : 'Líneas de Producción'}
-            </h5>
-            {isDemoMode ? (
-              <ul className="text-xs space-y-1.5 text-slate-600">
-                {activeCategories.slice(0, 6).map(cat => (
-                  <li key={cat.id} className="flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: cat.color || '#6366f1' }} />
-                    <span>{cat.name}</span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <ul className="text-xs space-y-1.5 text-slate-600">
-                <li>Góndolas Centrales y Murales</li>
-                <li>Muebles Checkout Motorizados</li>
-                <li>Refrigeración Comercial (Bateas / Murales)</li>
-                <li>Balanzas Digitales & Checkouts</li>
-                <li>Racks Pesados para Almacén</li>
-              </ul>
-            )}
+            </h4>
+            <ul className="text-xs space-y-2 text-slate-600">
+              {activeCategories.map(cat => (
+                <li key={cat.id}>
+                  <a
+                    href={isDemoMode ? `/?demo=generica&categoria=${slugify(cat.name)}&cat=${cat.id}` : `/?categoria=${slugify(cat.name)}&cat=${cat.id}`}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      onSelectCategory(cat.id);
+                      window.scrollTo({ top: 400, behavior: 'smooth' });
+                    }}
+                    className="flex items-center gap-2 hover:text-orange-600 transition-colors py-0.5 group cursor-pointer"
+                    title={`Explorar artículos de la línea ${cat.name}`}
+                  >
+                    <span
+                      className="w-2 h-2 rounded-full shrink-0 group-hover:scale-125 transition-transform"
+                      style={{ backgroundColor: cat.color || '#F97316' }}
+                    />
+                    <span className="font-medium group-hover:underline">{cat.name}</span>
+                  </a>
+                </li>
+              ))}
+            </ul>
           </div>
 
           <div className="space-y-2">
-            <h5 className="text-xs font-bold uppercase text-slate-900 tracking-wider">Marco Legal & Sitemap</h5>
+            <h4 className="text-xs font-bold uppercase text-slate-900 tracking-wider">Marco Legal & Sitemap</h4>
             <ul className="text-xs space-y-2 text-slate-600">
               {onOpenSitemap && (
                 <li>
-                  <button
-                    type="button"
+                  <a
+                    href={isDemoMode ? '/?demo=generica&vista=mapa-del-sitio' : '/?vista=mapa-del-sitio'}
                     id="footer-link-sitemap"
-                    onClick={onOpenSitemap}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      onOpenSitemap();
+                    }}
                     className="text-left text-orange-600 hover:text-orange-700 font-bold transition-colors underline-offset-2 hover:underline cursor-pointer flex items-center gap-1.5"
                     title="Ver mapa jerárquico del sitio web y archivo sitemap.xml para buscadores"
                   >
                     <Map className="w-3.5 h-3.5 shrink-0" />
                     <span>Mapa del Sitio Web (Sitemap)</span>
-                  </button>
+                  </a>
                 </li>
               )}
               <li>
-                <button
-                  type="button"
+                <a
+                  href={isDemoMode ? '/?demo=generica&vista=terminos' : '/?vista=terminos'}
                   id="footer-link-terms"
-                  onClick={() => onOpenLegalModal && onOpenLegalModal('terms')}
-                  className="text-left text-slate-600 hover:text-orange-600 transition-colors underline-offset-2 hover:underline cursor-pointer"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    onOpenLegalModal && onOpenLegalModal('terms');
+                  }}
+                  className="text-left text-slate-600 hover:text-orange-600 transition-colors underline-offset-2 hover:underline cursor-pointer block"
+                  title="Ver los términos y condiciones de venta oficiales"
                 >
                   Términos y Condiciones de Venta
-                </button>
+                </a>
               </li>
               <li>
-                <button
-                  type="button"
+                <a
+                  href={isDemoMode ? '/?demo=generica&vista=privacidad' : '/?vista=privacidad'}
                   id="footer-link-privacy"
-                  onClick={() => onOpenLegalModal && onOpenLegalModal('privacy')}
-                  className="text-left text-slate-600 hover:text-orange-600 transition-colors underline-offset-2 hover:underline cursor-pointer"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    onOpenLegalModal && onOpenLegalModal('privacy');
+                  }}
+                  className="text-left text-slate-600 hover:text-orange-600 transition-colors underline-offset-2 hover:underline cursor-pointer block"
+                  title="Conocer nuestra política de privacidad y protección de datos conforme a la Ley 25.326"
                 >
                   Protección de Datos (Ley 25.326)
-                </button>
+                </a>
               </li>
               <li>
-                <button
-                  type="button"
+                <a
+                  href={isDemoMode ? '/?demo=generica&vista=garantia' : '/?vista=garantia'}
                   id="footer-link-warranty"
-                  onClick={() => onOpenLegalModal && onOpenLegalModal('warranty')}
-                  className="text-left text-slate-600 hover:text-orange-600 transition-colors underline-offset-2 hover:underline cursor-pointer"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    onOpenLegalModal && onOpenLegalModal('warranty');
+                  }}
+                  className="text-left text-slate-600 hover:text-orange-600 transition-colors underline-offset-2 hover:underline cursor-pointer block"
+                  title="Consultar la cobertura y plazos de garantía oficial de fábrica"
                 >
                   {isDemoMode ? 'Políticas de Garantía & Cambios' : 'Garantía de Fábrica & Logística'}
-                </button>
+                </a>
               </li>
               <li className="text-[11px] text-slate-500 pt-1">
                 Defensa de las y los Consumidores: Ley 24.240.
               </li>
             </ul>
-          </div>
-
-          <div className="space-y-2">
-            <h5 className="text-xs font-bold uppercase text-slate-900 tracking-wider">
-              {isDemoMode ? 'Punto de Venta (POS)' : 'Acceso Interno'}
-            </h5>
-            <p className="text-xs text-slate-600">
-              {isDemoMode
-                ? 'Prueba la interfaz para cajeros, cobro en mostrador (efectivo, Mercado Pago, tarjetas) y arqueo.'
-                : 'Terminal POS para cajeros, actualización de listas mayoristas y control de stock.'}
-            </p>
-            <button
-              id="footer-btn-staff-login"
-              onClick={onSwitchToStaffMode}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-colors cursor-pointer mt-2"
-            >
-              <Lock className="w-3.5 h-3.5 text-orange-400" />
-              <span>{isDemoMode ? 'Probar Terminal POS' : 'Ingresar a Gestión POS'}</span>
-            </button>
           </div>
         </div>
 

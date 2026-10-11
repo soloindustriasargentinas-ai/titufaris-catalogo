@@ -61,6 +61,22 @@ export const Breadcrumbs: React.FC<BreadcrumbsProps> = ({ items, className = '' 
                     item.label
                   )}
                 </span>
+              ) : item.href ? (
+                <a
+                  href={item.href}
+                  onClick={(e) => {
+                    if (item.onClick) {
+                      e.preventDefault();
+                      item.onClick();
+                    }
+                  }}
+                  itemProp="item"
+                  className="hover:text-orange-600 transition-colors flex items-center gap-1 hover:underline underline-offset-2 py-0.5"
+                  title={`Volver a ${item.label}`}
+                >
+                  {index === 0 && <Home className="w-3.5 h-3.5 shrink-0" />}
+                  <span itemProp="name">{item.label}</span>
+                </a>
               ) : item.onClick ? (
                 <button
                   type="button"
@@ -72,16 +88,6 @@ export const Breadcrumbs: React.FC<BreadcrumbsProps> = ({ items, className = '' 
                   {index === 0 && <Home className="w-3.5 h-3.5 shrink-0" />}
                   <span itemProp="name">{item.label}</span>
                 </button>
-              ) : item.href ? (
-                <a
-                  href={item.href}
-                  itemProp="item"
-                  className="hover:text-orange-600 transition-colors flex items-center gap-1 hover:underline underline-offset-2 py-0.5"
-                  title={`Ir a ${item.label}`}
-                >
-                  {index === 0 && <Home className="w-3.5 h-3.5 shrink-0" />}
-                  <span itemProp="name">{item.label}</span>
-                </a>
               ) : (
                 <span itemProp="name" className="text-slate-600">
                   {item.label}

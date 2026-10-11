@@ -48,6 +48,9 @@ interface NavbarProps {
   onSwitchToStoreMode?: () => void;
   onOpenBackupModal?: () => void;
   onOpenRecoveryModal?: () => void;
+  onOpenMasterPanel?: () => void;
+  onOpenSubscriptionModal?: () => void;
+  onOpenCustomDomain?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -69,6 +72,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   onSwitchToStoreMode,
   onOpenBackupModal,
   onOpenRecoveryModal,
+  onOpenMasterPanel,
+  onOpenSubscriptionModal,
+  onOpenCustomDomain,
 }) => {
   const [isAdminDropdownOpen, setIsAdminDropdownOpen] = useState(false);
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
@@ -237,6 +243,58 @@ export const Navbar: React.FC<NavbarProps> = ({
                   </div>
 
                   <div className="space-y-3 text-xs max-h-[75vh] overflow-y-auto pr-1">
+                    {/* SECTION 0: Master SaaS Control Panel */}
+                    {onOpenMasterPanel && (
+                      <div className="p-1">
+                        <button
+                          onClick={() => {
+                            setIsAdminDropdownOpen(false);
+                            onOpenMasterPanel();
+                          }}
+                          className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-gradient-to-r from-indigo-900 to-slate-900 text-white hover:from-indigo-800 hover:to-slate-800 transition-all shadow-md cursor-pointer text-left border border-indigo-700/50"
+                        >
+                          <div className="w-7 h-7 rounded-lg bg-amber-400/20 border border-amber-400/40 flex items-center justify-center text-amber-300 font-bold shrink-0 text-sm">
+                            👑
+                          </div>
+                          <div className="flex-1">
+                            <div className="font-black text-xs text-white flex items-center gap-1.5">
+                              <span>Panel Maestro SaaS</span>
+                              <span className="bg-emerald-500/20 text-emerald-300 text-[9px] px-1.5 py-0.2 rounded font-extrabold">A+</span>
+                            </div>
+                            <div className="text-[10px] text-indigo-200">
+                              MRR, resolución técnica y bajas
+                            </div>
+                          </div>
+                        </button>
+                      </div>
+                    )}
+
+                    {/* SECTION 0.5: SaaS Store Subscription */}
+                    {onOpenSubscriptionModal && (
+                      <div className="px-1 pb-1">
+                        <button
+                          onClick={() => {
+                            setIsAdminDropdownOpen(false);
+                            onOpenSubscriptionModal();
+                          }}
+                          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-200 transition-all cursor-pointer text-left font-bold"
+                        >
+                          <div className="w-6 h-6 rounded-lg bg-blue-600 text-white flex items-center justify-center text-xs shrink-0">
+                            💳
+                          </div>
+                          <div className="flex-1">
+                            <div className="text-xs text-blue-950 font-bold flex items-center gap-1.5">
+                              <span>Mi Suscripción SaaS</span>
+                              <span className="bg-sky-200 text-blue-900 text-[9px] px-1 rounded font-extrabold">MP</span>
+                            </div>
+                            <div className="text-[10px] text-blue-700 font-normal">
+                              Planes, débito recurrente y recibos
+                            </div>
+                          </div>
+                        </button>
+                      </div>
+                    )}
+
                     {/* SECTION 1: Canales de Venta & Tienda */}
                     <div>
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider px-2 py-1">
@@ -287,6 +345,25 @@ export const Navbar: React.FC<NavbarProps> = ({
                             <div className="flex-1">
                               <div>Ver Tienda Web Pública</div>
                               <div className="text-[10px] font-normal text-slate-500">Vista de clientes con carrito y WhatsApp</div>
+                            </div>
+                          </button>
+                        )}
+
+                        {onOpenCustomDomain && (
+                          <button
+                            onClick={() => {
+                              setIsAdminDropdownOpen(false);
+                              onOpenCustomDomain();
+                            }}
+                            className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-indigo-900 hover:bg-indigo-50 transition-colors cursor-pointer text-left font-bold"
+                          >
+                            <Globe className="w-4 h-4 text-indigo-600 shrink-0" />
+                            <div className="flex-1">
+                              <div className="flex items-center gap-1.5">
+                                <span>Dominio Propio (Web)</span>
+                                <span className="bg-indigo-100 text-indigo-800 text-[9px] px-1 rounded font-extrabold">Paso 4</span>
+                              </div>
+                              <div className="text-[10px] font-normal text-indigo-600">Conectar mitienda.com y DNS</div>
                             </div>
                           </button>
                         )}
@@ -656,6 +733,19 @@ export const Navbar: React.FC<NavbarProps> = ({
                 >
                   <Settings className="w-4 h-4 text-slate-600" />
                   <span>Configuración de Empresa</span>
+                </button>
+              )}
+
+              {onOpenCustomDomain && (
+                <button
+                  onClick={() => {
+                    setIsMobileDrawerOpen(false);
+                    onOpenCustomDomain();
+                  }}
+                  className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-indigo-900 bg-indigo-50 hover:bg-indigo-100 text-xs font-bold"
+                >
+                  <Globe className="w-4 h-4 text-indigo-600" />
+                  <span>Dominio Propio & DNS</span>
                 </button>
               )}
 

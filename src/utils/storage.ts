@@ -272,6 +272,20 @@ export function saveCompany(company: CompanyProfile): void {
   safeSet(STORAGE_KEYS.COMPANY, company);
 }
 
+export const GENERIC_COMPANY_STORAGE_KEY = 'titufaris_generic_company_custom';
+
+export function loadGenericCompany(fallback?: CompanyProfile): CompanyProfile {
+  const custom = safeGet<CompanyProfile | null>(GENERIC_COMPANY_STORAGE_KEY, null);
+  if (custom && custom.name) {
+    return custom;
+  }
+  return fallback || initialCompany;
+}
+
+export function saveGenericCompany(company: CompanyProfile): void {
+  safeSet(GENERIC_COMPANY_STORAGE_KEY, company);
+}
+
 export function loadUsers(): User[] {
   const users = safeGet<User[]>(STORAGE_KEYS.USERS, initialUsers);
   let changed = false;

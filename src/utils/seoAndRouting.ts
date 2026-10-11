@@ -128,10 +128,12 @@ export function generateSitemapXml(
   products: Product[],
   categories: Category[],
   company: CompanyProfile,
-  customBaseUrl?: string
+  customBaseUrl?: string,
+  isDemo = false
 ): string {
   const baseUrl = (customBaseUrl || getCanonicalBaseUrl()).replace(/\/+$/, '');
   const currentDate = new Date().toISOString().split('T')[0];
+  const demoParam = isDemo ? 'demo=generica' : '';
 
   const lines: string[] = [];
   lines.push('<?xml version="1.0" encoding="UTF-8"?>');
@@ -141,7 +143,7 @@ export function generateSitemapXml(
   // 1. Portada / Home Page (Prioridad máxima 1.0)
   lines.push('  <!-- Página Principal / Portada -->');
   lines.push('  <url>');
-  lines.push(`    <loc>${baseUrl}/</loc>`);
+  lines.push(`    <loc>${baseUrl}/${isDemo ? '?demo=generica' : ''}</loc>`);
   lines.push(`    <lastmod>${currentDate}</lastmod>`);
   lines.push('    <changefreq>daily</changefreq>');
   lines.push('    <priority>1.0</priority>');
@@ -156,7 +158,8 @@ export function generateSitemapXml(
   // 2. Mapa del Sitio Web (Prioridad 0.8)
   lines.push('  <!-- Mapa del Sitio Web -->');
   lines.push('  <url>');
-  lines.push(`    <loc>${baseUrl}/?vista=mapa-del-sitio</loc>`);
+  const sitemapUrl = isDemo ? `${baseUrl}/?demo=generica&amp;vista=mapa-del-sitio` : `${baseUrl}/?vista=mapa-del-sitio`;
+  lines.push(`    <loc>${sitemapUrl}</loc>`);
   lines.push(`    <lastmod>${currentDate}</lastmod>`);
   lines.push('    <changefreq>weekly</changefreq>');
   lines.push('    <priority>0.8</priority>');
@@ -166,8 +169,11 @@ export function generateSitemapXml(
   lines.push('  <!-- Categorías y Líneas de Producto -->');
   for (const cat of categories) {
     const catSlug = slugify(cat.name);
+    const catUrl = isDemo
+      ? `${baseUrl}/?demo=generica&amp;categoria=${catSlug}&amp;cat=${cat.id}`
+      : `${baseUrl}/?categoria=${catSlug}&amp;cat=${cat.id}`;
     lines.push('  <url>');
-    lines.push(`    <loc>${baseUrl}/?categoria=${catSlug}&amp;cat=${cat.id}</loc>`);
+    lines.push(`    <loc>${catUrl}</loc>`);
     lines.push(`    <lastmod>${currentDate}</lastmod>`);
     lines.push('    <changefreq>daily</changefreq>');
     lines.push('    <priority>0.9</priority>');
@@ -180,9 +186,12 @@ export function generateSitemapXml(
     const prodSlug = slugify(prod.name);
     const prodLastMod = prod.updatedAt ? prod.updatedAt.split('T')[0] : currentDate;
     const prodImg = (prod.images && prod.images[0]) || prod.imageUrl || prod.publicImageUrl;
+    const prodUrl = isDemo
+      ? `${baseUrl}/?demo=generica&amp;producto=${prodSlug}&amp;p=${prod.id}`
+      : `${baseUrl}/?producto=${prodSlug}&amp;p=${prod.id}`;
 
     lines.push('  <url>');
-    lines.push(`    <loc>${baseUrl}/?producto=${prodSlug}&amp;p=${prod.id}</loc>`);
+    lines.push(`    <loc>${prodUrl}</loc>`);
     lines.push(`    <lastmod>${prodLastMod}</lastmod>`);
     lines.push('    <changefreq>weekly</changefreq>');
     lines.push('    <priority>0.85</priority>');

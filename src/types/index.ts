@@ -43,26 +43,29 @@ export interface Product {
   name: string;
   category: string;
   description: string;
-  costPrice: number;
-  wholesalePrice: number;
+  costPrice?: number;
+  wholesalePrice?: number;
+  wholesaleMinQty?: number;
   retailPrice: number;
   stock: number;
-  minStock: number;
+  minStock?: number;
+  minStockAlert?: number;
   unit: string; // e.g., 'unidad', 'metro', 'm2', 'juego'
-  imageUrl: string;
+  imageUrl?: string;
   publicImageUrl?: string;
   images?: string[];
-  barcode: string;
-  tags: string[];
+  barcode?: string;
+  tags?: string[];
   dimensions?: string;
-  specifications: ProductSpecification[];
+  brand?: string;
+  specifications?: ProductSpecification[];
   featured?: boolean;
   sortOrder?: number;
   isMadeToOrder?: boolean; // True si el producto es fabricado a pedido
   leadTimeDays?: number; // Días estimados de fabricación y entrega (ej. 7, 10, 15 días)
   active: boolean;
-  updatedAt: string;
-  updatedBy: string;
+  updatedAt?: string;
+  updatedBy?: string;
 }
 
 export interface CompanyProfile {
@@ -238,3 +241,5 @@ export interface CustomerRemarketingProfile {
   }[];
   salesReceipts: string[];
 }
+
+export * from './saas';

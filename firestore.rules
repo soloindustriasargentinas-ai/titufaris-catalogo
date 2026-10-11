@@ -78,6 +78,23 @@ service cloud.firestore {
       allow update, delete: if true;
     }
 
+    // SaaS Tenants Directory and Subscription Management
+    match /saasTenants/{tenantId} {
+      allow read: if true;
+      allow create, update: if request.resource.data.keys().hasAll(['id', 'name', 'slug', 'ownerEmail', 'subscriptionStatus'])
+        && isValidString(request.resource.data.id, 1, 100)
+        && isValidString(request.resource.data.name, 1, 200)
+        && isValidString(request.resource.data.slug, 1, 100)
+        && isValidString(request.resource.data.ownerEmail, 3, 150);
+      allow delete: if true;
+    }
+
+    // SaaS Mercado Pago recurring subscription events and payments
+    match /saasSubscriptions/{subscriptionId} {
+      allow read: if true;
+      allow create, update, delete: if true;
+    }
+
     // Connection health check
     match /test/{docId} {
       allow read, write: if true;

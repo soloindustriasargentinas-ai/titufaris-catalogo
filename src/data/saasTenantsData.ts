@@ -1,0 +1,220 @@
+import { SaaSTenantStore, MercadoPagoSettings } from '../types/saas';
+
+export const initialSaaSTenants: SaaSTenantStore[] = [
+  {
+    id: 'titufaris',
+    name: 'Titufaris - Equipamiento Comercial & Gastronómico',
+    slug: 'titufaris',
+    isDefaultStore: true,
+    customDomain: 'titufaris.online',
+    domainStatus: 'ssl_active',
+    domainConfig: {
+      domain: 'titufaris.online',
+      status: 'ssl_active',
+      sslActive: true,
+      sslIssuer: "Let's Encrypt Authority X3",
+      sslExpiresAt: '2026-12-31T23:59:59.000Z',
+      forceHttps: true,
+      verificationToken: 'titufaris-verify=master-flagship-online-key',
+      dnsRecords: [
+        { type: 'A', name: '@', target: '76.76.21.21', status: 'resolved', ttl: 3600, description: 'Servidor Anycast Edge de Titufaris' },
+        { type: 'CNAME', name: 'www', target: 'cname.titufaris.online', status: 'resolved', ttl: 3600, description: 'Alias Canónico www' },
+        { type: 'TXT', name: '@', target: 'titufaris-verify=master-flagship-online-key', status: 'resolved', ttl: 3600, description: 'Token de Verificación de Propiedad' }
+      ],
+      verifiedAt: '2025-01-10T12:00:00.000Z',
+      lastDnsCheckAt: new Date().toISOString()
+    },
+    ownerName: 'Titufaris Argentina (Sede Central)',
+    ownerEmail: 'soloindustriasargentinas@gmail.com',
+    ownerPhone: '+54 9 11 5829-4310',
+    planId: 'enterprise',
+    subscriptionStatus: 'active',
+    pricePerMonthARS: 59990,
+    billingCycle: 'monthly',
+    mercadoPagoSubscriptionId: '2c9380848f2b3e81018f2b489001',
+    mercadoPagoPayerId: 'MP-PAYER-TITUFARIS',
+    createdAt: '2025-01-10T12:00:00.000Z',
+    trialEndsAt: '2025-01-25T12:00:00.000Z',
+    nextBillingDate: '2026-11-10T12:00:00.000Z',
+    notes: 'Tienda principal insignia (titufaris.online). Catálogo completo, POS y sincronización activa.',
+    technicalHealth: {
+      status: 'healthy',
+      productsCount: 45,
+      categoriesCount: 6,
+      salesCount: 128,
+      lastSyncAt: new Date().toISOString(),
+      storageKB: 420,
+      maintenanceMode: false,
+      issuesDetected: [],
+      lastDiagnosticAt: new Date().toISOString()
+    }
+  },
+  {
+    id: 'bazar-gourmet',
+    name: 'Bazar Gourmet & Café',
+    slug: 'bazargourmet',
+    ownerName: 'Martín Rodríguez',
+    ownerEmail: 'martin@bazargourmet.com.ar',
+    ownerPhone: '+54 9 11 4411-2233',
+    planId: 'pro',
+    subscriptionStatus: 'active',
+    pricePerMonthARS: 29990,
+    billingCycle: 'monthly',
+    mercadoPagoSubscriptionId: '2c9380848f2b3e81018f2b489002',
+    mercadoPagoPayerId: 'MP-PAYER-BAZAR',
+    createdAt: '2025-08-15T09:30:00.000Z',
+    trialEndsAt: '2025-08-30T09:30:00.000Z',
+    nextBillingDate: '2026-10-15T09:30:00.000Z',
+    notes: 'Usa catálogo para mayoristas con lista en PDF y pedidos por WhatsApp.',
+    technicalHealth: {
+      status: 'healthy',
+      productsCount: 38,
+      categoriesCount: 5,
+      salesCount: 64,
+      lastSyncAt: new Date(Date.now() - 3600000 * 2).toISOString(),
+      storageKB: 310,
+      maintenanceMode: false,
+      issuesDetected: [],
+      lastDiagnosticAt: new Date().toISOString()
+    }
+  },
+  {
+    id: 'electro-corrientes',
+    name: 'Electro Corrientes Tecnología',
+    slug: 'electrocorrientes',
+    ownerName: 'Claudio Fernández',
+    ownerEmail: 'ventas@electrocorrientes.com',
+    ownerPhone: '+54 9 379 455-8899',
+    planId: 'basic',
+    subscriptionStatus: 'trial',
+    pricePerMonthARS: 14990,
+    billingCycle: 'monthly',
+    mercadoPagoSubscriptionId: '2c9380848f2b3e81018f2b489003',
+    createdAt: new Date(Date.now() - 3600000 * 24 * 10).toISOString(),
+    trialEndsAt: new Date(Date.now() + 3600000 * 24 * 4).toISOString(),
+    nextBillingDate: new Date(Date.now() + 3600000 * 24 * 4).toISOString(),
+    notes: 'En período de prueba gratuito de 14 días. Muy activo cargando inventario.',
+    technicalHealth: {
+      status: 'healthy',
+      productsCount: 22,
+      categoriesCount: 4,
+      salesCount: 12,
+      lastSyncAt: new Date(Date.now() - 3600000 * 6).toISOString(),
+      storageKB: 180,
+      maintenanceMode: false,
+      issuesDetected: [],
+      lastDiagnosticAt: new Date().toISOString()
+    }
+  },
+  {
+    id: 'indumentaria-urbana',
+    name: 'UrbanStyle Indumentaria',
+    slug: 'urbanstyle',
+    ownerName: 'Lucía Benítez',
+    ownerEmail: 'lucia@urbanstyle.com.ar',
+    ownerPhone: '+54 9 341 512-3456',
+    planId: 'basic',
+    subscriptionStatus: 'past_due',
+    pricePerMonthARS: 14990,
+    billingCycle: 'monthly',
+    mercadoPagoSubscriptionId: '2c9380848f2b3e81018f2b489004',
+    createdAt: '2025-06-01T14:00:00.000Z',
+    trialEndsAt: '2025-06-15T14:00:00.000Z',
+    nextBillingDate: '2026-10-01T14:00:00.000Z',
+    churnReason: 'Tarjeta de crédito Mercado Pago sin fondos suficientes en el último ciclo.',
+    notes: 'Notificar al dueño para que actualice el método de cobro en Mercado Pago.',
+    technicalHealth: {
+      status: 'warning',
+      productsCount: 52,
+      categoriesCount: 6,
+      salesCount: 89,
+      lastSyncAt: new Date(Date.now() - 3600000 * 48).toISOString(),
+      storageKB: 410,
+      maintenanceMode: false,
+      issuesDetected: ['Pago mensual Mercado Pago pendiente de regularización'],
+      lastDiagnosticAt: new Date().toISOString()
+    }
+  },
+  {
+    id: 'ferreteria-san-martin',
+    name: 'Ferretería Industrial San Martín',
+    slug: 'ferreteriasanmartin',
+    ownerName: 'Jorge Daniel Rossi',
+    ownerEmail: 'jrossi@ferreteriasanmartin.com',
+    ownerPhone: '+54 9 11 6332-9988',
+    planId: 'pro',
+    subscriptionStatus: 'canceled',
+    pricePerMonthARS: 29990,
+    billingCycle: 'monthly',
+    mercadoPagoSubscriptionId: '2c9380848f2b3e81018f2b489005',
+    createdAt: '2025-03-12T10:00:00.000Z',
+    trialEndsAt: '2025-03-26T10:00:00.000Z',
+    nextBillingDate: '2026-09-12T10:00:00.000Z',
+    canceledAt: '2026-09-18T16:20:00.000Z',
+    churnReason: 'Baja temporal por remodelación del local. Mencionó que volverá en noviembre.',
+    recontactHistory: [
+      {
+        id: 'rec-1',
+        date: '2026-09-22T11:00:00.000Z',
+        channel: 'whatsapp',
+        notes: 'Hablamos por WhatsApp. Pidió que lo volvamos a contactar a fin de octubre con oferta especial.',
+        outcome: 'interested'
+      }
+    ],
+    notes: 'Cliente de alto valor. Ofrecer descuento del 25% por 3 meses para recuperar.',
+    technicalHealth: {
+      status: 'healthy',
+      productsCount: 84,
+      categoriesCount: 8,
+      salesCount: 142,
+      lastSyncAt: '2026-09-18T16:20:00.000Z',
+      storageKB: 680,
+      maintenanceMode: true,
+      issuesDetected: ['Tienda pausada por baja de suscripción'],
+      lastDiagnosticAt: new Date().toISOString()
+    }
+  },
+  {
+    id: 'muebles-nordicos-ar',
+    name: 'Nordic Wood Mueblería',
+    slug: 'nordicwood',
+    ownerName: 'Camila Valenzuela',
+    ownerEmail: 'camila@nordicwood.com.ar',
+    ownerPhone: '+54 9 351 688-7744',
+    planId: 'pro',
+    subscriptionStatus: 'canceled',
+    pricePerMonthARS: 29990,
+    billingCycle: 'monthly',
+    mercadoPagoSubscriptionId: '2c9380848f2b3e81018f2b489006',
+    createdAt: '2025-05-20T11:00:00.000Z',
+    trialEndsAt: '2025-06-04T11:00:00.000Z',
+    nextBillingDate: '2026-09-20T11:00:00.000Z',
+    canceledAt: '2026-09-25T18:40:00.000Z',
+    churnReason: 'Dificultades técnicas para optimizar fotos pesadas desde el celular.',
+    recontactHistory: [],
+    notes: 'Resolverle problema técnico de compresión de imágenes y ofrecer soporte asistido gratis.',
+    technicalHealth: {
+      status: 'warning',
+      productsCount: 19,
+      categoriesCount: 3,
+      salesCount: 15,
+      lastSyncAt: '2026-09-25T18:40:00.000Z',
+      storageKB: 160,
+      maintenanceMode: true,
+      issuesDetected: ['Suscripción cancelada - Requiere soporte técnico y asistencia de onboarding'],
+      lastDiagnosticAt: new Date().toISOString()
+    }
+  }
+];
+
+export const defaultMercadoPagoSettings: MercadoPagoSettings = {
+  publicKey: 'APP_USR-78291024-bc71-4992-8051-mp_live_public',
+  accessToken: 'APP_USR-78291024-bc71-4992-8051-mp_live_access_token',
+  webhookSecret: 'whsec_mercadopago_subscriptions_ai_studio',
+  sandboxMode: false,
+  plans: {
+    basicPlanId: '2c9380848f-basic-14990',
+    proPlanId: '2c9380848f-pro-29990',
+    enterprisePlanId: '2c9380848f-ent-59990'
+  }
+};

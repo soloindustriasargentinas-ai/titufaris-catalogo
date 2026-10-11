@@ -117,6 +117,48 @@
         "totalSpent": { "type": "number" }
       },
       "required": ["id", "name"]
+    },
+    "SaaSTenant": {
+      "title": "SaaSTenant",
+      "description": "Multi-tenant SaaS store registration, subscription, and technical health profile",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "slug": { "type": "string" },
+        "ownerName": { "type": "string" },
+        "ownerEmail": { "type": "string" },
+        "ownerPhone": { "type": "string" },
+        "planId": { "type": "string" },
+        "subscriptionStatus": { "type": "string" },
+        "pricePerMonthARS": { "type": "number" },
+        "billingCycle": { "type": "string" },
+        "mercadoPagoSubscriptionId": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "trialEndsAt": { "type": "string" },
+        "nextBillingDate": { "type": "string" },
+        "canceledAt": { "type": "string" },
+        "churnReason": { "type": "string" },
+        "notes": { "type": "string" }
+      },
+      "required": ["id", "name", "slug", "ownerEmail", "planId", "subscriptionStatus"]
+    },
+    "SaaSSubscription": {
+      "title": "SaaSSubscription",
+      "description": "Mercado Pago subscription log and recurring payment record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "tenantId": { "type": "string" },
+        "storeName": { "type": "string" },
+        "amount": { "type": "number" },
+        "currency": { "type": "string" },
+        "status": { "type": "string" },
+        "payerEmail": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "mercadoPagoPaymentId": { "type": "string" }
+      },
+      "required": ["id", "tenantId", "amount", "status", "timestamp"]
     }
   },
   "firestore": {
@@ -147,6 +189,14 @@
     "/activityLogs/{logId}": {
       "schema": "ActivityLog",
       "description": "Audit and activity trail"
+    },
+    "/saasTenants/{tenantId}": {
+      "schema": "SaaSTenant",
+      "description": "SaaS tenant stores registry and subscription health"
+    },
+    "/saasSubscriptions/{subscriptionId}": {
+      "schema": "SaaSSubscription",
+      "description": "Mercado Pago recurring payment transactions and logs"
     }
   }
 }

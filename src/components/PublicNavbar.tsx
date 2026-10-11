@@ -17,6 +17,10 @@ interface PublicNavbarProps {
   onSwitchToStaffMode: () => void;
   isDemoMode?: boolean;
   onToggleDemoMode?: () => void;
+  onOpenMasterPanel?: () => void;
+  onOpenSubscriptionModal?: () => void;
+  onOpenCreateTenant?: () => void;
+  activeStoreName?: string;
 }
 
 export const PublicNavbar: React.FC<PublicNavbarProps> = ({
@@ -30,6 +34,10 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
   onSwitchToStaffMode,
   isDemoMode = false,
   onToggleDemoMode,
+  onOpenMasterPanel,
+  onOpenSubscriptionModal,
+  onOpenCreateTenant,
+  activeStoreName,
 }) => {
   const [copiedLink, setCopiedLink] = useState(false);
 
@@ -110,17 +118,42 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
               </button>
             )}
 
-            <span className="text-slate-700 hidden md:inline">|</span>
+            {/* SaaS Plans & Mercado Pago */}
+            {onOpenSubscriptionModal && (
+              <button
+                onClick={onOpenSubscriptionModal}
+                title="Ver Planes de Suscripción Mensual con Mercado Pago"
+                className="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold transition shadow-xs cursor-pointer bg-blue-600/90 hover:bg-blue-500 text-white"
+              >
+                <span>💳</span>
+                <span className="hidden sm:inline">Planes SaaS</span>
+              </button>
+            )}
 
-            {/* Staff Access Link in Top Bar */}
-            <button
-              onClick={onSwitchToStaffMode}
-              title="Acceso restringido para personal de ventas, depósito y administración"
-              className="hover:text-white flex items-center gap-1 text-slate-400 transition-colors cursor-pointer"
-            >
-              <Lock className="w-3 h-3 text-orange-400" />
-              <span>Acceso Personal / POS</span>
-            </button>
+            {/* Create Store Button */}
+            {onOpenCreateTenant && (
+              <button
+                onClick={onOpenCreateTenant}
+                title="Crear una nueva tienda online SaaS"
+                className="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-black transition shadow-xs cursor-pointer bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white"
+              >
+                <span>✨</span>
+                <span className="hidden sm:inline">Crear Mi Tienda</span>
+              </button>
+            )}
+
+            {/* Master Admin Panel Button */}
+            {onOpenMasterPanel && (
+              <button
+                onClick={onOpenMasterPanel}
+                title="Abrir Panel Maestro SaaS (MRR, Tiendas, Facturación y Auditoría)"
+                className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-black transition shadow-xs cursor-pointer bg-gradient-to-r from-amber-500 to-indigo-600 hover:from-amber-400 hover:to-indigo-500 text-white"
+              >
+                <span>👑</span>
+                <span className="hidden sm:inline">Panel Maestro SaaS</span>
+                <span className="sm:hidden">Maestro</span>
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -205,15 +238,6 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
                 {formatCurrency(cartTotal)}
               </span>
             )}
-          </button>
-
-          {/* Mobile Staff Mode Toggle */}
-          <button
-            onClick={onSwitchToStaffMode}
-            title="Ingreso a Terminal POS y Administración"
-            className="sm:hidden p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer"
-          >
-            <Lock className="w-4 h-4 text-orange-600" />
           </button>
         </div>
       </div>

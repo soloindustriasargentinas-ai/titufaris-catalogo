@@ -10,6 +10,7 @@ interface CompanySettingsModalProps {
   onClose: () => void;
   onSave: (updated: CompanyProfile) => void;
   onOpenBackupModal?: () => void;
+  onOpenCustomDomain?: () => void;
 }
 
 export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
@@ -18,6 +19,7 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
   onClose,
   onSave,
   onOpenBackupModal,
+  onOpenCustomDomain,
 }) => {
   const [formData, setFormData] = useState<CompanyProfile>(company);
   const [copiedPublicUrl, setCopiedPublicUrl] = useState(false);
@@ -170,6 +172,38 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
               *Nota: El enlace que tiene <code className="text-orange-600 font-mono">ais-dev-</code> es tu entorno privado de programación de Google AI Studio, por eso ese te pide cuenta de Google. Para clientes siempre se usa este enlace público (<code className="text-emerald-700 font-mono">ais-pre-</code>).
             </p>
           </div>
+
+          {/* Custom Domain Section (Paso 4 SaaS) */}
+          {onOpenCustomDomain && (
+            <div className="p-4 bg-gradient-to-r from-indigo-50 to-blue-50 border border-indigo-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+              <div className="flex items-start gap-3">
+                <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                  <Globe className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-black text-indigo-950 uppercase tracking-wider">
+                      Dominio Propio (Web Personalizada)
+                    </span>
+                    <span className="text-[10px] bg-indigo-200 text-indigo-900 font-extrabold px-1.5 py-0.2 rounded-full">
+                      Paso 4
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-indigo-800 mt-0.5">
+                    Vinculá tu propio dominio registrado (ej: <strong>mitienda.com</strong> o <strong>www.mimarca.com.ar</strong>) con certificado SSL automático y enrutamiento directo.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={onOpenCustomDomain}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl transition cursor-pointer shrink-0 shadow-xs flex items-center justify-center gap-1.5"
+              >
+                <Globe className="w-3.5 h-3.5" />
+                <span>Configurar Dominio</span>
+              </button>
+            </div>
+          )}
 
           {/* Brand Info */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

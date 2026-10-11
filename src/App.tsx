@@ -130,8 +130,14 @@ const RecoveryModal = lazy(() => import('./components/RecoveryModal').then(m => 
 const LegalNoticeModal = lazy(() => import('./components/LegalNoticeModal').then(m => ({ default: m.LegalNoticeModal })));
 const WhatsAppCatalogModal = lazy(() => import('./components/WhatsAppCatalogModal').then(m => ({ default: m.WhatsAppCatalogModal })));
 const GoogleMerchantModal = lazy(() => import('./components/GoogleMerchantModal').then(m => ({ default: m.GoogleMerchantModal })));
+const MasterAdminPanelModal = lazy(() => import('./components/MasterAdminPanelModal').then(m => ({ default: m.MasterAdminPanelModal })));
+const SaaSSubscriptionModal = lazy(() => import('./components/SaaSSubscriptionModal').then(m => ({ default: m.SaaSSubscriptionModal })));
+const CreateTenantModal = lazy(() => import('./components/CreateTenantModal').then(m => ({ default: m.CreateTenantModal })));
+const CustomDomainModal = lazy(() => import('./components/CustomDomainModal').then(m => ({ default: m.CustomDomainModal })));
 
 import { CookieConsentBanner } from './components/CookieConsentBanner';
+import { TenantStatusBanner } from './components/TenantStatusBanner';
+import { TenantSuspendedNotice } from './components/TenantSuspendedNotice';
 import { LegalTab } from './components/LegalNoticeModal';
 import { CartConfirmationToast } from './components/CartConfirmationToast';
 import { useCart } from './hooks/useCart';
@@ -139,6 +145,9 @@ import { useCatalogFilter } from './hooks/useCatalogFilter';
 import { playBeep, playSuccessChime, playWarningAlert } from './utils/audio';
 import { scanBrowserForLostProducts } from './utils/recovery';
 import { syncSingleProductToMetaCatalog, deleteProductFromMetaCatalog } from './utils/metaCatalogApi';
+import { SaaSTenantStore } from './types/saas';
+import { loadSaaSTenants, getActiveTenantId, setActiveTenantId, syncTenantsWithFirestore } from './utils/saasStorage';
+import { saasCompany, saasCategories, saasProducts, saasUsers } from './data/saasDemoData';
 
 export default function App() {
   // Main State
@@ -331,6 +340,72 @@ export default function App() {
       document.title = 'Mi Tienda - Demostración de Catálogo Genérico';
     }
   }, []);
+
+  // ---------------- SAAS MULTI-TENANCY & MASTER PANEL ----------------
+  const [saasTenants, setSaaSTenants] = useState<SaaSTenantStore[]>(loadSaaSTenants);
+  const [activeTenantId, setActiveTenantIdState] = useState<string>(getActiveTenantId);
+  const [isMasterPanelOpen, setIsMasterPanelOpen] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    const p = new URLSearchParams(window.location.search);
+    return p.get('panel') === 'maestro' || p.get('admin') === 'saas' || p.get('saas') === '1';
+  });
+  const [isSaaSSubscriptionModalOpen, setIsSaaSSubscriptionModalOpen] = useState<boolean>(false);
+  const [isCreateTenantModalOpen, setIsCreateTenantModalOpen] = useState<boolean>(false);
+  const [isCustomDomainModalOpen, setIsCustomDomainModalOpen] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    const p = new URLSearchParams(window.location.search);
+    return p.get('dominio') === 'config' || p.get('domain') === 'setup';
+  });
+
+  const activeTenant = saasTenants.find(t => t.id === activeTenantId) || saasTenants[0];
+
+  // Sync tenants with Firestore cloud on startup & auto-load active custom domain tenant
+  useEffect(() => {
+    syncTenantsWithFirestore(saasTenants).then(synced => {
+      setSaaSTenants(synced);
+    });
+
+    if (activeTenantId && activeTenantId !== 'titufaris') {
+      handleSelectTenant(activeTenantId);
+    }
+  }, []);
+
+  const handleSelectTenant = (tenantId: string) => {
+    setActiveTenantIdState(tenantId);
+    setActiveTenantId(tenantId);
+
+    if (tenantId === 'titufaris') {
+      // Flagship Titufaris store: Always keep and restore standard Titufaris catalog and settings
+      handleExitDemoMode();
+    } else {
+      // Impersonate or inspect another tenant
+      if (!realDataBackupRef.current) {
+        realDataBackupRef.current = {
+          products,
+          categories,
+          company,
+          users,
+        };
+      }
+      const tenant = saasTenants.find(t => t.id === tenantId);
+      if (tenant) {
+        setCompany({
+          ...saasCompany,
+          name: tenant.name,
+          tagline: `CATÁLOGO OFICIAL · PLAN ${tenant.planId.toUpperCase()}`,
+          email: tenant.ownerEmail,
+          phone: tenant.ownerPhone,
+          website: tenant.customDomain ? `https://${tenant.customDomain}` : `https://${tenant.slug}.titufaris.online`,
+        });
+        setProducts(saasProducts);
+        setCategories(saasCategories);
+        setSelectedCategory('all');
+        setSearchQuery('');
+        setDetailProduct(null);
+        document.title = `${tenant.name} - Catálogo & POS`;
+      }
+    }
+  };
 
   // Catalog Reordering & Drag-and-Drop States
   const [draggedProductId, setDraggedProductId] = useState<string | null>(null);
@@ -1758,7 +1833,35 @@ export default function App() {
   const unreadNotifsCount = notifications.filter(n => !n.read).length;
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-100 text-slate-900 selection:bg-orange-500 selection:text-white">
+    <div className="min-h-screen flex flex-col bg-slate-100 text-slate-900 selection:bg-orange-500 selection:text-white w-full max-w-full overflow-x-hidden">
+      {/* SaaS Active Tenant Inspection Banner (if not Titufaris) */}
+      {activeTenantId !== 'titufaris' && (
+        <div className="bg-gradient-to-r from-indigo-950 via-slate-900 to-indigo-950 text-white text-xs px-4 py-2 flex flex-wrap items-center justify-between gap-2 border-b border-indigo-800 shadow-md">
+          <div className="flex items-center gap-2">
+            <span className="bg-indigo-600 text-white font-bold text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider">
+              SaaS Multi-Tienda
+            </span>
+            <span className="text-indigo-100 text-xs">
+              Inspeccionando tienda: <strong className="text-white">{activeTenant.name}</strong> (Plan {activeTenant.planId.toUpperCase()} &middot; {activeTenant.subscriptionStatus.toUpperCase()})
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsMasterPanelOpen(true)}
+              className="bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-bold px-2.5 py-1 rounded-lg transition cursor-pointer"
+            >
+              👑 Panel Maestro
+            </button>
+            <button
+              onClick={() => handleSelectTenant('titufaris')}
+              className="bg-orange-600 hover:bg-orange-500 text-white text-[11px] font-bold px-2.5 py-1 rounded-lg transition cursor-pointer"
+            >
+              🏠 Volver a Titufaris.online
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Generic Store Demo Mode Banner */}
       {isDemoMode && <DemoModeBanner onExitDemo={handleExitDemoMode} />}
 
@@ -1776,27 +1879,46 @@ export default function App() {
             onSwitchToStaffMode={handleRequestStaffMode}
             isDemoMode={isDemoMode}
             onToggleDemoMode={() => (isDemoMode ? handleExitDemoMode() : handleEnterDemoMode())}
+            onOpenMasterPanel={() => setIsMasterPanelOpen(true)}
+            onOpenSubscriptionModal={() => setIsSaaSSubscriptionModalOpen(true)}
+            onOpenCreateTenant={() => setIsCreateTenantModalOpen(true)}
+            activeStoreName={activeTenant.name}
           />
 
-          <PublicStoreView
-            products={storeFilteredProducts}
-            categories={categories}
-            company={company}
-            selectedCategory={selectedCategory}
-            onSelectCategory={setSelectedCategory}
-            onOpenProductDetail={setDetailProduct}
-            onOpenQR={setQrProduct}
-            onShareProduct={setShareProduct}
-            onAddToCart={(p) => handleAddToCart(p, 'retail')}
-            onOpenCatalogPDF={() => setIsExportModalOpen(true)}
-            onSwitchToStaffMode={handleRequestStaffMode}
-            onOpenLegalModal={handleOpenLegalModal}
-            onOpenCart={() => setIsCustomerCartOpen(true)}
-            onOpenSitemap={() => setIsSitemapModalOpen(true)}
-            cartCount={cartItemCount}
-            cartTotal={cartSubtotal}
-            isDemoMode={isDemoMode}
+          <TenantStatusBanner
+            tenant={activeTenant}
+            onOpenSubscriptionModal={() => setIsSaaSSubscriptionModalOpen(true)}
+            onOpenMasterPanel={() => setIsMasterPanelOpen(true)}
+            onOpenCustomDomain={() => setIsCustomDomainModalOpen(true)}
           />
+
+          {activeTenant.subscriptionStatus === 'canceled' && !activeTenant.isDefaultStore && activeTenant.id !== 'titufaris' ? (
+            <TenantSuspendedNotice
+              tenant={activeTenant}
+              onOpenSubscriptionModal={() => setIsSaaSSubscriptionModalOpen(true)}
+              onReturnToTitufaris={() => handleSelectTenant('titufaris')}
+            />
+          ) : (
+            <PublicStoreView
+              products={storeFilteredProducts}
+              categories={categories}
+              company={company}
+              selectedCategory={selectedCategory}
+              onSelectCategory={setSelectedCategory}
+              onOpenProductDetail={setDetailProduct}
+              onOpenQR={setQrProduct}
+              onShareProduct={setShareProduct}
+              onAddToCart={(p) => handleAddToCart(p, 'retail')}
+              onOpenCatalogPDF={() => setIsExportModalOpen(true)}
+              onSwitchToStaffMode={handleRequestStaffMode}
+              onOpenLegalModal={handleOpenLegalModal}
+              onOpenCart={() => setIsCustomerCartOpen(true)}
+              onOpenSitemap={() => setIsSitemapModalOpen(true)}
+              cartCount={cartItemCount}
+              cartTotal={cartSubtotal}
+              isDemoMode={isDemoMode}
+            />
+          )}
 
           {/* Customer Cart Drawer */}
           <CustomerCartDrawer
@@ -1818,11 +1940,11 @@ export default function App() {
           <CookieConsentBanner onOpenPrivacyPolicy={() => handleOpenLegalModal('privacy')} />
 
           {/* Quick Floating Access for Staff on Tablets or Desktops */}
-          <div className="fixed bottom-4 right-4 z-30">
+          <div className="fixed bottom-16 sm:bottom-4 right-3 sm:right-4 z-40">
             <button
               onClick={handleRequestStaffMode}
               title="Ingresar a Gestión Interna / Terminal POS"
-              className="px-4 py-2.5 rounded-full bg-slate-900/95 hover:bg-slate-900 text-white text-xs font-bold border border-slate-700 shadow-2xl backdrop-blur-md flex items-center gap-2.5 cursor-pointer transition-all hover:scale-105"
+              className="px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-full bg-slate-900/95 hover:bg-slate-900 text-white text-xs font-bold border border-slate-700 shadow-2xl backdrop-blur-md flex items-center gap-2 cursor-pointer transition-all hover:scale-105"
             >
               <span className="w-2.5 h-2.5 rounded-full bg-orange-500 animate-pulse" />
               <span>Panel POS / Admin</span>
@@ -1871,6 +1993,16 @@ export default function App() {
             onOpenRecoveryModal={() => setIsRecoveryModalOpen(true)}
             onManualSync={triggerCloudSync}
             onSwitchToStoreMode={handleLockStaffMode}
+            onOpenMasterPanel={() => setIsMasterPanelOpen(true)}
+            onOpenSubscriptionModal={() => setIsSaaSSubscriptionModalOpen(true)}
+            onOpenCustomDomain={() => setIsCustomDomainModalOpen(true)}
+          />
+
+          <TenantStatusBanner
+            tenant={activeTenant}
+            onOpenSubscriptionModal={() => setIsSaaSSubscriptionModalOpen(true)}
+            onOpenMasterPanel={() => setIsMasterPanelOpen(true)}
+            onOpenCustomDomain={() => setIsCustomDomainModalOpen(true)}
           />
 
           {/* Quick Floating Access to Web Store in Staff Mode */}
@@ -2695,6 +2827,7 @@ export default function App() {
             onClose={() => setIsCompanyModalOpen(false)}
             onSave={handleSaveCompany}
             onOpenBackupModal={() => setIsBackupModalOpen(true)}
+            onOpenCustomDomain={() => setIsCustomDomainModalOpen(true)}
           />
         )}
       </Suspense>
@@ -2811,6 +2944,65 @@ export default function App() {
           }
         }}
       />
+
+      {/* 15. Master SaaS Admin Control Panel & Diagnostics Modal */}
+      {isMasterPanelOpen && (
+        <Suspense fallback={null}>
+          <MasterAdminPanelModal
+            isOpen={isMasterPanelOpen}
+            onClose={() => setIsMasterPanelOpen(false)}
+            tenants={saasTenants}
+            onUpdateTenants={setSaaSTenants}
+            activeTenantId={activeTenantId}
+            onSelectTenant={handleSelectTenant}
+            onOpenCreateTenant={() => setIsCreateTenantModalOpen(true)}
+          />
+        </Suspense>
+      )}
+
+      {/* 16. SaaS Subscription & Mercado Pago Checkout Modal */}
+      {isSaaSSubscriptionModalOpen && (
+        <Suspense fallback={null}>
+          <SaaSSubscriptionModal
+            isOpen={isSaaSSubscriptionModalOpen}
+            onClose={() => setIsSaaSSubscriptionModalOpen(false)}
+            tenant={activeTenant}
+            allTenants={saasTenants}
+            onUpdateTenants={setSaaSTenants}
+          />
+        </Suspense>
+      )}
+
+      {/* 17. Create New SaaS Store Onboarding Modal */}
+      {isCreateTenantModalOpen && (
+        <Suspense fallback={null}>
+          <CreateTenantModal
+            isOpen={isCreateTenantModalOpen}
+            onClose={() => setIsCreateTenantModalOpen(false)}
+            tenants={saasTenants}
+            onTenantCreated={(newTenant) => {
+              setSaaSTenants(prev => [...prev, newTenant]);
+              handleSelectTenant(newTenant.id);
+            }}
+          />
+        </Suspense>
+      )}
+
+      {/* 18. Custom Domain & DNS Management Modal (Paso 4 SaaS) */}
+      {isCustomDomainModalOpen && (
+        <Suspense fallback={null}>
+          <CustomDomainModal
+            isOpen={isCustomDomainModalOpen}
+            onClose={() => setIsCustomDomainModalOpen(false)}
+            tenant={activeTenant}
+            allTenants={saasTenants}
+            onUpdateTenants={setSaaSTenants}
+            onSelectTenantDomain={(domain) => {
+              handleSelectTenant(activeTenant.id);
+            }}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }

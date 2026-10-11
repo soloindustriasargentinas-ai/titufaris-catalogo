@@ -59,8 +59,8 @@ export const SiteMapModal: React.FC<SiteMapModalProps> = ({
 
   // XML content generation
   const xmlContent = useMemo(() => {
-    return generateSitemapXml(products, categories, company);
-  }, [products, categories, company]);
+    return generateSitemapXml(products, categories, company, undefined, isDemoMode);
+  }, [products, categories, company, isDemoMode]);
 
   // Filtered categories and products
   const filteredCategories = useMemo(() => {
@@ -115,7 +115,7 @@ export const SiteMapModal: React.FC<SiteMapModalProps> = ({
     {
       title: 'Inicio / Portada Principal',
       description: 'Página principal con vitrina destacada, propuesta de valor y accesos rápidos.',
-      url: '/',
+      url: isDemoMode ? '/?demo=generica' : '/',
       icon: Home,
       action: () => {
         onClose();
@@ -125,7 +125,7 @@ export const SiteMapModal: React.FC<SiteMapModalProps> = ({
     {
       title: isDemoMode ? 'Catálogo General de Muestra' : 'Catálogo Completo de Equipamiento',
       description: 'Listado completo de productos con filtros por categoría, búsqueda y orden.',
-      url: '/?categoria=all',
+      url: isDemoMode ? '/?demo=generica&categoria=all' : '/?categoria=all',
       icon: Package,
       action: () => {
         onClose();
@@ -135,7 +135,7 @@ export const SiteMapModal: React.FC<SiteMapModalProps> = ({
     {
       title: 'Mi Pedido / Carrito de Compras',
       description: 'Revisión de productos seleccionados, cálculo de totales y envío directo a WhatsApp.',
-      url: '/?vista=carrito',
+      url: isDemoMode ? '/?demo=generica&vista=carrito' : '/?vista=carrito',
       icon: ShoppingBag,
       action: () => {
         onClose();
@@ -145,7 +145,7 @@ export const SiteMapModal: React.FC<SiteMapModalProps> = ({
     {
       title: 'Términos y Condiciones Comerciales',
       description: 'Condiciones de venta, medios de pago bancarios, facturación y plazos de entrega.',
-      url: '/?vista=terminos',
+      url: isDemoMode ? '/?demo=generica&vista=terminos' : '/?vista=terminos',
       icon: FileText,
       action: () => {
         onClose();
@@ -155,7 +155,7 @@ export const SiteMapModal: React.FC<SiteMapModalProps> = ({
     {
       title: 'Políticas de Privacidad y Protección de Datos',
       description: 'Cumplimiento normativo y tratamiento seguro de los datos de contacto.',
-      url: '/?vista=privacidad',
+      url: isDemoMode ? '/?demo=generica&vista=privacidad' : '/?vista=privacidad',
       icon: ShieldCheck,
       action: () => {
         onClose();
@@ -165,7 +165,7 @@ export const SiteMapModal: React.FC<SiteMapModalProps> = ({
     {
       title: isDemoMode ? 'Políticas de Garantía & Cambios' : 'Garantía Estructural & Asistencia Técnica',
       description: 'Alcance de garantía oficial, soporte técnico posventa y cobertura.',
-      url: '/?vista=garantia',
+      url: isDemoMode ? '/?demo=generica&vista=garantia' : '/?vista=garantia',
       icon: Sparkles,
       action: () => {
         onClose();
@@ -190,7 +190,7 @@ export const SiteMapModal: React.FC<SiteMapModalProps> = ({
     {
       title: isDemoMode ? 'Terminal POS & Panel de Muestra' : 'Terminal POS & Panel de Gestión',
       description: 'Acceso para personal autorizado: control de stock, cobro en mostrador y administración.',
-      url: '/?modo=gestion',
+      url: isDemoMode ? '/?demo=generica&modo=gestion' : '/?modo=gestion',
       icon: Lock,
       action: () => {
         onClose();
@@ -318,10 +318,19 @@ export const SiteMapModal: React.FC<SiteMapModalProps> = ({
                     .map((item, idx) => {
                       const Icon = item.icon;
                       return (
-                        <div
+                        <a
                           key={idx}
-                          onClick={item.action}
-                          className="p-3.5 rounded-xl border border-slate-200 hover:border-orange-400 hover:shadow-md transition-all cursor-pointer bg-white group flex flex-col justify-between"
+                          href={item.url}
+                          onClick={(e) => {
+                            if (!item.isExternal) {
+                              e.preventDefault();
+                              item.action();
+                            }
+                          }}
+                          target={item.isExternal ? '_blank' : undefined}
+                          rel={item.isExternal ? 'noreferrer' : undefined}
+                          title={`Ir a ${item.title}: ${item.description}`}
+                          className="p-3.5 rounded-xl border border-slate-200 hover:border-orange-400 hover:shadow-md transition-all cursor-pointer bg-white group flex flex-col justify-between no-underline"
                         >
                           <div>
                             <div className="flex items-center justify-between gap-2 mb-1">
@@ -340,10 +349,10 @@ export const SiteMapModal: React.FC<SiteMapModalProps> = ({
                           <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between">
                             <span className="text-[10px] font-mono text-slate-400 truncate max-w-[200px]">{item.url}</span>
                             <span className="text-[10px] font-bold text-orange-600 opacity-0 group-hover:opacity-100 transition-opacity">
-                              Navegar →
+                              Abrir página →
                             </span>
                           </div>
-                        </div>
+                        </a>
                       );
                     })}
                 </div>
@@ -363,14 +372,20 @@ export const SiteMapModal: React.FC<SiteMapModalProps> = ({
                   {filteredCategories.map(cat => {
                     const catCount = products.filter(p => p.category === cat.id && p.active !== false).length;
                     const catSlug = slugify(cat.name);
+                    const catUrl = isDemoMode
+                      ? `/?demo=generica&categoria=${catSlug}&cat=${cat.id}`
+                      : `/?categoria=${catSlug}&cat=${cat.id}`;
                     return (
-                      <div
+                      <a
                         key={cat.id}
-                        onClick={() => {
+                        href={catUrl}
+                        onClick={(e) => {
+                          e.preventDefault();
                           onClose();
                           onSelectCategory(cat.id);
                         }}
-                        className="p-3.5 rounded-xl border border-slate-200 hover:border-orange-400 hover:shadow-md transition-all cursor-pointer bg-white group flex flex-col justify-between"
+                        title={`Explorar catálogo de la línea ${cat.name} (${catCount} artículos)`}
+                        className="p-3.5 rounded-xl border border-slate-200 hover:border-orange-400 hover:shadow-md transition-all cursor-pointer bg-white group flex flex-col justify-between no-underline"
                       >
                         <div>
                           <div className="flex items-center justify-between gap-2 mb-1.5">
@@ -395,12 +410,12 @@ export const SiteMapModal: React.FC<SiteMapModalProps> = ({
                         </div>
 
                         <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between">
-                          <span className="text-[10px] font-mono text-slate-400">/?categoria={catSlug}</span>
+                          <span className="text-[10px] font-mono text-slate-400 truncate max-w-[200px]">{catUrl}</span>
                           <span className="text-[10px] font-bold text-orange-600 flex items-center gap-0.5">
                             Ver línea →
                           </span>
                         </div>
-                      </div>
+                      </a>
                     );
                   })}
                 </div>
@@ -420,14 +435,20 @@ export const SiteMapModal: React.FC<SiteMapModalProps> = ({
                   {filteredProducts.map(prod => {
                     const cat = categories.find(c => c.id === prod.category);
                     const prodSlug = slugify(prod.name);
+                    const prodUrl = isDemoMode
+                      ? `/?demo=generica&producto=${prodSlug}&p=${prod.id}`
+                      : `/?producto=${prodSlug}&p=${prod.id}`;
                     return (
-                      <div
+                      <a
                         key={prod.id}
-                        onClick={() => {
+                        href={prodUrl}
+                        onClick={(e) => {
+                          e.preventDefault();
                           onClose();
                           onOpenProductDetail(prod);
                         }}
-                        className="p-3 hover:bg-orange-50/50 transition-colors cursor-pointer flex items-center justify-between gap-3 group"
+                        title={`Ver detalles, fotos y precio de ${prod.name} (${prod.sku})`}
+                        className="p-3 hover:bg-orange-50/50 transition-colors cursor-pointer flex items-center justify-between gap-3 group no-underline"
                       >
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2 flex-wrap">
@@ -444,7 +465,7 @@ export const SiteMapModal: React.FC<SiteMapModalProps> = ({
                             )}
                           </div>
                           <div className="flex items-center gap-3 text-[10px] text-slate-400 mt-1">
-                            <span className="font-mono">/?producto={prodSlug}</span>
+                            <span className="font-mono">{prodUrl}</span>
                             <span>•</span>
                             {prod.isMadeToOrder ? (
                               <span className="text-indigo-600 font-medium flex items-center gap-1">
@@ -463,10 +484,10 @@ export const SiteMapModal: React.FC<SiteMapModalProps> = ({
                             {formatCurrency(prod.retailPrice)}
                           </span>
                           <span className="text-[10px] font-bold text-orange-600 opacity-0 group-hover:opacity-100 transition-opacity">
-                            Ver detalles →
+                            Ver Ficha →
                           </span>
                         </div>
-                      </div>
+                      </a>
                     );
                   })}
                 </div>

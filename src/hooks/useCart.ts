@@ -12,55 +12,64 @@ export function useCart() {
     setCartToast(null);
   }, []);
 
+  const applyWholesaleRule = useCallback((items: CartItem[]): CartItem[] => {
+    const totalQty = items.reduce((acc, it) => acc + it.quantity, 0);
+    // Regla: Si agregan al carro más de 10 productos (cualquiera que sea), el precio cambia a x mayor en el carro para todos los productos seleccionados
+    const isWholesaleActive = totalQty > 10;
+
+    return items.map(it => {
+      const wholesalePrice = it.product.wholesalePrice;
+      const retailPrice = it.product.retailPrice;
+      const unitPrice = isWholesaleActive && wholesalePrice !== undefined ? wholesalePrice : retailPrice;
+      return {
+        ...it,
+        unitPrice,
+        priceType: isWholesaleActive ? 'wholesale' : 'retail',
+      };
+    });
+  }, []);
+
   const handleAddToCart = useCallback(
-    (product: Product, priceType: 'retail' | 'wholesale' = 'retail', quantityToAdd: number = 1) => {
+    (product: Product, _unusedPriceType: 'retail' | 'wholesale' = 'retail', quantityToAdd: number = 1) => {
       if (product.stock <= 0) return;
 
       const toAdd = Math.max(1, quantityToAdd);
       let addedQty = 0;
       let totalQty = 0;
       let isMaxReached = false;
-      let effectiveUnitPrice = priceType === 'wholesale' ? product.wholesalePrice : product.retailPrice;
 
       setCart(prev => {
+        let updated: CartItem[];
         const existing = prev.find(it => it.product.id === product.id);
+
         if (existing) {
           if (existing.quantity >= product.stock) {
             addedQty = 0;
             totalQty = existing.quantity;
             isMaxReached = true;
-            effectiveUnitPrice = existing.unitPrice;
             return prev;
           }
           const actualAdd = Math.min(toAdd, product.stock - existing.quantity);
           addedQty = actualAdd;
           const nextQty = existing.quantity + actualAdd;
           totalQty = nextQty;
-          // Regla comercial: Venta mayorista automática a partir de 10 unidades
-          const isWholesale = nextQty >= 10 || existing.priceType === 'wholesale' || priceType === 'wholesale';
-          effectiveUnitPrice = isWholesale ? product.wholesalePrice : product.retailPrice;
 
-          return prev.map(it =>
+          updated = prev.map(it =>
             it.product.id === product.id
-              ? {
-                  ...it,
-                  quantity: nextQty,
-                  unitPrice: effectiveUnitPrice,
-                  priceType: isWholesale ? 'wholesale' : 'retail',
-                }
+              ? { ...it, quantity: nextQty }
               : it
           );
         } else {
           const actualAdd = Math.min(toAdd, product.stock);
           addedQty = actualAdd;
           totalQty = actualAdd;
-          const isWholesale = actualAdd >= 10 || priceType === 'wholesale';
-          effectiveUnitPrice = isWholesale ? product.wholesalePrice : product.retailPrice;
-          return [
+          updated = [
             ...prev,
-            { product, quantity: actualAdd, unitPrice: effectiveUnitPrice, priceType: isWholesale ? 'wholesale' : 'retail' },
+            { product, quantity: actualAdd, unitPrice: product.retailPrice, priceType: 'retail' },
           ];
         }
+
+        return applyWholesaleRule(updated);
       });
 
       playBeep();
@@ -71,47 +80,43 @@ export function useCart() {
         product,
         quantityAdded: addedQty > 0 ? addedQty : toAdd,
         totalInCart: totalQty > 0 ? totalQty : toAdd,
-        unitPrice: effectiveUnitPrice,
-        priceType,
+        unitPrice: product.retailPrice,
+        priceType: 'retail',
         isMaxStockReached: isMaxReached,
       });
     },
-    []
+    [applyWholesaleRule]
   );
 
   const handleUpdateCartQty = useCallback((productId: string, quantity: number) => {
     if (quantity <= 0) {
-      setCart(prev => prev.filter(it => it.product.id !== productId));
+      setCart(prev => applyWholesaleRule(prev.filter(it => it.product.id !== productId)));
       return;
     }
-    setCart(prev =>
-      prev.map(it => {
+    setCart(prev => {
+      const updated = prev.map(it => {
         if (it.product.id !== productId) return it;
         const nextQty = Math.min(quantity, it.product.stock);
-        // Regla comercial: Venta mayorista automática a partir de 10 unidades
-        const isWholesale = nextQty >= 10 || it.priceType === 'wholesale';
-        const unitPrice = isWholesale ? it.product.wholesalePrice : it.product.retailPrice;
         return {
           ...it,
           quantity: nextQty,
-          unitPrice,
-          priceType: isWholesale ? 'wholesale' : 'retail',
         };
-      })
-    );
-  }, []);
+      });
+      return applyWholesaleRule(updated);
+    });
+  }, [applyWholesaleRule]);
 
   const handleRemoveCartItem = useCallback((productId: string) => {
-    setCart(prev => prev.filter(it => it.product.id !== productId));
-  }, []);
+    setCart(prev => applyWholesaleRule(prev.filter(it => it.product.id !== productId)));
+  }, [applyWholesaleRule]);
 
   const handleClearCart = useCallback(() => {
     setCart([]);
   }, []);
 
   const removeByProductId = useCallback((productId: string) => {
-    setCart(prev => prev.filter(it => it.product.id !== productId));
-  }, []);
+    setCart(prev => applyWholesaleRule(prev.filter(it => it.product.id !== productId)));
+  }, [applyWholesaleRule]);
 
   const cartItemCount = useMemo(() => cart.reduce((acc, it) => acc + it.quantity, 0), [cart]);
   const cartSubtotal = useMemo(() => cart.reduce((acc, it) => acc + it.unitPrice * it.quantity, 0), [cart]);
