@@ -102,38 +102,27 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
               )}
             </button>
 
-            {/* On Titufaris Flagship storefront (titufaris.online), do not show direct SaaS or generic store pills */}
-            {isDemoMode && onToggleDemoMode && (
-              <button
-                onClick={onToggleDemoMode}
-                title="Volver a Titufaris"
-                className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-black transition shadow-xs cursor-pointer bg-amber-400 hover:bg-amber-300 text-slate-950"
-              >
-                <Eye className="w-3 h-3" />
-                <span>🔙 Volver a Titufaris</span>
-              </button>
-            )}
-
-            {/* SaaS Plans & Create Store pills only appear in Demo / SaaS modes or when explicitly requested */}
+            {/* Escalar Tienda (lleva a mostrar los planes) */}
             {isDemoMode && onOpenSubscriptionModal && (
               <button
                 onClick={onOpenSubscriptionModal}
-                title="Ver Planes de Suscripción Mensual con Mercado Pago"
-                className="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold transition shadow-xs cursor-pointer bg-blue-600/90 hover:bg-blue-500 text-white"
+                title="Conocer planes para escalar tu negocio"
+                className="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold transition shadow-xs cursor-pointer bg-indigo-600 hover:bg-indigo-500 text-white"
               >
-                <span>💳</span>
-                <span className="hidden sm:inline">Planes SaaS</span>
+                <span>🚀</span>
+                <span>Escalar Tienda</span>
               </button>
             )}
 
             {isDemoMode && onOpenCreateTenant && (
               <button
                 onClick={onOpenCreateTenant}
-                title="Crear una nueva tienda online SaaS con 3 meses gratis"
+                title="Crear una nueva tienda online con 3 meses gratis"
                 className="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-black transition shadow-xs cursor-pointer bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white"
               >
                 <span>🎁</span>
                 <span className="hidden sm:inline">Crear Mi Tienda (3 Meses Gratis)</span>
+                <span className="sm:hidden">Crear Tienda</span>
               </button>
             )}
           </div>
@@ -171,7 +160,7 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
               type="text"
               value={searchQuery}
               onChange={e => onSearchChange(e.target.value)}
-              placeholder={isDemoMode ? "Buscar en catálogo genérico (auriculares, herramientas, sillón, cafetera...)" : "Buscar góndolas, heladeras, checkouts, balanzas o accesorios..."}
+              placeholder={isDemoMode ? "Buscar productos, categorías, rubros o accesorios..." : "Buscar góndolas, heladeras, checkouts, balanzas o accesorios..."}
               className="w-full pl-10 pr-4 py-2 text-sm bg-slate-50 hover:bg-slate-100/80 focus:bg-white border border-slate-300 focus:border-orange-500 rounded-xl outline-none transition-all placeholder:text-slate-400"
             />
           </div>

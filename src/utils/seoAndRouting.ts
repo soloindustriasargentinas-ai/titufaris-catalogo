@@ -29,22 +29,96 @@ export function getCanonicalBaseUrl(): string {
 }
 
 /**
- * Genera una URL amigable, descriptiva y legible para compartir un producto específico.
- * Ejemplo: https://titufaris.online/?producto=gondola-central-doble-reforzada-sku-gon-01&p=prod_123
+ * Genera un slug altamente descriptivo y legible relativo a las características
+ * esenciales del producto (nombre, descripción detallada, medidas y atributos técnicos).
+ * Permite que cualquier usuario o motor de búsqueda lea en el propio enlace de qué producto se trata.
+ * Ejemplo: "gondola-central-tramo-inicial-de-160-de-alto-12-metros-de-largo-y-4-estantes"
  */
-export function buildProductUrl(product: Product, isDemo = false): string {
-  const base = getCanonicalBaseUrl();
-  const nameSlug = slugify(product.name);
-  const skuSlug = product.sku ? slugify(product.sku) : '';
-  const descriptiveSlug = skuSlug && !nameSlug.includes(skuSlug)
-    ? `${nameSlug}-sku-${skuSlug}`
-    : nameSlug;
+export function generateProductDescriptiveSlug(product: Product): string {
+  if (!product) return 'producto';
+
+  const nameSlug = slugify(product.name || '');
+  const rawDesc = (product.description || '').trim();
+
+  let descriptivePart = '';
+
+  if (rawDesc) {
+    // Tomar la primera oración o los primeros 14 términos significativos de la descripción
+    const firstSentence = rawDesc.split(/[.\n\r]/)[0] || rawDesc;
+    const descWords = firstSentence.split(/\s+/).filter(Boolean);
+    const shortDescText = descWords.slice(0, 14).join(' ');
+    const descSlug = slugify(shortDescText);
+
+    // Evaluar si la descripción ya incluye el nombre o las palabras clave principales del nombre
+    const nameWords = nameSlug.split('-').filter(w => w.length > 2);
+    const descWordsList = descSlug.split('-');
+    const overlapCount = nameWords.filter(w => descWordsList.includes(w)).length;
+
+    if (descSlug.startsWith(nameSlug) || (nameWords.length > 0 && overlapCount >= Math.min(2, nameWords.length))) {
+      // La descripción ya contiene el nombre de forma fluida y legible: usarla directamente
+      descriptivePart = descSlug;
+    } else {
+      // Concatenar el nombre con la descripción complementaria evitando duplicados inmediatos
+      descriptivePart = `${nameSlug}-${descSlug}`;
+    }
+  } else if (product.dimensions) {
+    // Si no tiene descripción larga, complementar el nombre con sus medidas
+    const dimSlug = slugify(product.dimensions);
+    descriptivePart = `${nameSlug}-${dimSlug}`;
+  } else if (Array.isArray(product.specifications) && product.specifications.length > 0) {
+    // Usar la primera especificación técnica clave
+    const specStr = product.specifications
+      .slice(0, 2)
+      .map(s => `${s.key}-${s.value}`)
+      .join('-');
+    descriptivePart = `${nameSlug}-${slugify(specStr)}`;
+  } else {
+    descriptivePart = nameSlug;
+  }
+
+  // Si aún no contiene el SKU y el SKU es descriptivo (ej: no vacío), anexarlo si queda espacio
+  if (product.sku) {
+    const skuSlug = slugify(product.sku);
+    if (skuSlug && !descriptivePart.includes(skuSlug) && descriptivePart.length < 90) {
+      descriptivePart = `${descriptivePart}-sku-${skuSlug}`;
+    }
+  }
+
+  // Normalizar guiones dobles
+  let finalSlug = descriptivePart.replace(/-+/g, '-').replace(/^-+|-+$/g, '');
+
+  // Limitar a una longitud óptima (máx 115 caracteres) cortando limpiamente en el límite de una palabra
+  if (finalSlug.length > 115) {
+    const truncated = finalSlug.slice(0, 115);
+    const lastDash = truncated.lastIndexOf('-');
+    if (lastDash > 35) {
+      finalSlug = truncated.slice(0, lastDash);
+    } else {
+      finalSlug = truncated;
+    }
+  }
+
+  return finalSlug || nameSlug || 'producto';
+}
+
+/**
+ * Genera una URL amigable, relativa y descriptiva para acceder a un producto en la tienda.
+ * Al ser relativa al producto, se lee en ella una descripción completa de sus características.
+ * @param product Producto objetivo
+ * @param isDemo Si es modo demo de tienda genérica
+ * @param relative Si true (por defecto), devuelve enlace relativo para navegación interna (ej: "/?producto=...&p=...")
+ */
+export function buildProductUrl(product: Product, isDemo = false, relative = true): string {
+  const descriptiveSlug = generateProductDescriptiveSlug(product);
+  const base = relative ? '' : getCanonicalBaseUrl();
 
   const params = new URLSearchParams();
   if (isDemo) params.set('demo', 'generica');
   params.set('producto', descriptiveSlug);
   params.set('p', product.id);
-  return `${base}?${params.toString()}`;
+
+  const query = params.toString();
+  return relative ? `/?${query}` : `${base}?${query}`;
 }
 
 /**

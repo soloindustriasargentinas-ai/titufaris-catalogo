@@ -52,30 +52,101 @@ export async function validateFirestoreConnection(): Promise<boolean> {
 }
 
 // ============================================================================
-// PRODUCTS SYNC
+// MULTI-TENANT CLOUD ISOLATION ROUTING
 // ============================================================================
 
-export async function fetchProductsFromFirestore(): Promise<{ success: boolean; data: Product[] }> {
+export function getProductDocRef(productId: string, tenantId?: string) {
+  if (tenantId && tenantId !== 'titufaris') {
+    return doc(db, 'tenants', tenantId, 'products', productId);
+  }
+  return doc(db, 'products', productId);
+}
+
+export function getProductsCollectionRef(tenantId?: string) {
+  if (tenantId && tenantId !== 'titufaris') {
+    return collection(db, 'tenants', tenantId, 'products');
+  }
+  return collection(db, 'products');
+}
+
+export function getCategoryDocRef(categoryId: string, tenantId?: string) {
+  if (tenantId && tenantId !== 'titufaris') {
+    return doc(db, 'tenants', tenantId, 'categories', categoryId);
+  }
+  return doc(db, 'categories', categoryId);
+}
+
+export function getCategoriesCollectionRef(tenantId?: string) {
+  if (tenantId && tenantId !== 'titufaris') {
+    return collection(db, 'tenants', tenantId, 'categories');
+  }
+  return collection(db, 'categories');
+}
+
+export function getCompanyDocRef(tenantId?: string) {
+  if (tenantId && tenantId !== 'titufaris') {
+    return doc(db, 'tenants', tenantId, 'companyProfile', 'default');
+  }
+  return doc(db, 'companyProfile', 'default');
+}
+
+export function getSaleDocRef(saleId: string, tenantId?: string) {
+  if (tenantId && tenantId !== 'titufaris') {
+    return doc(db, 'tenants', tenantId, 'sales', saleId);
+  }
+  return doc(db, 'sales', saleId);
+}
+
+export function getSalesCollectionRef(tenantId?: string) {
+  if (tenantId && tenantId !== 'titufaris') {
+    return collection(db, 'tenants', tenantId, 'sales');
+  }
+  return collection(db, 'sales');
+}
+
+export function getActivityLogDocRef(logId: string, tenantId?: string) {
+  if (tenantId && tenantId !== 'titufaris') {
+    return doc(db, 'tenants', tenantId, 'activityLogs', logId);
+  }
+  return doc(db, 'activityLogs', logId);
+}
+
+export function getActivityLogsCollectionRef(tenantId?: string) {
+  if (tenantId && tenantId !== 'titufaris') {
+    return collection(db, 'tenants', tenantId, 'activityLogs');
+  }
+  return collection(db, 'activityLogs');
+}
+
+// ============================================================================
+// PRODUCTS SYNC (TENANT ISOLATED)
+// ============================================================================
+
+export async function fetchProductsFromFirestore(tenantId?: string): Promise<{ success: boolean; data: Product[] }> {
   try {
-    const querySnapshot = await getDocs(collection(db, 'products'));
+    const colRef = getProductsCollectionRef(tenantId);
+    const querySnapshot = await getDocs(colRef);
     const products: Product[] = [];
     querySnapshot.forEach((docSnap) => {
       products.push(docSnap.data() as Product);
     });
     return { success: true, data: products };
   } catch (err) {
-    console.warn('Firestore products fetch pending or using local cache:', err);
+    console.warn(`Firestore products fetch (${tenantId || 'titufaris'}):`, err);
     return { success: false, data: [] };
   }
 }
 
-export async function saveProductToFirestore(product: Product): Promise<{ success: boolean; error?: string }> {
+export async function saveProductToFirestore(product: Product, tenantId?: string): Promise<{ success: boolean; error?: string }> {
   try {
     const payload: Record<string, any> = {};
     for (const [key, value] of Object.entries(product)) {
       if (value !== undefined) {
         payload[key] = value;
       }
+    }
+    if (tenantId && tenantId !== 'titufaris') {
+      payload.tenantId = tenantId;
     }
 
     // Payload size safety guard: Firestore document size limit is ~1MB
@@ -87,44 +158,46 @@ export async function saveProductToFirestore(product: Product): Promise<{ succes
       }
     }
 
-    const docRef = doc(db, 'products', product.id);
+    const docRef = getProductDocRef(product.id, tenantId);
     // Replace document cleanly so modifications reflect immediately and stale fields are not kept
     await setDoc(docRef, payload);
     return { success: true };
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : String(err);
-    console.error('Error saving product to Firestore:', errorMsg);
+    console.error(`Error saving product to Firestore (${tenantId || 'titufaris'}):`, errorMsg);
     return { success: false, error: errorMsg };
   }
 }
 
-export async function deleteProductFromFirestore(productId: string): Promise<void> {
+export async function deleteProductFromFirestore(productId: string, tenantId?: string): Promise<void> {
   try {
-    await deleteDoc(doc(db, 'products', productId));
+    const docRef = getProductDocRef(productId, tenantId);
+    await deleteDoc(docRef);
   } catch (err) {
-    console.error('Error deleting product from Firestore:', err);
+    console.error(`Error deleting product from Firestore (${tenantId || 'titufaris'}):`, err);
   }
 }
 
-export async function seedProductsToFirestore(products: Product[]): Promise<void> {
+export async function seedProductsToFirestore(products: Product[], tenantId?: string): Promise<void> {
   try {
     const batch = writeBatch(db);
     for (const product of products) {
-      const ref = doc(db, 'products', product.id);
+      const ref = getProductDocRef(product.id, tenantId);
       batch.set(ref, product, { merge: true });
     }
     await batch.commit();
-    console.log(`✅ Successfully seeded ${products.length} products to Firestore.`);
+    console.log(`✅ Successfully seeded ${products.length} products to Firestore (${tenantId || 'titufaris'}).`);
   } catch (err) {
-    console.error('Error seeding products to Firestore:', err);
+    console.error(`Error seeding products to Firestore (${tenantId || 'titufaris'}):`, err);
   }
 }
 
 export function subscribeToProductsFirestore(
   onUpdate: (products: Product[]) => void,
-  onError?: (err: Error) => void
+  onError?: (err: Error) => void,
+  tenantId?: string
 ): () => void {
-  const colRef = collection(db, 'products');
+  const colRef = getProductsCollectionRef(tenantId);
   return onSnapshot(
     colRef,
     (snapshot) => {
@@ -144,76 +217,79 @@ export function subscribeToProductsFirestore(
 }
 
 // ============================================================================
-// CATEGORIES SYNC
+// CATEGORIES SYNC (TENANT ISOLATED)
 // ============================================================================
 
-export async function fetchCategoriesFromFirestore(): Promise<Category[]> {
+export async function fetchCategoriesFromFirestore(tenantId?: string): Promise<Category[]> {
   try {
-    const querySnapshot = await getDocs(collection(db, 'categories'));
+    const colRef = getCategoriesCollectionRef(tenantId);
+    const querySnapshot = await getDocs(colRef);
     const categories: Category[] = [];
     querySnapshot.forEach((docSnap) => {
       categories.push(docSnap.data() as Category);
     });
     return categories;
   } catch (err) {
-    console.warn('Firestore categories fetch:', err);
+    console.warn(`Firestore categories fetch (${tenantId || 'titufaris'}):`, err);
     return [];
   }
 }
 
-export async function saveCategoryToFirestore(category: Category): Promise<void> {
+export async function saveCategoryToFirestore(category: Category, tenantId?: string): Promise<void> {
   try {
-    const docRef = doc(db, 'categories', category.id);
+    const docRef = getCategoryDocRef(category.id, tenantId);
     await setDoc(docRef, category, { merge: true });
   } catch (err) {
-    console.error('Error saving category to Firestore:', err);
+    console.error(`Error saving category to Firestore (${tenantId || 'titufaris'}):`, err);
   }
 }
 
-export async function deleteCategoryFromFirestore(categoryId: string): Promise<void> {
+export async function deleteCategoryFromFirestore(categoryId: string, tenantId?: string): Promise<void> {
   try {
-    const docRef = doc(db, 'categories', categoryId);
+    const docRef = getCategoryDocRef(categoryId, tenantId);
     await deleteDoc(docRef);
   } catch (err) {
-    console.error('Error deleting category from Firestore:', err);
+    console.error(`Error deleting category from Firestore (${tenantId || 'titufaris'}):`, err);
   }
 }
 
-export async function seedCategoriesToFirestore(categories: Category[]): Promise<void> {
+export async function seedCategoriesToFirestore(categories: Category[], tenantId?: string): Promise<void> {
   try {
     const batch = writeBatch(db);
     for (const cat of categories) {
-      const ref = doc(db, 'categories', cat.id);
+      const ref = getCategoryDocRef(cat.id, tenantId);
       batch.set(ref, cat, { merge: true });
     }
     await batch.commit();
   } catch (err) {
-    console.error('Error seeding categories to Firestore:', err);
+    console.error(`Error seeding categories to Firestore (${tenantId || 'titufaris'}):`, err);
   }
 }
 
 // ============================================================================
-// COMPANY PROFILE SYNC
+// COMPANY PROFILE SYNC (TENANT ISOLATED)
 // ============================================================================
 
-export async function fetchCompanyFromFirestore(): Promise<CompanyProfile | null> {
+export async function fetchCompanyFromFirestore(tenantId?: string): Promise<CompanyProfile | null> {
   try {
-    const docSnap = await getDoc(doc(db, 'companyProfile', 'default'));
+    const docRef = getCompanyDocRef(tenantId);
+    const docSnap = await getDoc(docRef);
     if (docSnap.exists()) {
       return docSnap.data() as CompanyProfile;
     }
     return null;
   } catch (err) {
-    console.warn('Firestore company profile fetch:', err);
+    console.warn(`Firestore company profile fetch (${tenantId || 'titufaris'}):`, err);
     return null;
   }
 }
 
-export async function saveCompanyToFirestore(company: CompanyProfile): Promise<void> {
+export async function saveCompanyToFirestore(company: CompanyProfile, tenantId?: string): Promise<void> {
   try {
-    await setDoc(doc(db, 'companyProfile', 'default'), company, { merge: true });
+    const docRef = getCompanyDocRef(tenantId);
+    await setDoc(docRef, company, { merge: true });
   } catch (err) {
-    console.error('Error saving company profile to Firestore:', err);
+    console.error(`Error saving company profile to Firestore (${tenantId || 'titufaris'}):`, err);
   }
 }
 
@@ -240,12 +316,14 @@ export interface SaleTransactionResult {
  */
 export async function recordSaleTransaction(
   sale: Sale,
-  options?: { isOffline?: boolean }
+  options?: { isOffline?: boolean; tenantId?: string }
 ): Promise<SaleTransactionResult> {
   // If offline, flag as offline so the caller can enqueue locally
   if (options?.isOffline || (typeof navigator !== 'undefined' && !navigator.onLine)) {
     return { success: true, offline: true };
   }
+
+  const currentTenantId = options?.tenantId;
 
   try {
     const stockUpdates = await runTransaction(db, async (transaction) => {
@@ -253,7 +331,7 @@ export async function recordSaleTransaction(
 
       // 1. Read phase: Retrieve current state of all products in this sale
       const readOperations = sale.items.map(item => {
-        const productRef = doc(db, 'products', item.productId);
+        const productRef = getProductDocRef(item.productId, currentTenantId);
         return transaction.get(productRef);
       });
 
@@ -289,7 +367,7 @@ export async function recordSaleTransaction(
       for (let i = 0; i < sale.items.length; i++) {
         const item = sale.items[i];
         const updateInfo = updates[i];
-        const productRef = doc(db, 'products', item.productId);
+        const productRef = getProductDocRef(item.productId, currentTenantId);
 
         transaction.update(productRef, {
           stock: updateInfo.newStock,
@@ -299,8 +377,8 @@ export async function recordSaleTransaction(
       }
 
       // 4. Write phase: Create Sale record
-      const saleRef = doc(db, 'sales', sale.id);
-      transaction.set(saleRef, sale, { merge: true });
+      const saleRef = getSaleDocRef(sale.id, currentTenantId);
+      transaction.set(saleRef, { ...sale, tenantId: currentTenantId || 'titufaris' }, { merge: true });
 
       // 5. Write phase: Create Activity Log record
       const logRef = doc(db, 'activityLogs', 'log-' + Date.now());
@@ -313,7 +391,8 @@ export async function recordSaleTransaction(
         action: 'sale_completed',
         title: `Venta completada ${sale.receiptNumber}`,
         details: `Cobro de $${sale.total.toLocaleString('es-AR')} mediante ${sale.paymentMethod.toUpperCase()} (${sale.items.length} ítems)`,
-        amount: sale.total
+        amount: sale.total,
+        tenantId: currentTenantId || 'titufaris'
       });
 
       return updates;
@@ -340,14 +419,15 @@ export async function recordCancelSaleTransaction(
   sale: Sale,
   restoreStock: boolean,
   cancelledBy: string,
-  reason: string
+  reason: string,
+  tenantId?: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
     await runTransaction(db, async (transaction) => {
       // If stock should be restored, read and update products
       if (restoreStock && sale.items && sale.items.length > 0) {
         const readOperations = sale.items.map(item => {
-          const productRef = doc(db, 'products', item.productId);
+          const productRef = getProductDocRef(item.productId, tenantId);
           return transaction.get(productRef);
         });
 
@@ -361,7 +441,7 @@ export async function recordCancelSaleTransaction(
             const productData = snapshot.data() as Product;
             const currentStock = typeof productData.stock === 'number' ? productData.stock : 0;
             const newStock = currentStock + item.quantity;
-            const productRef = doc(db, 'products', item.productId);
+            const productRef = getProductDocRef(item.productId, tenantId);
 
             transaction.update(productRef, {
               stock: newStock,
@@ -373,7 +453,7 @@ export async function recordCancelSaleTransaction(
       }
 
       // Update sale status
-      const saleRef = doc(db, 'sales', sale.id);
+      const saleRef = getSaleDocRef(sale.id, tenantId);
       transaction.update(saleRef, {
         paymentStatus: 'cancelled',
         status: 'cancelled',
@@ -384,7 +464,7 @@ export async function recordCancelSaleTransaction(
       });
 
       // Write activity log
-      const logRef = doc(db, 'activityLogs', 'log-' + Date.now());
+      const logRef = getActivityLogDocRef('log-' + Date.now(), tenantId);
       transaction.set(logRef, {
         id: logRef.id,
         timestamp: new Date().toISOString(),
@@ -394,57 +474,59 @@ export async function recordCancelSaleTransaction(
         action: 'sale_cancelled',
         title: `Venta anulada: ${sale.receiptNumber}`,
         details: `Anulada por ${cancelledBy}. Motivo: ${reason}.${restoreStock ? ' Se restituyeron las unidades al stock.' : ''}`,
-        amount: -sale.total
+        amount: -sale.total,
+        tenantId: tenantId || 'titufaris'
       });
     });
 
     return { success: true };
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : String(err);
-    console.error('Error in recordCancelSaleTransaction:', errorMsg);
+    console.error(`Error in recordCancelSaleTransaction (${tenantId || 'titufaris'}):`, errorMsg);
     return { success: false, error: errorMsg };
   }
 }
 
-export async function saveSaleToFirestore(sale: Sale): Promise<void> {
+export async function saveSaleToFirestore(sale: Sale, tenantId?: string): Promise<void> {
   try {
-    const docRef = doc(db, 'sales', sale.id);
-    await setDoc(docRef, sale, { merge: true });
+    const docRef = getSaleDocRef(sale.id, tenantId);
+    await setDoc(docRef, { ...sale, tenantId: tenantId || 'titufaris' }, { merge: true });
   } catch (err) {
-    console.error('Error saving sale to Firestore:', err);
+    console.error(`Error saving sale to Firestore (${tenantId || 'titufaris'}):`, err);
   }
 }
 
-export async function deleteSaleFromFirestore(saleId: string): Promise<void> {
+export async function deleteSaleFromFirestore(saleId: string, tenantId?: string): Promise<void> {
   try {
-    const docRef = doc(db, 'sales', saleId);
+    const docRef = getSaleDocRef(saleId, tenantId);
     await deleteDoc(docRef);
   } catch (err) {
-    console.error('Error deleting sale from Firestore:', err);
+    console.error(`Error deleting sale from Firestore (${tenantId || 'titufaris'}):`, err);
   }
 }
 
-export async function seedSalesToFirestore(sales: Sale[]): Promise<void> {
+export async function seedSalesToFirestore(sales: Sale[], tenantId?: string): Promise<void> {
   try {
     const batch = writeBatch(db);
     for (const sale of sales) {
-      const ref = doc(db, 'sales', sale.id);
-      batch.set(ref, sale, { merge: true });
+      const ref = getSaleDocRef(sale.id, tenantId);
+      batch.set(ref, { ...sale, tenantId: tenantId || 'titufaris' }, { merge: true });
     }
     await batch.commit();
-    console.log(`✅ Successfully synced ${sales.length} sales to Firestore.`);
+    console.log(`✅ Successfully synced ${sales.length} sales to Firestore (${tenantId || 'titufaris'}).`);
   } catch (err) {
-    console.error('Error seeding sales to Firestore:', err);
+    console.error(`Error seeding sales to Firestore (${tenantId || 'titufaris'}):`, err);
   }
 }
 
 /**
  * Fetch sales with optimized limit and order by createdAt descending (Lote 3 Scalability).
  */
-export async function fetchSalesFromFirestore(limitCount: number = 100): Promise<Sale[]> {
+export async function fetchSalesFromFirestore(tenantId?: string, limitCount: number = 100): Promise<Sale[]> {
+  const colRef = getSalesCollectionRef(tenantId);
   try {
     const q = query(
-      collection(db, 'sales'),
+      colRef,
       orderBy('createdAt', 'desc'),
       limit(limitCount)
     );
@@ -457,7 +539,7 @@ export async function fetchSalesFromFirestore(limitCount: number = 100): Promise
   } catch {
     // Graceful fallback if composite index is pending or offline
     try {
-      const querySnapshot = await getDocs(collection(db, 'sales'));
+      const querySnapshot = await getDocs(colRef);
       const sales: Sale[] = [];
       querySnapshot.forEach((docSnap) => {
         sales.push(docSnap.data() as Sale);
@@ -472,22 +554,23 @@ export async function fetchSalesFromFirestore(limitCount: number = 100): Promise
 }
 
 // ============================================================================
-// ACTIVITY LOGS SYNC & AUDIT TRAIL (LOTE 3)
+// ACTIVITY LOGS SYNC & AUDIT TRAIL (TENANT ISOLATED)
 // ============================================================================
 
-export async function saveActivityLogToFirestore(log: ActivityLog): Promise<void> {
+export async function saveActivityLogToFirestore(log: ActivityLog, tenantId?: string): Promise<void> {
   try {
-    const docRef = doc(db, 'activityLogs', log.id);
-    await setDoc(docRef, log, { merge: true });
+    const docRef = getActivityLogDocRef(log.id, tenantId);
+    await setDoc(docRef, { ...log, tenantId: tenantId || 'titufaris' }, { merge: true });
   } catch (err) {
-    console.warn('Firestore activity log save note:', err);
+    console.warn(`Firestore activity log save note (${tenantId || 'titufaris'}):`, err);
   }
 }
 
-export async function fetchActivityLogsFromFirestore(limitCount: number = 100): Promise<ActivityLog[]> {
+export async function fetchActivityLogsFromFirestore(tenantId?: string, limitCount: number = 100): Promise<ActivityLog[]> {
+  const colRef = getActivityLogsCollectionRef(tenantId);
   try {
     const q = query(
-      collection(db, 'activityLogs'),
+      colRef,
       orderBy('timestamp', 'desc'),
       limit(limitCount)
     );
@@ -500,7 +583,7 @@ export async function fetchActivityLogsFromFirestore(limitCount: number = 100): 
   } catch {
     // Fallback without orderBy
     try {
-      const querySnapshot = await getDocs(collection(db, 'activityLogs'));
+      const querySnapshot = await getDocs(colRef);
       const logs: ActivityLog[] = [];
       querySnapshot.forEach((docSnap) => {
         logs.push(docSnap.data() as ActivityLog);
@@ -514,16 +597,16 @@ export async function fetchActivityLogsFromFirestore(limitCount: number = 100): 
   }
 }
 
-export async function seedActivityLogsToFirestore(logs: ActivityLog[]): Promise<void> {
+export async function seedActivityLogsToFirestore(logs: ActivityLog[], tenantId?: string): Promise<void> {
   try {
     const batch = writeBatch(db);
     for (const log of logs.slice(0, 100)) {
-      const ref = doc(db, 'activityLogs', log.id);
-      batch.set(ref, log, { merge: true });
+      const ref = getActivityLogDocRef(log.id, tenantId);
+      batch.set(ref, { ...log, tenantId: tenantId || 'titufaris' }, { merge: true });
     }
     await batch.commit();
   } catch (err) {
-    console.warn('Error seeding activity logs to Firestore:', err);
+    console.warn(`Error seeding activity logs to Firestore (${tenantId || 'titufaris'}):`, err);
   }
 }
 

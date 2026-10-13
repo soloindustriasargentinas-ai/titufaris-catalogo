@@ -1,6 +1,6 @@
 import QRCode from 'qrcode';
 import { Product } from '../types';
-import { slugify } from './seoAndRouting';
+import { slugify, generateProductDescriptiveSlug } from './seoAndRouting';
 
 export function getPublicStoreBaseUrl(baseUrl?: string): string {
   if (baseUrl && baseUrl !== 'https://titufaris.com.ar' && baseUrl.startsWith('http')) {
@@ -38,11 +38,7 @@ export async function generateProductQRCode(product: Product, baseUrl?: string):
 
 export function getProductPublicUrl(product: Product, baseUrl?: string): string {
   const origin = getPublicStoreBaseUrl(baseUrl);
-  const nameSlug = slugify(product.name);
-  const skuSlug = product.sku ? slugify(product.sku) : '';
-  const descriptiveSlug = skuSlug && !nameSlug.includes(skuSlug)
-    ? `${nameSlug}-sku-${skuSlug}`
-    : nameSlug;
+  const descriptiveSlug = generateProductDescriptiveSlug(product);
 
   return `${origin}/?producto=${encodeURIComponent(descriptiveSlug)}&p=${encodeURIComponent(product.id)}&sku=${encodeURIComponent(product.sku)}&from=qr`;
 }

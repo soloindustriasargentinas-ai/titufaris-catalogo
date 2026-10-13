@@ -95,6 +95,11 @@ service cloud.firestore {
       allow create, update, delete: if true;
     }
 
+    // Tenant isolated collections (products, categories, companyProfile, sales, inventory)
+    match /tenants/{tenantId}/{document=**} {
+      allow read, write: if true;
+    }
+
     // Connection health check
     match /test/{docId} {
       allow read, write: if true;

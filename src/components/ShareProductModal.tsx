@@ -371,7 +371,7 @@ export const ShareProductModal: React.FC<ShareProductModalProps> = ({
                 </button>
               </div>
               <p className="text-[11px] text-slate-500 leading-tight">
-                Cualquier persona que abra este enlace verá directamente la ficha, fotos y precio de este producto en tu tienda.
+                Enlace relativo al producto con descripción legible de sus características. Cualquier persona que lo abra verá directamente la ficha, fotos y precio en tu tienda.
               </p>
             </div>
 

@@ -1,20 +1,16 @@
 import { Product, CompanyProfile } from '../types';
 import { getPublicStoreBaseUrl } from './qrCode';
 import { formatCurrency } from './storage';
-import { slugify } from './seoAndRouting';
+import { slugify, generateProductDescriptiveSlug } from './seoAndRouting';
 
 /**
  * Returns the unique, canonical shareable URL for a specific product in the online store.
- * The link contains a descriptive human-readable slug and the product identifier.
- * Example: https://titufaris.online/?producto=gondola-central-doble-reforzada-sku-gon-01&p=prod_12345
+ * The link is relative to the product and contains a readable description of the product.
+ * Example: https://titufaris.online/?producto=gondola-central-tramo-inicial-de-160-de-alto-12-metros-de-largo-y-4-estantes&p=prod_12345
  */
 export function getProductShareUrl(product: Product, baseUrl?: string): string {
   const origin = getPublicStoreBaseUrl(baseUrl);
-  const nameSlug = slugify(product.name);
-  const skuSlug = product.sku ? slugify(product.sku) : '';
-  const descriptiveSlug = skuSlug && !nameSlug.includes(skuSlug)
-    ? `${nameSlug}-sku-${skuSlug}`
-    : nameSlug;
+  const descriptiveSlug = generateProductDescriptiveSlug(product);
 
   return `${origin}/?producto=${encodeURIComponent(descriptiveSlug)}&p=${encodeURIComponent(product.id)}`;
 }

@@ -14,9 +14,10 @@ const STORAGE_KEYS = {
   DELETED_PRODUCT_IDS: 'titufaris_deleted_product_ids_v1',
 };
 
-export function getDeletedProductIds(): Set<string> {
+export function getDeletedProductIds(tenantId?: string): Set<string> {
   try {
-    const raw = localStorage.getItem(STORAGE_KEYS.DELETED_PRODUCT_IDS);
+    const key = getTenantStorageKey(STORAGE_KEYS.DELETED_PRODUCT_IDS, tenantId);
+    const raw = localStorage.getItem(key);
     if (!raw) return new Set();
     const arr = JSON.parse(raw);
     return new Set(Array.isArray(arr) ? arr : []);
@@ -25,24 +26,26 @@ export function getDeletedProductIds(): Set<string> {
   }
 }
 
-export function markProductAsDeleted(productId: string): void {
+export function markProductAsDeleted(productId: string, tenantId?: string): void {
   try {
-    const deleted = getDeletedProductIds();
+    const key = getTenantStorageKey(STORAGE_KEYS.DELETED_PRODUCT_IDS, tenantId);
+    const deleted = getDeletedProductIds(tenantId);
     deleted.add(productId);
-    localStorage.setItem(STORAGE_KEYS.DELETED_PRODUCT_IDS, JSON.stringify(Array.from(deleted)));
-    idbSet(STORAGE_KEYS.DELETED_PRODUCT_IDS, Array.from(deleted)).catch(() => {});
+    localStorage.setItem(key, JSON.stringify(Array.from(deleted)));
+    idbSet(key, Array.from(deleted)).catch(() => {});
   } catch (err) {
     console.warn('Error marking product as deleted:', err);
   }
 }
 
-export function unmarkProductAsDeleted(productId: string): void {
+export function unmarkProductAsDeleted(productId: string, tenantId?: string): void {
   try {
-    const deleted = getDeletedProductIds();
+    const key = getTenantStorageKey(STORAGE_KEYS.DELETED_PRODUCT_IDS, tenantId);
+    const deleted = getDeletedProductIds(tenantId);
     if (deleted.has(productId)) {
       deleted.delete(productId);
-      localStorage.setItem(STORAGE_KEYS.DELETED_PRODUCT_IDS, JSON.stringify(Array.from(deleted)));
-      idbSet(STORAGE_KEYS.DELETED_PRODUCT_IDS, Array.from(deleted)).catch(() => {});
+      localStorage.setItem(key, JSON.stringify(Array.from(deleted)));
+      idbSet(key, Array.from(deleted)).catch(() => {});
     }
   } catch (err) {
     console.warn('Error unmarking product as deleted:', err);
@@ -168,8 +171,8 @@ export const FAKE_ITEMS_TO_PURGE = new Set([
   'prod-exh-rectangular'
 ]);
 
-export function cleanProductList(list: Product[]): Product[] {
-  const deletedIds = getDeletedProductIds();
+export function cleanProductList(list: Product[], tenantId?: string): Product[] {
+  const deletedIds = getDeletedProductIds(tenantId);
 
   // Purge user-deleted items and fake/demo items
   const filtered = list.filter(
@@ -194,12 +197,20 @@ export function cleanProductList(list: Product[]): Product[] {
   });
 }
 
-export async function syncProductsFromIndexedDB(): Promise<Product[] | null> {
+export function getTenantStorageKey(baseKey: string, tenantId?: string): string {
+  if (!tenantId || tenantId === 'titufaris') {
+    return baseKey;
+  }
+  return `tenant_${tenantId}_${baseKey}`;
+}
+
+export async function syncProductsFromIndexedDB(tenantId?: string): Promise<Product[] | null> {
   try {
-    const idbProducts = await idbGet<Product[]>(STORAGE_KEYS.PRODUCTS);
+    const key = getTenantStorageKey(STORAGE_KEYS.PRODUCTS, tenantId);
+    const idbProducts = await idbGet<Product[]>(key);
     if (idbProducts && Array.isArray(idbProducts) && idbProducts.length > 0) {
-      const cleaned = cleanProductList(idbProducts);
-      await idbSet(STORAGE_KEYS.PRODUCTS, cleaned);
+      const cleaned = cleanProductList(idbProducts, tenantId);
+      await idbSet(key, cleaned);
       return cleaned;
     }
   } catch {
@@ -208,20 +219,23 @@ export async function syncProductsFromIndexedDB(): Promise<Product[] | null> {
   return null;
 }
 
-export function loadProducts(): Product[] {
-  const raw = safeGet<Product[]>(STORAGE_KEYS.PRODUCTS, initialProducts);
-  const cleaned = cleanProductList(raw);
-  saveProducts(cleaned);
+export function loadProducts(tenantId?: string, fallbackProducts?: Product[]): Product[] {
+  const key = getTenantStorageKey(STORAGE_KEYS.PRODUCTS, tenantId);
+  const fallback = fallbackProducts !== undefined ? fallbackProducts : ((!tenantId || tenantId === 'titufaris') ? initialProducts : []);
+  const raw = safeGet<Product[]>(key, fallback);
+  const cleaned = cleanProductList(raw, tenantId);
+  saveProducts(cleaned, tenantId);
   return cleaned;
 }
 
-export function saveProducts(products: Product[]): void {
+export function saveProducts(products: Product[], tenantId?: string): void {
+  const key = getTenantStorageKey(STORAGE_KEYS.PRODUCTS, tenantId);
   // 1. Persist asynchronously to unlimited-capacity IndexedDB
-  idbSet(STORAGE_KEYS.PRODUCTS, products).catch(() => {});
+  idbSet(key, products).catch(() => {});
 
   // 2. Persist synchronously to localStorage for immediate next-load
   try {
-    localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
+    localStorage.setItem(key, JSON.stringify(products));
   } catch (err) {
     console.warn('LocalStorage quota limit reached, saving optimized copy in localStorage while IndexedDB retains full fidelity:', err);
     try {
@@ -229,47 +243,55 @@ export function saveProducts(products: Product[]): void {
         ...p,
         images: p.images ? p.images.slice(0, 1) : [],
       }));
-      localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(optimized));
+      localStorage.setItem(key, JSON.stringify(optimized));
     } catch {
       // IndexedDB has already safely written the full product catalogue
     }
   }
 }
 
-export function loadCategories(): Category[] {
-  const loaded = safeGet<Category[]>(STORAGE_KEYS.CATEGORIES, initialCategories);
-  const validIds = new Set([
-    'gondolas',
-    'estanterias-metalicas',
-    'racks-livianos',
-    'racks-selectivos',
-    'lockers-guardarropas',
-    'otros-productos'
-  ]);
-  const hasInvalid = loaded.some(c => !validIds.has(c.id));
-  const hasAll = validIds.size === loaded.length && loaded.every(c => validIds.has(c.id));
-  if (hasInvalid || !hasAll) {
-    safeSet(STORAGE_KEYS.CATEGORIES, initialCategories);
-    return initialCategories;
+export function loadCategories(tenantId?: string, fallbackCategories?: Category[]): Category[] {
+  const key = getTenantStorageKey(STORAGE_KEYS.CATEGORIES, tenantId);
+  const fallback = fallbackCategories !== undefined ? fallbackCategories : initialCategories;
+  const loaded = safeGet<Category[]>(key, fallback);
+  if (!tenantId || tenantId === 'titufaris') {
+    const validIds = new Set([
+      'gondolas',
+      'estanterias-metalicas',
+      'racks-livianos',
+      'racks-selectivos',
+      'lockers-guardarropas',
+      'otros-productos'
+    ]);
+    const hasInvalid = loaded.some(c => !validIds.has(c.id));
+    const hasAll = validIds.size === loaded.length && loaded.every(c => validIds.has(c.id));
+    if (hasInvalid || !hasAll) {
+      safeSet(key, initialCategories);
+      return initialCategories;
+    }
   }
   return loaded;
 }
 
-export function saveCategories(categories: Category[]): void {
-  safeSet(STORAGE_KEYS.CATEGORIES, categories);
+export function saveCategories(categories: Category[], tenantId?: string): void {
+  const key = getTenantStorageKey(STORAGE_KEYS.CATEGORIES, tenantId);
+  safeSet(key, categories);
 }
 
-export function loadCompany(): CompanyProfile {
-  const comp = safeGet<CompanyProfile>(STORAGE_KEYS.COMPANY, initialCompany);
-  if (comp.termsAndConditions && comp.termsAndConditions.includes('5 unidades')) {
+export function loadCompany(tenantId?: string, fallbackCompany?: CompanyProfile): CompanyProfile {
+  const key = getTenantStorageKey(STORAGE_KEYS.COMPANY, tenantId);
+  const fallback = fallbackCompany || initialCompany;
+  const comp = safeGet<CompanyProfile>(key, fallback);
+  if ((!tenantId || tenantId === 'titufaris') && comp.termsAndConditions && comp.termsAndConditions.includes('5 unidades')) {
     comp.termsAndConditions = comp.termsAndConditions.replace('5 unidades', '10 unidades');
-    saveCompany(comp);
+    saveCompany(comp, tenantId);
   }
   return comp;
 }
 
-export function saveCompany(company: CompanyProfile): void {
-  safeSet(STORAGE_KEYS.COMPANY, company);
+export function saveCompany(company: CompanyProfile, tenantId?: string): void {
+  const key = getTenantStorageKey(STORAGE_KEYS.COMPANY, tenantId);
+  safeSet(key, company);
 }
 
 export const GENERIC_COMPANY_STORAGE_KEY = 'titufaris_generic_company_custom';
@@ -310,37 +332,43 @@ export function saveUsers(users: User[]): void {
   safeSet(STORAGE_KEYS.USERS, users);
 }
 
-export function loadSales(): Sale[] {
-  const loaded = safeGet<Sale[]>(STORAGE_KEYS.SALES, []);
+export function loadSales(tenantId?: string): Sale[] {
+  const key = getTenantStorageKey(STORAGE_KEYS.SALES, tenantId);
+  const loaded = safeGet<Sale[]>(key, []);
   if (!loaded || loaded.length === 0) {
     return [];
   }
   // Strip out any legacy demo/mock sales
   const clean = loaded.filter(s => s && s.id && !s.id.startsWith('sale-init') && s.id !== 'sale-1789132222175');
   if (clean.length !== loaded.length) {
-    safeSet(STORAGE_KEYS.SALES, clean);
+    safeSet(key, clean);
   }
   return clean;
 }
 
-export function saveSales(sales: Sale[]): void {
-  safeSet(STORAGE_KEYS.SALES, sales);
+export function saveSales(sales: Sale[], tenantId?: string): void {
+  const key = getTenantStorageKey(STORAGE_KEYS.SALES, tenantId);
+  safeSet(key, sales);
 }
 
-export function loadLogs(): ActivityLog[] {
-  return safeGet<ActivityLog[]>(STORAGE_KEYS.LOGS, initialActivityLogs);
+export function loadLogs(tenantId?: string): ActivityLog[] {
+  const key = getTenantStorageKey(STORAGE_KEYS.LOGS, tenantId);
+  return safeGet<ActivityLog[]>(key, initialActivityLogs);
 }
 
-export function saveLogs(logs: ActivityLog[]): void {
-  safeSet(STORAGE_KEYS.LOGS, logs);
+export function saveLogs(logs: ActivityLog[], tenantId?: string): void {
+  const key = getTenantStorageKey(STORAGE_KEYS.LOGS, tenantId);
+  safeSet(key, logs);
 }
 
-export function loadNotifications(): PushNotification[] {
-  return safeGet<PushNotification[]>(STORAGE_KEYS.NOTIFICATIONS, initialNotifications);
+export function loadNotifications(tenantId?: string): PushNotification[] {
+  const key = getTenantStorageKey(STORAGE_KEYS.NOTIFICATIONS, tenantId);
+  return safeGet<PushNotification[]>(key, initialNotifications);
 }
 
-export function saveNotifications(notifs: PushNotification[]): void {
-  safeSet(STORAGE_KEYS.NOTIFICATIONS, notifs);
+export function saveNotifications(notifs: PushNotification[], tenantId?: string): void {
+  const key = getTenantStorageKey(STORAGE_KEYS.NOTIFICATIONS, tenantId);
+  safeSet(key, notifs);
 }
 
 export function getActiveUserId(): string {

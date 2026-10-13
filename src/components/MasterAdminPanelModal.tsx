@@ -250,9 +250,12 @@ export const MasterAdminPanelModal: React.FC<MasterAdminPanelModalProps> = ({
     const cleanUser = authUsername.trim().toLowerCase();
     const cleanPass = authPassword.trim();
     // Credenciales de acceso master del administrador de la plataforma
+    const validUsers = ['admin', 'superadmin', 'titufaris', 'soloindustriasargentinas@gmail.com', 'admin@titufaris.com.ar'];
+    const validPasswords = ['admin1234', 'titufaris2026', 'master2026', 'admin', 'titufaris2025!', 'titufaris2025'];
+
     if (
-      (cleanUser === 'admin' || cleanUser === 'superadmin' || cleanUser === 'titufaris' || cleanUser === 'soloindustriasargentinas@gmail.com') &&
-      (cleanPass === 'admin1234' || cleanPass === 'titufaris2026' || cleanPass === 'master2026' || cleanPass === 'admin')
+      validUsers.includes(cleanUser) &&
+      (validPasswords.includes(cleanPass.toLowerCase()) || cleanPass === 'Titufaris2025!')
     ) {
       setIsAuthenticated(true);
       setAuthError(null);

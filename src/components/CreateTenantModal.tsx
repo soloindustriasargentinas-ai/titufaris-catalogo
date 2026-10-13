@@ -198,22 +198,24 @@ export const CreateTenantModal: React.FC<CreateTenantModalProps> = ({
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Enlace / Slug personalizado de acceso *
+                  Subdominio Oficial de tu Tienda *
                 </label>
-                <div className="flex items-center text-xs bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-600">
-                  <span className="font-mono text-slate-400">mitienda.online/?tienda=</span>
+                <div className="flex items-center text-xs bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-700 focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500">
+                  <span className="font-mono text-slate-500 font-semibold select-none">https://</span>
                   <input
                     type="text"
                     value={storeSlug}
-                    onChange={e => setStoreSlug(e.target.value.toLowerCase().replace(/\s+/g, '-'))}
-                    placeholder="bazar-san-juan"
-                    className="font-mono font-bold text-blue-700 bg-transparent focus:outline-none flex-1 ml-1"
+                    onChange={e => setStoreSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                    placeholder="bazar-sanjuan"
+                    className="font-mono font-bold text-blue-700 bg-transparent focus:outline-none flex-1 px-1"
                     required
                   />
+                  <span className="font-mono text-slate-500 font-semibold select-none">.titufaris.online</span>
                 </div>
-                <p className="text-[11px] text-slate-400 mt-1">
-                  Solo letras, números y guiones. Será el identificador permanente.
-                </p>
+                <div className="flex items-center justify-between text-[11px] text-slate-500 mt-1.5 px-0.5">
+                  <span>Tu enlace web será: <strong className="text-blue-700 font-mono">https://{storeSlug || 'tunegocio'}.titufaris.online</strong></span>
+                  <span className="text-emerald-600 font-semibold flex items-center gap-1">🔒 SSL Activo</span>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -291,9 +293,9 @@ export const CreateTenantModal: React.FC<CreateTenantModalProps> = ({
             <div className="space-y-4 animate-fadeIn">
               <div className="border-b border-slate-100 pb-3 flex items-center justify-between">
                 <div>
-                  <h3 className="font-bold text-slate-900 text-base">2. Plan & Suscripción Mercado Pago</h3>
+                  <h3 className="font-bold text-slate-900 text-base">2. Escalar Tienda & Selección de Plan</h3>
                   <p className="text-xs text-slate-500">
-                    Selecciona el plan mensual para la tienda. Se vinculará el débito automático.
+                    Prueba gratuita de 3 meses para hasta 50 productos. Elige el plan para continuar cuando escales tu catálogo:
                   </p>
                 </div>
                 <button
@@ -314,12 +316,15 @@ export const CreateTenantModal: React.FC<CreateTenantModalProps> = ({
                   }`}
                 >
                   <div>
-                    <h4 className="font-bold text-slate-900 text-sm">Plan Básico</h4>
+                    <span className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Inicial</span>
+                    <h4 className="font-bold text-slate-900 text-sm mt-0.5">Plan Básico</h4>
                     <p className="text-xl font-black text-slate-900 my-2">$25.000 <span className="text-xs font-normal text-slate-500">ARS/mes</span></p>
                     <ul className="text-[11px] text-slate-600 space-y-1">
-                      <li>&bull; Hasta 150 productos</li>
-                      <li>&bull; Catálogo & POS mostrador</li>
-                      <li>&bull; Pedidos por WhatsApp</li>
+                      <li>&bull; <strong>Hasta 150 productos activos</strong></li>
+                      <li>&bull; Subdominio .titufaris.online con SSL</li>
+                      <li>&bull; Catálogo & Pedidos a WhatsApp</li>
+                      <li>&bull; Punto de Venta (POS) mostrador</li>
+                      <li>&bull; Respaldo en Firebase Firestore</li>
                     </ul>
                   </div>
                 </div>
@@ -332,17 +337,20 @@ export const CreateTenantModal: React.FC<CreateTenantModalProps> = ({
                       : 'border-slate-200 hover:border-slate-300'
                   }`}
                 >
-                  <span className="absolute -top-2.5 right-3 bg-orange-500 text-white text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full">
-                    Recomendado
+                  <span className="absolute -top-2.5 right-3 bg-indigo-600 text-white text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full">
+                    Más Elegido
                   </span>
                   <div>
-                    <h4 className="font-bold text-slate-900 text-sm">Plan Profesional Pro</h4>
+                    <span className="text-[10px] font-black uppercase text-indigo-700 tracking-wider">En Expansión</span>
+                    <h4 className="font-bold text-slate-900 text-sm mt-0.5">Plan Profesional Pro</h4>
                     <p className="text-xl font-black text-slate-900 my-2">$45.000 <span className="text-xs font-normal text-slate-500">ARS/mes</span></p>
                     <ul className="text-[11px] text-slate-600 space-y-1">
-                      <li>&bull; Productos ilimitados</li>
-                      <li>&bull; Cloud Sync Firestore</li>
-                      <li>&bull; Múltiples cajeros y roles</li>
-                      <li>&bull; Exportación Catálogo PDF</li>
+                      <li>&bull; <strong>Productos Ilimitados</strong></li>
+                      <li>&bull; Control de stock multi-caja en vivo</li>
+                      <li>&bull; Cuentas para empleados y roles</li>
+                      <li>&bull; Catálogo PDF con códigos QR</li>
+                      <li>&bull; Pasarela de cobros en vivo</li>
+                      <li>&bull; Respaldo continuo en Firebase</li>
                     </ul>
                   </div>
                 </div>
@@ -356,13 +364,16 @@ export const CreateTenantModal: React.FC<CreateTenantModalProps> = ({
                   }`}
                 >
                   <div>
-                    <h4 className="font-bold text-slate-900 text-sm">Plan Enterprise</h4>
+                    <span className="text-[10px] font-black uppercase text-purple-700 tracking-wider">Cadenas & Marcas</span>
+                    <h4 className="font-bold text-slate-900 text-sm mt-0.5">Plan Enterprise</h4>
                     <p className="text-xl font-black text-slate-900 my-2">$85.000 <span className="text-xs font-normal text-slate-500">ARS/mes</span></p>
                     <ul className="text-[11px] text-slate-600 space-y-1">
-                      <li>&bull; Dominio propio personalizado</li>
-                      <li>&bull; Multi-sucursal unificada</li>
-                      <li>&bull; Google Merchant feed</li>
-                      <li>&bull; Soporte 24/7 dedicado</li>
+                      <li>&bull; Todo lo del Plan Pro</li>
+                      <li>&bull; <strong>Dominio Propio (ej: mitienda.com)</strong></li>
+                      <li>&bull; Multi-sucursal y depósitos</li>
+                      <li>&bull; Google Shopping Feed XML</li>
+                      <li>&bull; Respaldo de nivel empresarial</li>
+                      <li>&bull; Soporte prioritario 24/7</li>
                     </ul>
                   </div>
                 </div>
@@ -371,11 +382,14 @@ export const CreateTenantModal: React.FC<CreateTenantModalProps> = ({
               {/* Free Trial & Subscription info */}
               <div className="bg-gradient-to-r from-emerald-950 via-slate-900 to-indigo-950 text-white p-4 rounded-xl space-y-2 text-xs border border-emerald-500/30">
                 <div className="flex items-center gap-2 text-emerald-400 font-bold">
-                  <ShieldCheck className="w-4 h-4 text-emerald-400" /> 3 Meses 100% Bonificados — Sin Tarjeta Requerida
+                  <ShieldCheck className="w-4 h-4 text-emerald-400" /> 3 Meses 100% Bonificados para 50 Productos &middot; Sin Tarjeta Requerida
                 </div>
                 <p className="text-slate-300">
-                  Tu tienda quedará creada de inmediato en Firestore y activa por <strong>90 días sin costo alguno</strong>. Durante este período de prueba <strong>no se te solicitará tarjeta de crédito ni de débito</strong>. Al finalizar los 3 meses podrás adherirte al plan elegido mediante débito de Mercado Pago para continuar operando.
+                  Tu tienda quedará creada de inmediato en Firestore y activa por <strong>90 días sin costo alguno para hasta 50 productos con acceso total a todas las funciones</strong>. Durante este período de prueba <strong>no se te solicitará tarjeta de crédito ni de débito</strong>. Al completar los 50 productos o finalizar los 3 meses podrás activar el plan elegido mediante Mercado Pago para continuar escalando.
                 </p>
+                <div className="pt-1 text-[11px] text-emerald-300 font-medium border-t border-white/10 flex items-center gap-1.5">
+                  <span>🔒 Respaldo en Firebase Firestore: toda la información de productos, inventario, ventas y configuración está resguardada en la nube y nunca se perderá.</span>
+                </div>
               </div>
 
               <div className="pt-4 flex items-center justify-between">
@@ -412,26 +426,30 @@ export const CreateTenantModal: React.FC<CreateTenantModalProps> = ({
               <div>
                 <h3 className="text-xl font-bold text-slate-900">¡Tienda Creada Exitosamente!</h3>
                 <p className="text-xs text-slate-500 mt-1">
-                  La tienda <strong>{createdTenant.name}</strong> está lista y aprovisionada en Firestore.
+                  La tienda <strong>{createdTenant.name}</strong> está lista y aprovisionada con respaldo seguro en Firebase Firestore.
                 </p>
               </div>
 
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-left text-xs space-y-2 max-w-lg mx-auto">
                 <div className="flex justify-between border-b border-slate-200 pb-1.5">
-                  <span className="text-slate-500">Identificador / Slug:</span>
-                  <span className="font-mono font-bold text-slate-900">{createdTenant.slug}</span>
+                  <span className="text-slate-500">Subdominio Web Oficial:</span>
+                  <span className="font-mono font-bold text-blue-700">https://{createdTenant.slug}.titufaris.online</span>
                 </div>
                 <div className="flex justify-between border-b border-slate-200 pb-1.5">
-                  <span className="text-slate-500">Plan Asignado:</span>
+                  <span className="text-slate-500">Condición Inicial:</span>
+                  <span className="font-bold text-emerald-700">Prueba 3 Meses Gratis (Hasta 50 productos)</span>
+                </div>
+                <div className="flex justify-between border-b border-slate-200 pb-1.5">
+                  <span className="text-slate-500">Plan Seleccionado para Escalar:</span>
                   <span className="font-bold text-blue-700">{createdTenant.planId.toUpperCase()}</span>
                 </div>
                 <div className="flex justify-between border-b border-slate-200 pb-1.5">
-                  <span className="text-slate-500">Cuota Mensual:</span>
-                  <span className="font-bold text-slate-900">${createdTenant.pricePerMonthARS.toLocaleString('es-AR')} ARS</span>
+                  <span className="text-slate-500">Cuota al Finalizar Prueba:</span>
+                  <span className="font-bold text-slate-900">${createdTenant.pricePerMonthARS.toLocaleString('es-AR')} ARS/mes</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-500">ID de Mercado Pago:</span>
-                  <span className="font-mono text-slate-700">{createdTenant.mercadoPagoSubscriptionId}</span>
+                  <span className="text-slate-500">Respaldo en la Nube:</span>
+                  <span className="font-mono text-emerald-700 font-semibold">Firebase Firestore Conectado</span>
                 </div>
               </div>
 
@@ -440,14 +458,14 @@ export const CreateTenantModal: React.FC<CreateTenantModalProps> = ({
                   href={`?tienda=${createdTenant.slug}`}
                   className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-5 py-2.5 rounded-xl transition cursor-pointer flex items-center gap-2 shadow-xs"
                 >
-                  <Globe className="w-4 h-4" /> Visitar Tienda Creada
+                  <Globe className="w-4 h-4" /> Ingresar a {createdTenant.slug}.titufaris.online
                 </a>
                 <button
                   type="button"
                   onClick={handleReset}
                   className="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs px-4 py-2.5 rounded-xl transition cursor-pointer"
                 >
-                  Finalizar Onboarding
+                  Cerrar
                 </button>
               </div>
             </div>

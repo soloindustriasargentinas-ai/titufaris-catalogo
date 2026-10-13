@@ -995,6 +995,11 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                       <Share2 className="w-3.5 h-3.5 text-slate-600" />
                     </button>
                   </div>
+
+                  <p className="text-[10px] text-slate-500 flex items-center gap-1 pt-0.5">
+                    <LinkIcon className="w-3 h-3 text-orange-500 shrink-0" />
+                    <span>Enlace relativo al producto con descripción legible de sus características.</span>
+                  </p>
                 </div>
 
                 {/* Delivery & Production Status Banner */}

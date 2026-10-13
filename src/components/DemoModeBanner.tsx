@@ -78,26 +78,26 @@ Luego de los 3 meses gratis, podés continuar con planes accesibles desde $25.00
 
   return (
     <>
-      <div className="bg-gradient-to-r from-indigo-950 via-purple-950 to-slate-950 text-white text-xs sm:text-sm px-4 py-2.5 border-b border-indigo-500/40 shadow-lg relative z-50">
+      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-950 text-white text-xs sm:text-sm px-4 py-3 border-b border-indigo-500/30 shadow-xl relative z-50">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5 text-center md:text-left">
-            <div className="flex items-center justify-center w-7 h-7 rounded-xl bg-gradient-to-tr from-amber-400 to-orange-400 text-slate-950 shrink-0 font-black shadow-sm animate-pulse">
-              <Gift className="w-4 h-4" />
+          <div className="flex items-center gap-3 text-center md:text-left">
+            <div className="flex items-center justify-center w-9 h-9 rounded-2xl bg-gradient-to-tr from-amber-400 via-orange-400 to-amber-300 text-slate-950 shrink-0 font-black shadow-md">
+              <Gift className="w-5 h-5" />
             </div>
             <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-extrabold text-amber-300 uppercase tracking-wide text-xs sm:text-sm">
-                  TIENDAS.TITUFARIS.ONLINE
+              <div className="flex items-center gap-2 flex-wrap justify-center md:justify-start">
+                <span className="font-black text-white text-sm sm:text-base tracking-tight">
+                  Lanzá tu Propia Tienda Online
                 </span>
-                <span className="px-2 py-0.5 rounded-full bg-emerald-500/30 border border-emerald-400/50 text-[10.5px] font-black text-emerald-200">
-                  🎁 3 MESES DE PRUEBA GRATIS
+                <span className="px-2.5 py-0.5 rounded-full bg-emerald-500 text-slate-950 text-[10.5px] font-black uppercase tracking-wider shadow-xs">
+                  3 Meses 100% Gratis
                 </span>
-                <span className="hidden sm:inline-block text-[11px] text-indigo-300">
-                  Sin tarjeta de crédito
+                <span className="text-[11px] text-indigo-200 hidden sm:inline">
+                  (Sin tarjeta de crédito &middot; Hasta 50 productos con acceso total)
                 </span>
               </div>
-              <p className="text-slate-300 text-xs mt-0.5">
-                Tienda genérica modelo. Suscribite y creá tu tienda online con POS y pedidos por WhatsApp bonificada por 90 días.
+              <p className="text-slate-300 text-xs mt-0.5 leading-snug">
+                Subdominio propio seguro con SSL, catálogo digital, pedidos por WhatsApp, terminal POS de cobro y resguardo en la nube.
               </p>
             </div>
           </div>
@@ -107,62 +107,33 @@ Luego de los 3 meses gratis, podés continuar con planes accesibles desde $25.00
             {onOpenCreateStore && (
               <button
                 onClick={onOpenCreateStore}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-black text-xs shadow-md transition-all hover:scale-105 cursor-pointer ring-2 ring-emerald-300/40"
-                title="Crear tienda gratis por 3 meses sin tarjeta"
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs shadow-lg transition-all hover:scale-105 cursor-pointer ring-2 ring-emerald-300/40"
+                title="Crear mi tienda online gratis por 3 meses"
               >
-                <Sparkles className="w-3.5 h-3.5 text-amber-200" />
-                <span>🚀 Crear Tienda Gratis (3 Meses)</span>
+                <Sparkles className="w-3.5 h-3.5 text-slate-950" />
+                <span>Crear Mi Tienda (3 Meses Gratis)</span>
               </button>
             )}
 
-            {/* Open Commercial Pitch & Share Modal */}
+            {/* Escalar Tienda */}
             <button
               onClick={() => setIsOfferModalOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-400 to-orange-400 hover:from-amber-300 hover:to-orange-300 text-slate-950 font-black text-xs shadow-md transition-all hover:scale-105 cursor-pointer"
-              title="Abrir enlaces y propuesta comercial de suscripción SaaS"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-indigo-800/80 hover:bg-indigo-700 text-white font-bold text-xs shadow-sm transition cursor-pointer border border-indigo-500/40"
+              title="Conocer planes para escalar tu negocio"
             >
-              <Share2 className="w-3.5 h-3.5 text-slate-950" />
-              <span>📢 Planes & Oferta</span>
-            </button>
-
-            {/* Quick Copy Demo Link */}
-            <button
-              onClick={handleCopyLink}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-indigo-900/80 hover:bg-indigo-800 text-indigo-100 border border-indigo-400/30 text-xs font-semibold transition cursor-pointer"
-              title="Copiar enlace de tiendas.titufaris.online"
-            >
-              {copiedLink ? (
-                <>
-                  <Check className="w-3.5 h-3.5 text-emerald-400" />
-                  <span className="text-emerald-300 font-bold">¡Copiado!</span>
-                </>
-              ) : (
-                <>
-                  <Copy className="w-3.5 h-3.5" />
-                  <span>Copiar Link</span>
-                </>
-              )}
-            </button>
-
-            {/* Exit Demo and return to Titufaris */}
-            <button
-              onClick={onExitDemo}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs border border-white/20 transition cursor-pointer"
-              title="Volver al catálogo oficial de Titufaris"
-            >
-              <ArrowLeft className="w-3.5 h-3.5 text-amber-300" />
-              <span>Volver a Titufaris</span>
+              <CreditCard className="w-3.5 h-3.5 text-sky-300" />
+              <span>Escalar Tienda</span>
             </button>
           </div>
         </div>
       </div>
 
-      {/* Commercial Pitch & Share Modal */}
+      {/* Escalar Tienda Modal */}
       {isOfferModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-slate-200 flex flex-col">
             {/* Modal Header */}
-            <div className="bg-gradient-to-r from-indigo-900 via-purple-900 to-slate-900 text-white p-5 sm:p-6 rounded-t-3xl relative">
+            <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-900 text-white p-5 sm:p-6 rounded-t-3xl relative">
               <button
                 onClick={() => setIsOfferModalOpen(false)}
                 className="absolute top-5 right-5 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition cursor-pointer"
@@ -171,180 +142,128 @@ Luego de los 3 meses gratis, podés continuar con planes accesibles desde $25.00
               </button>
 
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-amber-400 text-slate-950 flex items-center justify-center font-black shadow-md">
-                  <Store className="w-6 h-6" />
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-400 to-emerald-400 text-slate-950 flex items-center justify-center font-black shadow-md">
+                  <CreditCard className="w-6 h-6" />
                 </div>
                 <div>
                   <h3 className="text-xl font-black text-white">
-                    Kit de Venta & Oferta Comercial
+                    Escalar Tienda & Planes
                   </h3>
                   <p className="text-xs text-indigo-200 mt-0.5">
-                    Comparte esta demo en vivo o envía la propuesta lista a comercios, empresas y clientes.
+                    Comenzá con 3 meses gratis (hasta 50 productos) y escalá cuando tu negocio crezca.
                   </p>
                 </div>
               </div>
             </div>
 
             {/* Modal Body */}
-            <div className="p-5 sm:p-6 space-y-6 text-slate-800">
-              {/* Domain Selector Tabs */}
-              <div className="space-y-2">
-                <div className="text-xs font-black uppercase tracking-wider text-slate-600">
-                  Elige qué enlace deseas compartir:
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setLinkTarget('immediate')}
-                    className={`p-3 rounded-2xl border text-left transition cursor-pointer flex flex-col gap-1 ${
-                      linkTarget === 'immediate'
-                        ? 'bg-indigo-50 border-indigo-500 ring-2 ring-indigo-500/20 text-indigo-950 shadow-xs'
-                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-xs flex items-center gap-1.5 text-indigo-900">
-                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                        Enlace Inmediato (Recomendado)
-                      </span>
-                      {linkTarget === 'immediate' && <Check className="w-3.5 h-3.5 text-indigo-600 font-black" />}
-                    </div>
-                    <span className="text-[11px] text-slate-500 leading-tight">
-                      Funciona ahora mismo sin necesidad de deployar nada a Coolify.
-                    </span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setLinkTarget('custom')}
-                    className={`p-3 rounded-2xl border text-left transition cursor-pointer flex flex-col gap-1 ${
-                      linkTarget === 'custom'
-                        ? 'bg-indigo-50 border-indigo-500 ring-2 ring-indigo-500/20 text-indigo-950 shadow-xs'
-                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-xs flex items-center gap-1.5 text-indigo-900">
-                        🌐 Enlace en tu Dominio
-                      </span>
-                      {linkTarget === 'custom' && <Check className="w-3.5 h-3.5 text-indigo-600 font-black" />}
-                    </div>
-                    <span className="text-[11px] text-slate-500 leading-tight">
-                      titufaris.online/?demo=generica (Para cuando hagas el deploy en Coolify).
-                    </span>
-                  </button>
+            <div className="p-5 sm:p-6 space-y-5 text-slate-800">
+              {/* Guarantee Pill */}
+              <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-start gap-3">
+                <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+                <div className="text-xs text-emerald-900">
+                  <span className="font-bold block text-sm">Respaldo Automático en Google Firestore</span>
+                  <span>Todos los planes (incluida la prueba gratuita) guardan tu catálogo, inventario, ventas y clientes en la nube. Nunca perderás tus datos ni configuración.</span>
                 </div>
               </div>
 
-              {/* Share URL Section */}
-              <div className="space-y-2">
-                <label className="text-xs font-black uppercase tracking-wider text-slate-600 flex items-center justify-between">
-                  <span>Enlace seleccionado:</span>
-                  <span className="text-[11px] font-normal text-indigo-600">Abre la tienda genérica automáticamente</span>
-                </label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    readOnly
-                    value={demoUrl}
-                    className="flex-1 bg-slate-100 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-mono text-slate-800 select-all outline-none focus:border-indigo-500"
-                  />
-                  <button
-                    onClick={handleCopyLink}
-                    className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-xs transition cursor-pointer shrink-0"
-                  >
-                    {copiedLink ? (
-                      <>
-                        <Check className="w-4 h-4 text-emerald-300" />
-                        <span>¡Copiado!</span>
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="w-4 h-4" />
-                        <span>Copiar Link</span>
-                      </>
-                    )}
-                  </button>
-                  <a
-                    href={demoUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="p-2.5 rounded-xl border border-slate-300 hover:bg-slate-100 text-slate-700 transition cursor-pointer shrink-0"
-                    title="Abrir en pestaña nueva"
-                  >
-                    <ExternalLink className="w-4 h-4" />
-                  </a>
+              {/* Plans Comparison */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                {/* Básico */}
+                <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50 flex flex-col justify-between">
+                  <div>
+                    <span className="text-[10px] font-black uppercase text-slate-500">Comercios Iniciales</span>
+                    <h4 className="font-bold text-slate-900 text-sm mt-0.5">Plan Básico</h4>
+                    <p className="text-lg font-black text-slate-900 my-2">$25.000 <span className="text-[11px] font-normal text-slate-500">ARS/mes</span></p>
+                    <ul className="space-y-1.5 text-slate-600 text-[11px]">
+                      <li>&bull; <strong>Hasta 150 productos</strong></li>
+                      <li>&bull; Subdominio .titufaris.online</li>
+                      <li>&bull; Catálogo digital & Carrito</li>
+                      <li>&bull; Pedidos directos a WhatsApp</li>
+                      <li>&bull; Cobros en mostrador (POS)</li>
+                      <li>&bull; Respaldo diario en Firestore</li>
+                    </ul>
+                  </div>
+                </div>
+
+                {/* Pro */}
+                <div className="p-4 rounded-2xl border-2 border-indigo-600 bg-indigo-50/50 flex flex-col justify-between relative shadow-sm">
+                  <span className="absolute -top-2.5 right-3 bg-indigo-600 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-full">
+                    Más Elegido
+                  </span>
+                  <div>
+                    <span className="text-[10px] font-black uppercase text-indigo-700">En Crecimiento</span>
+                    <h4 className="font-bold text-slate-900 text-sm mt-0.5">Plan Profesional Pro</h4>
+                    <p className="text-lg font-black text-slate-900 my-2">$45.000 <span className="text-[11px] font-normal text-slate-500">ARS/mes</span></p>
+                    <ul className="space-y-1.5 text-slate-600 text-[11px]">
+                      <li>&bull; <strong>Productos Ilimitados</strong></li>
+                      <li>&bull; Control de stock multi-caja</li>
+                      <li>&bull; Múltiples roles de empleados</li>
+                      <li>&bull; Presupuestos PDF con membrete</li>
+                      <li>&bull; Pasarela Mercado Pago en vivo</li>
+                      <li>&bull; Sincronización instantánea Cloud</li>
+                    </ul>
+                  </div>
+                </div>
+
+                {/* Enterprise */}
+                <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50 flex flex-col justify-between">
+                  <div>
+                    <span className="text-[10px] font-black uppercase text-purple-700">Marcas & Cadenas</span>
+                    <h4 className="font-bold text-slate-900 text-sm mt-0.5">Plan Enterprise</h4>
+                    <p className="text-lg font-black text-slate-900 my-2">$85.000 <span className="text-[11px] font-normal text-slate-500">ARS/mes</span></p>
+                    <ul className="space-y-1.5 text-slate-600 text-[11px]">
+                      <li>&bull; Todo lo del Plan Pro</li>
+                      <li>&bull; <strong>Dominio Propio (ej: mitienda.com)</strong></li>
+                      <li>&bull; Multi-sucursal y depósitos</li>
+                      <li>&bull; Google Shopping XML Feed</li>
+                      <li>&bull; Soporte 24/7 prioritario</li>
+                      <li>&bull; Auditoría de datos A+</li>
+                    </ul>
+                  </div>
                 </div>
               </div>
 
-              {/* Ready-to-send WhatsApp Pitch Message */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-black uppercase tracking-wider text-slate-600">
-                    Mensaje comercial redactado para WhatsApp / Redes:
-                  </label>
+              {/* Free Trial Banner in Modal */}
+              <div className="bg-gradient-to-r from-indigo-900 to-slate-900 text-white p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+                <div>
+                  <span className="font-black text-amber-300 text-sm block">¿Todavía no creaste tu tienda?</span>
+                  <span className="text-slate-300 text-[11px]">Comenzá gratis por 90 días con hasta 50 productos y probá todo el potencial sin compromiso.</span>
+                </div>
+                {onOpenCreateStore && (
                   <button
-                    onClick={handleCopyPitch}
-                    className="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 cursor-pointer"
+                    onClick={() => {
+                      setIsOfferModalOpen(false);
+                      onOpenCreateStore();
+                    }}
+                    className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs shrink-0 transition cursor-pointer shadow-md"
                   >
-                    {copiedPitch ? (
-                      <>
-                        <Check className="w-3.5 h-3.5 text-emerald-600" />
-                        <span className="text-emerald-600 font-bold">¡Texto copiado!</span>
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="w-3.5 h-3.5" />
-                        <span>Copiar texto completo</span>
-                      </>
-                    )}
+                    Crear mi Tienda Gratis
                   </button>
-                </div>
-
-                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-xs font-sans whitespace-pre-line text-slate-700 leading-relaxed max-h-48 overflow-y-auto">
-                  {salesPitchText}
-                </div>
-
-                <div className="flex items-center gap-2 pt-1">
-                  <a
-                    href={`https://wa.me/?text=${encodeURIComponent(salesPitchText)}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm shadow-md shadow-emerald-600/20 transition cursor-pointer"
-                  >
-                    <MessageCircle className="w-4 h-4 fill-white" />
-                    <span>Compartir directamente por WhatsApp</span>
-                  </a>
-                  <button
-                    onClick={handleCopyPitch}
-                    className="px-4 py-3 rounded-xl border border-slate-300 hover:bg-slate-100 text-slate-700 font-bold text-xs sm:text-sm transition cursor-pointer shrink-0"
-                  >
-                    {copiedPitch ? '¡Copiado!' : 'Copiar Propuesta'}
-                  </button>
-                </div>
+                )}
               </div>
 
               {/* Feature Highlights Summary */}
               <div className="pt-2 border-t border-slate-200">
                 <div className="text-xs font-bold text-slate-800 mb-3">
-                  Puntos fuertes para destacar al cliente:
+                  Puntos fuertes incluidos en todos los planes:
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs text-slate-600">
                   <div className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-100">
                     <ShoppingBag className="w-4 h-4 text-indigo-600 shrink-0" />
-                    <span><strong>Sin comisiones por venta:</strong> el cliente es dueño del 100% de su facturación.</span>
+                    <span><strong>0% Comisiones por venta:</strong> el comerciante conserva el 100% de su facturación.</span>
                   </div>
                   <div className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-100">
                     <CreditCard className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span><strong>Punto de Venta POS:</strong> cobra en salón y sincroniza con la tienda online.</span>
+                    <span><strong>Punto de Venta POS:</strong> cobra en mostrador físico y sincroniza con la tienda online.</span>
                   </div>
                   <div className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-100">
                     <QrCode className="w-4 h-4 text-orange-600 shrink-0" />
-                    <span><strong>Catálogo PDF con QR:</strong> cada artículo tiene enlace directo escaneable.</span>
+                    <span><strong>Catálogo PDF con QR:</strong> cada artículo tiene enlace directo escaneable y descriptivo.</span>
                   </div>
                   <div className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-100">
                     <Layers className="w-4 h-4 text-purple-600 shrink-0" />
-                    <span><strong>Offline-First:</strong> sigue registrando ventas aun si se corta internet.</span>
+                    <span><strong>Offline-First:</strong> sigue registrando ventas y tickets aun si se corta internet.</span>
                   </div>
                 </div>
               </div>
@@ -354,7 +273,7 @@ Luego de los 3 meses gratis, podés continuar con planes accesibles desde $25.00
             <div className="bg-slate-50 p-4 px-6 border-t border-slate-200 rounded-b-3xl flex items-center justify-between">
               <div className="flex items-center gap-2 text-xs text-slate-500">
                 <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                <span>3 meses gratis de prueba. No se requiere tarjeta para comenzar.</span>
+                <span>3 meses gratis de prueba para 50 productos. Sin tarjeta de crédito requerida.</span>
               </div>
 
               <button

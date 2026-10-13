@@ -69,9 +69,9 @@ export const TenantStatusBanner: React.FC<TenantStatusBannerProps> = ({
         <div className="flex items-center gap-2">
           <Clock className="w-4 h-4 text-sky-300 animate-pulse" />
           <span>
-            Período de Prueba Activo para <strong className="font-bold">{tenant.name}</strong>:{' '}
+            Prueba de 3 Meses Activa para <strong className="font-bold">{tenant.name}</strong>:{' '}
             <span className="bg-sky-400 text-slate-950 font-bold px-1.5 py-0.2 rounded text-[10px]">
-              {trialDaysRemaining} días restantes
+              {trialDaysRemaining} días restantes &middot; Hasta 50 productos
             </span>
           </span>
         </div>
@@ -80,7 +80,7 @@ export const TenantStatusBanner: React.FC<TenantStatusBannerProps> = ({
             onClick={onOpenSubscriptionModal}
             className="bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-black px-3 py-1 rounded-lg transition cursor-pointer flex items-center gap-1.5 shadow-xs"
           >
-            <CreditCard className="w-3.5 h-3.5" /> Activar Plan con Mercado Pago
+            <CreditCard className="w-3.5 h-3.5" /> Escalar Tienda
           </button>
         </div>
       </div>
@@ -93,8 +93,8 @@ export const TenantStatusBanner: React.FC<TenantStatusBannerProps> = ({
         <div className="flex items-center gap-2">
           <AlertTriangle className="w-4 h-4 text-amber-200" />
           <span>
-            Aviso de Facturación: La última cuota mensual de Mercado Pago no pudo cobrarse.{' '}
-            <span className="underline font-medium">Regulariza el pago para evitar la suspensión.</span>
+            Aviso de Facturación: La última cuota mensual no pudo debitarse.{' '}
+            <span className="underline font-medium">Regulariza el pago para evitar la interrupción del servicio.</span>
           </span>
         </div>
         <div className="flex items-center gap-2">
@@ -115,15 +115,9 @@ export const TenantStatusBanner: React.FC<TenantStatusBannerProps> = ({
         <div className="flex items-center gap-2">
           <Wrench className="w-4 h-4 text-amber-400" />
           <span>
-            Esta tienda se encuentra en <strong>Modo Mantenimiento</strong> por el Administrador Maestro.
+            Esta tienda se encuentra temporalmente en <strong>Modo Mantenimiento</strong> preventivo.
           </span>
         </div>
-        <button
-          onClick={onOpenMasterPanel}
-          className="text-white hover:text-amber-200 underline text-[11px] font-semibold cursor-pointer"
-        >
-          Gestionar en Panel Maestro &rarr;
-        </button>
       </div>
     );
   }

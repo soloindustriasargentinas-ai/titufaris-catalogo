@@ -63,15 +63,7 @@ export const TenantSuspendedNotice: React.FC<TenantSuspendedNoticeProps> = ({
             className="w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs rounded-xl transition cursor-pointer flex items-center justify-center gap-2 shadow-lg"
           >
             <CreditCard className="w-4 h-4 text-sky-300" />
-            Soy el Propietario: Reactivar con Mercado Pago
-          </button>
-
-          <button
-            onClick={onReturnToTitufaris}
-            className="w-full py-2.5 px-4 bg-slate-700/60 hover:bg-slate-700 text-slate-300 hover:text-white font-semibold text-xs rounded-xl transition cursor-pointer flex items-center justify-center gap-2"
-          >
-            <Home className="w-4 h-4" />
-            Volver a Titufaris.online
+            Soy el Propietario: Reactivar Tienda
           </button>
         </div>
       </div>

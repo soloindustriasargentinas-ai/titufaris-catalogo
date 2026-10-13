@@ -243,33 +243,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   </div>
 
                   <div className="space-y-3 text-xs max-h-[75vh] overflow-y-auto pr-1">
-                    {/* SECTION 0: Master SaaS Control Panel */}
-                    {onOpenMasterPanel && (
-                      <div className="p-1">
-                        <button
-                          onClick={() => {
-                            setIsAdminDropdownOpen(false);
-                            onOpenMasterPanel();
-                          }}
-                          className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-gradient-to-r from-indigo-900 to-slate-900 text-white hover:from-indigo-800 hover:to-slate-800 transition-all shadow-md cursor-pointer text-left border border-indigo-700/50"
-                        >
-                          <div className="w-7 h-7 rounded-lg bg-amber-400/20 border border-amber-400/40 flex items-center justify-center text-amber-300 font-bold shrink-0 text-sm">
-                            👑
-                          </div>
-                          <div className="flex-1">
-                            <div className="font-black text-xs text-white flex items-center gap-1.5">
-                              <span>Panel Maestro SaaS</span>
-                              <span className="bg-emerald-500/20 text-emerald-300 text-[9px] px-1.5 py-0.2 rounded font-extrabold">A+</span>
-                            </div>
-                            <div className="text-[10px] text-indigo-200">
-                              MRR, resolución técnica y bajas
-                            </div>
-                          </div>
-                        </button>
-                      </div>
-                    )}
-
-                    {/* SECTION 0.5: SaaS Store Subscription */}
+                    {/* SECTION: Escalar Tienda */}
                     {onOpenSubscriptionModal && (
                       <div className="px-1 pb-1">
                         <button
@@ -277,18 +251,20 @@ export const Navbar: React.FC<NavbarProps> = ({
                             setIsAdminDropdownOpen(false);
                             onOpenSubscriptionModal();
                           }}
-                          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-200 transition-all cursor-pointer text-left font-bold"
+                          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 text-blue-900 border border-blue-200 transition-all cursor-pointer text-left font-bold"
                         >
                           <div className="w-6 h-6 rounded-lg bg-blue-600 text-white flex items-center justify-center text-xs shrink-0">
-                            💳
+                            🚀
                           </div>
                           <div className="flex-1">
-                            <div className="text-xs text-blue-950 font-bold flex items-center gap-1.5">
-                              <span>Mi Suscripción SaaS</span>
-                              <span className="bg-sky-200 text-blue-900 text-[9px] px-1 rounded font-extrabold">MP</span>
+                            <div className="text-xs text-blue-950 font-bold flex items-center justify-between">
+                              <span>Escalar Tienda</span>
+                              <span className="bg-blue-600 text-white text-[9px] px-1.5 py-0.2 rounded font-extrabold uppercase">
+                                Planes
+                              </span>
                             </div>
                             <div className="text-[10px] text-blue-700 font-normal">
-                              Planes, débito recurrente y recibos
+                              Ver planes, límites y suscripción
                             </div>
                           </div>
                         </button>

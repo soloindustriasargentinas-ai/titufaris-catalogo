@@ -116,7 +116,7 @@ import { ShareProductModal } from './components/ShareProductModal';
 import { DemoModeBanner } from './components/DemoModeBanner';
 import { SiteMapModal } from './components/SiteMapModal';
 import { genericCompany, genericCategories, genericProducts, genericUsers } from './data/genericStoreData';
-import { updateSeoMetadata, slugify } from './utils/seoAndRouting';
+import { updateSeoMetadata, slugify, generateProductDescriptiveSlug } from './utils/seoAndRouting';
 
 // Code-split heavy views and administrative modals with React.lazy
 const CategoryManagerModal = lazy(() => import('./components/CategoryManagerModal').then(m => ({ default: m.CategoryManagerModal })));
@@ -388,32 +388,90 @@ export default function App() {
     if (tenantId === 'titufaris') {
       // Flagship Titufaris store: Always keep and restore standard Titufaris catalog and settings
       handleExitDemoMode();
+      const tituProds = loadProducts('titufaris');
+      setProducts(tituProds);
+      const tituCats = loadCategories('titufaris');
+      setCategories(tituCats);
+      const tituComp = loadCompany('titufaris');
+      setCompany(tituComp);
+      const tituSales = loadSales('titufaris');
+      setSales(tituSales);
+      const tituLogs = loadLogs('titufaris');
+      setLogs(tituLogs);
+      const tituNotifs = loadNotifications('titufaris');
+      setNotifications(tituNotifs);
+
+      fetchProductsFromFirestore('titufaris').then(res => {
+        if (res.success && res.data && res.data.length > 0) {
+          setProducts(res.data);
+          saveProducts(res.data, 'titufaris');
+        }
+      });
+      fetchCategoriesFromFirestore('titufaris').then(remoteCats => {
+        if (remoteCats && remoteCats.length > 0) {
+          setCategories(remoteCats);
+          saveCategories(remoteCats, 'titufaris');
+        }
+      });
+      fetchSalesFromFirestore('titufaris').then(remoteSales => {
+        if (remoteSales && remoteSales.length > 0) {
+          setSales(remoteSales);
+          saveSales(remoteSales, 'titufaris');
+        }
+      });
     } else {
-      // Impersonate or inspect another tenant
-      if (!realDataBackupRef.current) {
-        realDataBackupRef.current = {
-          products,
-          categories,
-          company,
-          users,
-        };
-      }
       const tenant = saasTenants.find(t => t.id === tenantId);
       if (tenant) {
-        setCompany({
+        const isolatedCompany: CompanyProfile = {
           ...saasCompany,
           name: tenant.name,
           tagline: `CATÁLOGO OFICIAL · PLAN ${tenant.planId.toUpperCase()}`,
           email: tenant.ownerEmail,
           phone: tenant.ownerPhone,
           website: tenant.customDomain ? `https://${tenant.customDomain}` : `https://${tenant.slug}.titufaris.online`,
-        });
-        setProducts(saasProducts);
-        setCategories(saasCategories);
+        };
+        const tenantComp = loadCompany(tenantId, isolatedCompany);
+        setCompany(tenantComp);
+
+        const tenantProds = loadProducts(tenantId, saasProducts);
+        setProducts(tenantProds);
+
+        const tenantCats = loadCategories(tenantId, saasCategories);
+        setCategories(tenantCats);
+
+        const tenantSales = loadSales(tenantId);
+        setSales(tenantSales);
+
+        const tenantLogs = loadLogs(tenantId);
+        setLogs(tenantLogs);
+
+        const tenantNotifs = loadNotifications(tenantId);
+        setNotifications(tenantNotifs);
+
         setSelectedCategory('all');
         setSearchQuery('');
         setDetailProduct(null);
         document.title = `${tenant.name} - Catálogo & POS`;
+
+        // Strictly isolated fetch from Firestore cloud under /tenants/{tenantId}
+        fetchProductsFromFirestore(tenantId).then(res => {
+          if (res.success && res.data && res.data.length > 0) {
+            setProducts(res.data);
+            saveProducts(res.data, tenantId);
+          }
+        });
+        fetchCategoriesFromFirestore(tenantId).then(remoteCats => {
+          if (remoteCats && remoteCats.length > 0) {
+            setCategories(remoteCats);
+            saveCategories(remoteCats, tenantId);
+          }
+        });
+        fetchSalesFromFirestore(tenantId).then(remoteSales => {
+          if (remoteSales && remoteSales.length > 0) {
+            setSales(remoteSales);
+            saveSales(remoteSales, tenantId);
+          }
+        });
       }
     }
   };
@@ -457,7 +515,14 @@ export default function App() {
       if (prodId || sku) {
         const found = products.find(
           p =>
-            (prodId && (p.id === prodId || slugify(p.name) === prodId || (p as any).slug === prodId)) ||
+            (prodId && (
+              p.id === prodId ||
+              slugify(p.name) === prodId ||
+              generateProductDescriptiveSlug(p) === prodId ||
+              (p as any).slug === prodId ||
+              prodId.startsWith(slugify(p.name)) ||
+              (p.sku && prodId.includes(slugify(p.sku)))
+            )) ||
             (sku && p.sku.toLowerCase() === sku.toLowerCase())
         );
         if (found) {
@@ -497,7 +562,14 @@ export default function App() {
       if (prodId || sku) {
         const found = products.find(
           p =>
-            (prodId && (p.id === prodId || slugify(p.name) === prodId || (p as any).slug === prodId)) ||
+            (prodId && (
+              p.id === prodId ||
+              slugify(p.name) === prodId ||
+              generateProductDescriptiveSlug(p) === prodId ||
+              (p as any).slug === prodId ||
+              prodId.startsWith(slugify(p.name)) ||
+              (p.sku && prodId.includes(slugify(p.sku)))
+            )) ||
             (sku && p.sku.toLowerCase() === sku.toLowerCase())
         );
         if (found) {
@@ -517,12 +589,8 @@ export default function App() {
     const currentUrl = new URL(window.location.href);
 
     if (detailProduct) {
-      // Product Detail View: URL descriptiva con nombre y SKU
-      const nameSlug = slugify(detailProduct.name);
-      const skuSlug = detailProduct.sku ? slugify(detailProduct.sku) : '';
-      const descriptiveSlug = skuSlug && !nameSlug.includes(skuSlug)
-        ? `${nameSlug}-sku-${skuSlug}`
-        : nameSlug;
+      // Product Detail View: URL descriptiva relativa al producto donde se lee la descripción
+      const descriptiveSlug = generateProductDescriptiveSlug(detailProduct);
 
       currentUrl.searchParams.set('producto', descriptiveSlug);
       currentUrl.searchParams.set('p', detailProduct.id);
@@ -771,9 +839,9 @@ export default function App() {
         }
 
         // Sync activity logs with Firestore (Audit Trail - Lote 3)
-        const remoteLogs = await fetchActivityLogsFromFirestore(100);
+        const remoteLogs = await fetchActivityLogsFromFirestore(activeTenantId, 100);
         if (remoteLogs && remoteLogs.length > 0) {
-          const localLogs = loadLogs();
+          const localLogs = loadLogs(activeTenantId);
           const logsMap = new Map<string, ActivityLog>();
           remoteLogs.forEach(l => logsMap.set(l.id, l));
           localLogs.forEach(l => {
@@ -785,11 +853,11 @@ export default function App() {
             (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
           ).slice(0, 200);
           setLogs(mergedLogs);
-          saveLogs(mergedLogs);
+          saveLogs(mergedLogs, activeTenantId);
         } else {
-          const localLogs = loadLogs();
+          const localLogs = loadLogs(activeTenantId);
           if (localLogs && localLogs.length > 0) {
-            await seedActivityLogsToFirestore(localLogs);
+            await seedActivityLogsToFirestore(localLogs, activeTenantId);
           }
         }
       } catch (err) {
@@ -800,12 +868,12 @@ export default function App() {
     // 3. Subscribe to real-time changes across devices
     const unsubscribeProducts = subscribeToProductsFirestore((remoteProducts) => {
       if (remoteProducts && Array.isArray(remoteProducts) && remoteProducts.length > 0) {
-        const cleaned = cleanProductList(remoteProducts);
+        const cleaned = cleanProductList(remoteProducts, activeTenantId);
         setProducts(cleaned);
-        saveProducts(cleaned);
+        saveProducts(cleaned, activeTenantId);
         setSyncStatus('synced');
       }
-    });
+    }, undefined, activeTenantId);
 
     return () => {
       unsubscribeProducts();
@@ -814,32 +882,32 @@ export default function App() {
 
   // Save changes to persistent storage
   useEffect(() => {
-    saveProducts(products);
-  }, [products]);
+    saveProducts(products, activeTenantId);
+  }, [products, activeTenantId]);
 
   useEffect(() => {
-    saveCategories(categories);
-  }, [categories]);
+    saveCategories(categories, activeTenantId);
+  }, [categories, activeTenantId]);
 
   useEffect(() => {
-    saveCompany(company);
-  }, [company]);
+    saveCompany(company, activeTenantId);
+  }, [company, activeTenantId]);
 
   useEffect(() => {
     saveUsers(users);
   }, [users]);
 
   useEffect(() => {
-    saveSales(sales);
-  }, [sales]);
+    saveSales(sales, activeTenantId);
+  }, [sales, activeTenantId]);
 
   useEffect(() => {
-    saveLogs(logs);
-  }, [logs]);
+    saveLogs(logs, activeTenantId);
+  }, [logs, activeTenantId]);
 
   useEffect(() => {
-    saveNotifications(notifications);
-  }, [notifications]);
+    saveNotifications(notifications, activeTenantId);
+  }, [notifications, activeTenantId]);
 
   // Cloud Sync Handler: Reconciles all local data with Firestore
   const triggerCloudSync = async () => {
@@ -855,11 +923,11 @@ export default function App() {
 
     setSyncStatus('syncing');
     try {
-      await seedProductsToFirestore(products);
-      await seedCategoriesToFirestore(categories);
+      await seedProductsToFirestore(products, activeTenantId);
+      await seedCategoriesToFirestore(categories, activeTenantId);
       const realSales = (sales || []).filter(s => s && s.id && !s.id.startsWith('sale-init') && s.id !== 'sale-1789132222175');
       if (realSales.length > 0) {
-        await seedSalesToFirestore(realSales);
+        await seedSalesToFirestore(realSales, activeTenantId);
       }
       clearSyncQueue();
       setPendingSyncCount(0);
@@ -930,7 +998,7 @@ export default function App() {
 
     if (isOnline && !isSimulatedOffline) {
       setSyncStatus('syncing');
-      saveActivityLogToFirestore(newLog).catch(err => console.warn('Activity log firestore error:', err));
+      saveActivityLogToFirestore(newLog, activeTenantId).catch(err => console.warn('Activity log firestore error:', err));
       setTimeout(() => setSyncStatus('synced'), 800);
     }
   };
@@ -966,7 +1034,7 @@ export default function App() {
     }
 
     if (productData.id) {
-      unmarkProductAsDeleted(productData.id);
+      unmarkProductAsDeleted(productData.id, activeTenantId);
       // Update
       const updatedProduct = {
         ...productData,
@@ -978,7 +1046,7 @@ export default function App() {
         const next = prev.map(p =>
           p.id === productData.id ? updatedProduct : p
         );
-        saveProducts(next);
+        saveProducts(next, activeTenantId);
         return next;
       });
 
@@ -989,7 +1057,7 @@ export default function App() {
         setEditingProduct(null);
       }
 
-      const res = await saveProductToFirestore(updatedProduct);
+      const res = await saveProductToFirestore(updatedProduct, activeTenantId);
       if (!res.success) {
         console.warn('Alerta al sincronizar producto en la nube:', res.error);
         const warnNotif: PushNotification = {
@@ -1033,9 +1101,22 @@ export default function App() {
         }).catch(err => console.warn('Error en auto-sync Meta:', err));
       }
     } else {
-      // Create
+      // Create new product - Enforce trial (50 products) and basic (150 products) limits
+      const isTrial = activeTenant.id !== 'titufaris' && (activeTenant.planId === 'trial' || activeTenant.subscriptionStatus === 'trial');
+      const isBasic = activeTenant.id !== 'titufaris' && activeTenant.planId === 'basic';
+      if (isTrial && products.length >= 50) {
+        alert('Has alcanzado el límite de 50 productos de tu prueba gratuita de 3 meses. Todas las funciones permanecen activas, pero para incorporar más artículos por favor escala tu tienda a un plan comercial.');
+        setIsSaaSSubscriptionModalOpen(true);
+        return;
+      }
+      if (isBasic && products.length >= 150) {
+        alert('Has alcanzado el límite de 150 productos del Plan Básico. Para contar con productos ilimitados, por favor escala al Plan Profesional Pro.');
+        setIsSaaSSubscriptionModalOpen(true);
+        return;
+      }
+
       const newId = 'prod-' + Date.now();
-      unmarkProductAsDeleted(newId);
+      unmarkProductAsDeleted(newId, activeTenantId);
       const createdProd: Product = {
         id: newId,
         ...productData,
@@ -1045,11 +1126,11 @@ export default function App() {
 
       setProducts(prev => {
         const next = [createdProd, ...prev];
-        saveProducts(next);
+        saveProducts(next, activeTenantId);
         return next;
       });
 
-      const res = await saveProductToFirestore(createdProd);
+      const res = await saveProductToFirestore(createdProd, activeTenantId);
       if (!res.success) {
         console.warn('Alerta al sincronizar nuevo producto en la nube:', res.error);
         const warnNotif: PushNotification = {
@@ -1095,6 +1176,24 @@ export default function App() {
     }
   };
 
+  const handleOpenNewProduct = () => {
+    const isTrial = activeTenant.id !== 'titufaris' && (activeTenant.planId === 'trial' || activeTenant.subscriptionStatus === 'trial');
+    const isBasic = activeTenant.id !== 'titufaris' && activeTenant.planId === 'basic';
+    if (isTrial && products.length >= 50) {
+      alert('Has alcanzado el límite de 50 productos de tu prueba gratuita de 3 meses. Todas las funciones permanecen activas, pero para incorporar más artículos por favor escala tu tienda.');
+      setIsSaaSSubscriptionModalOpen(true);
+      return;
+    }
+    if (isBasic && products.length >= 150) {
+      alert('Has alcanzado el límite de 150 productos del Plan Básico. Para contar con productos ilimitados, por favor escala al Plan Profesional Pro.');
+      setIsSaaSSubscriptionModalOpen(true);
+      return;
+    }
+    setEditingProduct(null);
+    setIsDuplicateMode(false);
+    setIsProductFormOpen(true);
+  };
+
   const handleDeleteProduct = (product: Product) => {
     if (isDemoMode) {
       setProducts(prev => prev.filter(p => p.id !== product.id));
@@ -1105,15 +1204,15 @@ export default function App() {
     }
 
     // 0. Mark permanently as deleted so it can never be resurrected
-    markProductAsDeleted(product.id);
+    markProductAsDeleted(product.id, activeTenantId);
 
     // 1. Remove from active product catalog and cloud
     setProducts(prev => {
       const next = prev.filter(p => p.id !== product.id);
-      saveProducts(next);
+      saveProducts(next, activeTenantId);
       return next;
     });
-    deleteProductFromFirestore(product.id);
+    deleteProductFromFirestore(product.id, activeTenantId);
 
     // Auto-delete from Meta WhatsApp / Facebook Catalog
     if (
@@ -1163,6 +1262,18 @@ export default function App() {
   };
 
   const handleDuplicateProduct = (product: Product) => {
+    const isTrial = activeTenant.id !== 'titufaris' && (activeTenant.planId === 'trial' || activeTenant.subscriptionStatus === 'trial');
+    const isBasic = activeTenant.id !== 'titufaris' && activeTenant.planId === 'basic';
+    if (isTrial && products.length >= 50) {
+      alert('Has alcanzado el límite de 50 productos de tu prueba gratuita de 3 meses. Para duplicar y agregar más productos, por favor escala tu tienda a un plan comercial.');
+      setIsSaaSSubscriptionModalOpen(true);
+      return;
+    }
+    if (isBasic && products.length >= 150) {
+      alert('Has alcanzado el límite de 150 productos del Plan Básico. Por favor escala al Plan Profesional Pro para productos ilimitados.');
+      setIsSaaSSubscriptionModalOpen(true);
+      return;
+    }
     setEditingProduct(product);
     setIsDuplicateMode(true);
     setIsProductFormOpen(true);
@@ -1185,10 +1296,10 @@ export default function App() {
 
     setProducts(prev => {
       const next = prev.map(p => (p.id === product.id ? updated : p));
-      saveProducts(next);
+      saveProducts(next, activeTenantId);
       return next;
     });
-    saveProductToFirestore(updated);
+    saveProductToFirestore(updated, activeTenantId);
 
     if (detailProduct && detailProduct.id === product.id) {
       setDetailProduct(updated);
@@ -1219,10 +1330,12 @@ export default function App() {
     if (diff === 0) return;
 
     const updated = { ...product, stock: newStock, updatedAt: new Date().toISOString() };
-    setProducts(prev =>
-      prev.map(p => (p.id === product.id ? updated : p))
-    );
-    saveProductToFirestore(updated);
+    setProducts(prev => {
+      const next = prev.map(p => (p.id === product.id ? updated : p));
+      saveProducts(next, activeTenantId);
+      return next;
+    });
+    saveProductToFirestore(updated, activeTenantId);
 
     addActivity(
       'stock_adjusted',
@@ -1250,7 +1363,7 @@ export default function App() {
 
   const handleAddCategory = (newCategory: Category) => {
     setCategories(prev => [...prev, newCategory]);
-    saveCategoryToFirestore(newCategory);
+    saveCategoryToFirestore(newCategory, activeTenantId);
     addActivity(
       'category_created',
       `Nueva categoría: ${newCategory.name}`,
@@ -1297,11 +1410,11 @@ export default function App() {
 
     // 2. Remove category
     setCategories(prev => prev.filter(c => c.id !== categoryId));
-    deleteCategoryFromFirestore(categoryId);
+    deleteCategoryFromFirestore(categoryId, activeTenantId);
 
     if (targetCategoryId) {
       const updatedProducts = products.map(p => (p.category === categoryId ? { ...p, category: targetCategoryId } : p));
-      seedProductsToFirestore(updatedProducts);
+      seedProductsToFirestore(updatedProducts, activeTenantId);
     }
 
     // 3. Reset selectedCategory if it was the deleted one
@@ -1367,6 +1480,7 @@ export default function App() {
     try {
       const txResult = await recordSaleTransaction(createdSale, {
         isOffline: !isOnline || isSimulatedOffline,
+        tenantId: activeTenantId,
       });
 
       if (!txResult.success && txResult.error) {
@@ -1427,7 +1541,8 @@ export default function App() {
       sale,
       restoreStock,
       currentUser.name,
-      cancellationReason
+      cancellationReason,
+      activeTenantId
     );
 
     // 2. Reintegrate stock locally if requested
@@ -1498,16 +1613,17 @@ export default function App() {
             const nextStock = currentProd.stock + item.quantity;
             const updatedProd = { ...currentProd, stock: nextStock, updatedAt: new Date().toISOString() };
             updated[idx] = updatedProd;
-            saveProductToFirestore(updatedProd);
+            saveProductToFirestore(updatedProd, activeTenantId);
           }
         });
+        saveProducts(updated, activeTenantId);
         return updated;
       });
     }
 
     // 2. Remove sale from state and Firestore
     setSales(prev => prev.filter(s => s.id !== saleId));
-    await deleteSaleFromFirestore(saleId);
+    await deleteSaleFromFirestore(saleId, activeTenantId);
 
     // 3. Activity Log
     addActivity(
@@ -1535,11 +1651,11 @@ export default function App() {
       return;
     }
     setSales([]);
-    saveSales([]);
+    saveSales([], activeTenantId);
     try {
-      const remote = await fetchSalesFromFirestore();
+      const remote = await fetchSalesFromFirestore(activeTenantId);
       for (const s of remote) {
-        await deleteSaleFromFirestore(s.id);
+        await deleteSaleFromFirestore(s.id, activeTenantId);
       }
       addActivity(
         'sale_cancelled',
@@ -1850,29 +1966,23 @@ export default function App() {
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-100 text-slate-900 selection:bg-orange-500 selection:text-white w-full max-w-full overflow-x-hidden">
-      {/* SaaS Active Tenant Inspection Banner (if not Titufaris) */}
-      {activeTenantId !== 'titufaris' && (
-        <div className="bg-gradient-to-r from-indigo-950 via-slate-900 to-indigo-950 text-white text-xs px-4 py-2 flex flex-wrap items-center justify-between gap-2 border-b border-indigo-800 shadow-md">
+      {/* SaaS Active Tenant Inspection Banner (if not Titufaris and not tiendas demo) */}
+      {activeTenantId !== 'titufaris' && activeTenantId !== 'demo-generica' && (
+        <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white text-xs px-4 py-2 flex flex-wrap items-center justify-between gap-2 border-b border-indigo-800 shadow-md">
           <div className="flex items-center gap-2">
-            <span className="bg-indigo-600 text-white font-bold text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider">
-              SaaS Multi-Tienda
+            <span className="bg-emerald-600 text-white font-bold text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider">
+              {activeTenant.planId === 'trial' ? 'Prueba 3 Meses' : `Plan ${activeTenant.planId.toUpperCase()}`}
             </span>
-            <span className="text-indigo-100 text-xs">
-              Inspeccionando tienda: <strong className="text-white">{activeTenant.name}</strong> (Plan {activeTenant.planId.toUpperCase()} &middot; {activeTenant.subscriptionStatus.toUpperCase()})
+            <span className="text-slate-200 text-xs">
+              Tienda activa: <strong className="text-white">{activeTenant.name}</strong> ({activeTenant.slug}.titufaris.online)
             </span>
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setIsMasterPanelOpen(true)}
-              className="bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-bold px-2.5 py-1 rounded-lg transition cursor-pointer"
+              onClick={() => setIsSaaSSubscriptionModalOpen(true)}
+              className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-[11px] font-bold px-3 py-1 rounded-lg transition cursor-pointer shadow-xs"
             >
-              👑 Panel Maestro
-            </button>
-            <button
-              onClick={() => handleSelectTenant('titufaris')}
-              className="bg-orange-600 hover:bg-orange-500 text-white text-[11px] font-bold px-2.5 py-1 rounded-lg transition cursor-pointer"
-            >
-              🏠 Volver a Titufaris.online
+              🚀 Escalar Tienda
             </button>
           </div>
         </div>
@@ -2003,11 +2113,7 @@ export default function App() {
             onOpenExport={() => setIsExportModalOpen(true)}
             onOpenWhatsAppCatalog={() => setIsWhatsAppCatalogModalOpen(true)}
             onOpenGoogleMerchant={() => setIsGoogleModalOpen(true)}
-            onOpenNewProduct={() => {
-              setEditingProduct(null);
-              setIsDuplicateMode(false);
-              setIsProductFormOpen(true);
-            }}
+            onOpenNewProduct={handleOpenNewProduct}
             onOpenUsersModal={() => setIsUsersModalOpen(true)}
             onOpenCompanySettings={() => setIsCompanyModalOpen(true)}
             onOpenBackupModal={() => setIsBackupModalOpen(true)}
@@ -2087,11 +2193,7 @@ export default function App() {
                 {(currentUser.role === 'admin' || currentUser.permissions.canManageInventory) && (
                   <button
                     id="btn-add-new-product-main"
-                    onClick={() => {
-                      setEditingProduct(null);
-                      setIsDuplicateMode(false);
-                      setIsProductFormOpen(true);
-                    }}
+                    onClick={handleOpenNewProduct}
                     className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-extrabold text-xs shadow-md shadow-orange-600/25 transition-all cursor-pointer hover:scale-105 active:scale-95"
                     title="Cargar y dar de alta un nuevo producto o artículo en el catálogo"
                   >
@@ -2373,11 +2475,7 @@ export default function App() {
               {(currentUser.role === 'admin' || currentUser.permissions.canManageInventory) && (
                 <button
                   id="btn-add-product-empty-state"
-                  onClick={() => {
-                    setEditingProduct(null);
-                    setIsDuplicateMode(false);
-                    setIsProductFormOpen(true);
-                  }}
+                  onClick={handleOpenNewProduct}
                   className="mt-4 px-5 py-2.5 bg-orange-600 hover:bg-orange-700 text-white font-extrabold text-xs rounded-xl shadow-md shadow-orange-600/25 transition-all hover:scale-105 cursor-pointer"
                 >
                   ＋ Cargar Nuevo Artículo

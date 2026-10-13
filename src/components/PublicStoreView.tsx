@@ -760,26 +760,36 @@ export const PublicStoreView: React.FC<PublicStoreViewProps> = ({
                 >
                   {/* Image container - adjusted for full product fit */}
                   <div className="relative aspect-4/3 bg-slate-50 p-2.5 overflow-hidden flex items-center justify-center border-b border-slate-100">
-                    <img
-                      src={
-                        (product.images && product.images.length > 0 && product.images[0] && product.images[0].trim() !== '')
-                          ? product.images[0]
-                          : (product.imageUrl && product.imageUrl.trim() !== '')
-                          ? product.imageUrl
-                          : 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=400&q=80'
-                      }
-                      alt={`${product.name} - ${cat?.name || product.category} - ${company.name}`}
-                      className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        if (!target.src.includes('unsplash.com')) {
-                          target.src = 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=400&q=80';
-                        }
+                    <a
+                      href={buildProductUrl(product, isDemoMode)}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        onOpenProductDetail(product);
                       }}
-                    />
+                      className="w-full h-full flex items-center justify-center cursor-pointer"
+                      title={`Ver ficha técnica y detalles de ${product.name}`}
+                    >
+                      <img
+                        src={
+                          (product.images && product.images.length > 0 && product.images[0] && product.images[0].trim() !== '')
+                            ? product.images[0]
+                            : (product.imageUrl && product.imageUrl.trim() !== '')
+                            ? product.imageUrl
+                            : 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=400&q=80'
+                        }
+                        alt={`${product.name} - ${cat?.name || product.category} - ${company.name}`}
+                        className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          if (!target.src.includes('unsplash.com')) {
+                            target.src = 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=400&q=80';
+                          }
+                        }}
+                      />
+                    </a>
 
                     {/* Category pill */}
-                    <div className="absolute top-2.5 left-2.5">
+                    <div className="absolute top-2.5 left-2.5 pointer-events-none">
                       <span
                         className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full backdrop-blur-xs text-white text-[10px] font-bold shadow-xs"
                         style={{
@@ -852,6 +862,11 @@ export const PublicStoreView: React.FC<PublicStoreViewProps> = ({
                       {product.dimensions && (
                         <p className="text-[11px] text-slate-500 font-medium line-clamp-1">
                           📐 {product.dimensions}
+                        </p>
+                      )}
+                      {product.description && (
+                        <p className="text-[11px] text-slate-600 line-clamp-2 leading-relaxed">
+                          {product.description}
                         </p>
                       )}
 

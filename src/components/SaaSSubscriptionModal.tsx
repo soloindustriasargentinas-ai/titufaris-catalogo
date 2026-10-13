@@ -218,9 +218,9 @@ export const SaaSSubscriptionModal: React.FC<SaaSSubscriptionModalProps> = ({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-xl font-bold tracking-tight">Suscripción SaaS & Mercado Pago</h2>
+                <h2 className="text-xl font-bold tracking-tight">Escalar Tienda & Planes</h2>
                 <span className="bg-sky-400 text-slate-950 text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full">
-                  Recurrente
+                  Planes Oficiales
                 </span>
               </div>
               <p className="text-xs text-blue-100 mt-0.5">
@@ -383,6 +383,15 @@ export const SaaSSubscriptionModal: React.FC<SaaSSubscriptionModalProps> = ({
             </div>
           </div>
 
+          {/* Cloud Resilience & Firebase Guarantee */}
+          <div className="bg-gradient-to-r from-emerald-950 via-slate-900 to-indigo-950 border border-emerald-500/30 rounded-xl p-3.5 flex items-start gap-3 text-xs text-slate-200">
+            <ShieldCheck className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+            <div>
+              <span className="font-bold text-white block text-sm">Respaldo Automático en Google Firebase Firestore</span>
+              <span>Todos los planes (incluida la prueba bonificada de 3 meses) cuentan con resguardo automático en la nube. Todo tu catálogo, fotos, ventas, inventario y clientes permanecen 100% seguros y nunca se perderán.</span>
+            </div>
+          </div>
+
           {/* Plans Grid */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {PLANS.map(plan => {
@@ -526,7 +535,7 @@ export const SaaSSubscriptionModal: React.FC<SaaSSubscriptionModalProps> = ({
         {/* Modal Footer */}
         <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500">
           <p>
-            Plataforma SaaS Titufaris &middot; Facturación centralizada con soporte y auditoría A+
+            Plataforma Oficial de Tiendas Online &middot; Respaldo seguro en Google Firebase y facturación protegida
           </p>
           <button
             onClick={onClose}
