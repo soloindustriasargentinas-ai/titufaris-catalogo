@@ -97,6 +97,7 @@ import {
   fetchUsersFromFirestore,
   saveUserToFirestore,
   seedUsersToFirestore,
+  saveSaaSTenantToFirestore,
 } from './lib/firebase';
 
 import { Navbar } from './components/Navbar';
@@ -142,24 +143,50 @@ import { TenantStatusBanner } from './components/TenantStatusBanner';
 import { TenantSuspendedNotice } from './components/TenantSuspendedNotice';
 import { LegalTab } from './components/LegalNoticeModal';
 import { CartConfirmationToast } from './components/CartConfirmationToast';
+import { StoreNotFoundView } from './components/StoreNotFoundView';
 import { useCart } from './hooks/useCart';
 import { useCatalogFilter } from './hooks/useCatalogFilter';
 import { playBeep, playSuccessChime, playWarningAlert } from './utils/audio';
 import { scanBrowserForLostProducts } from './utils/recovery';
 import { syncSingleProductToMetaCatalog, deleteProductFromMetaCatalog } from './utils/metaCatalogApi';
 import { SaaSTenantStore } from './types/saas';
-import { loadSaaSTenants, getActiveTenantId, setActiveTenantId, syncTenantsWithFirestore } from './utils/saasStorage';
+import { loadSaaSTenants, saveSaaSTenants, getActiveTenantId, setActiveTenantId, syncTenantsWithFirestore } from './utils/saasStorage';
 import { saasCompany, saasCategories, saasProducts, saasUsers } from './data/saasDemoData';
 
 export default function App() {
-  // Main State
-  const [products, setProducts] = useState<Product[]>(loadProducts);
-  const [categories, setCategories] = useState<Category[]>(loadCategories);
-  const [company, setCompany] = useState<CompanyProfile>(loadCompany);
+  // Authoritative initial tenant resolution
+  const resolvedTenantId = useMemo(() => getActiveTenantId(), []);
+
+  // Main State initialized with the CURRENT tenant's data (isolated branding & products)
+  const [products, setProducts] = useState<Product[]>(() => {
+    if (resolvedTenantId === 'titufaris') return loadProducts('titufaris');
+    if (resolvedTenantId === 'demo-generica') return genericProducts;
+    return loadProducts(resolvedTenantId, saasProducts);
+  });
+  const [categories, setCategories] = useState<Category[]>(() => {
+    if (resolvedTenantId === 'titufaris') return loadCategories('titufaris');
+    if (resolvedTenantId === 'demo-generica') return genericCategories;
+    return loadCategories(resolvedTenantId, saasCategories);
+  });
+  const [company, setCompany] = useState<CompanyProfile>(() => {
+    if (resolvedTenantId === 'titufaris') return loadCompany('titufaris');
+    if (resolvedTenantId === 'demo-generica') return genericCompany;
+    const isZapasStore = resolvedTenantId.toLowerCase().includes('zapas');
+    const isolatedCompany: CompanyProfile = {
+      ...saasCompany,
+      name: isZapasStore ? 'Zapas - Calzado & Sneakers Oficial' : (resolvedTenantId.charAt(0).toUpperCase() + resolvedTenantId.slice(1)),
+      tagline: isZapasStore ? 'Calzado, Sneakers & Moda Urbana' : 'Catálogo Oficial & Ventas Directas',
+      email: `contacto@${resolvedTenantId.toLowerCase()}.titufaris.online`,
+      website: `https://${resolvedTenantId.toLowerCase()}.titufaris.online`,
+      brandColors: isZapasStore ? { primary: '#E11D48', secondary: '#09090B', accent: '#BE123C' } : { primary: '#EA580C', secondary: '#0F172A', accent: '#F97316' },
+      fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+    };
+    return loadCompany(resolvedTenantId, isolatedCompany);
+  });
   const [users, setUsers] = useState<User[]>(loadUsers);
-  const [sales, setSales] = useState<Sale[]>(loadSales);
-  const [logs, setLogs] = useState<ActivityLog[]>(loadLogs);
-  const [notifications, setNotifications] = useState<PushNotification[]>(loadNotifications);
+  const [sales, setSales] = useState<Sale[]>(() => loadSales(resolvedTenantId));
+  const [logs, setLogs] = useState<ActivityLog[]>(() => loadLogs(resolvedTenantId));
+  const [notifications, setNotifications] = useState<PushNotification[]>(() => loadNotifications(resolvedTenantId));
 
   // Active User & Authentication State
   const [activeUserId, setActiveUserIdState] = useState<string>(getActiveUserId);
@@ -376,64 +403,65 @@ export default function App() {
     return p.get('dominio') === 'config' || p.get('domain') === 'setup';
   });
 
+  // Verification of subdomain existence (protect against uncreated subdomains like roca.titufaris.online)
+  const isKnownTenantLocally = useMemo(() => {
+    if (resolvedTenantId === 'titufaris' || resolvedTenantId === 'demo-generica') return true;
+    return saasTenants.some(
+      t => t.id.toLowerCase() === resolvedTenantId.toLowerCase() || t.slug.toLowerCase() === resolvedTenantId.toLowerCase()
+    );
+  }, [resolvedTenantId, saasTenants]);
+
+  const [isTenantChecking, setIsTenantChecking] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    if (resolvedTenantId === 'titufaris' || resolvedTenantId === 'demo-generica') return false;
+    return !isKnownTenantLocally;
+  });
+  const [tenantNotFound, setTenantNotFound] = useState<boolean>(false);
+
   const activeTenant = useMemo(() => {
     const found = saasTenants.find(
       t => t.id === activeTenantId || t.slug.toLowerCase() === activeTenantId.toLowerCase()
     );
     if (found) return found;
-    // Dynamic fallback for newly loaded subdomains (e.g. zapas.titufaris.online)
-    if (activeTenantId && activeTenantId !== 'titufaris' && activeTenantId !== 'demo-generica') {
-      const cleanSlug = activeTenantId.toLowerCase();
-      const cleanName = cleanSlug.charAt(0).toUpperCase() + cleanSlug.slice(1);
-      return {
-        id: cleanSlug,
-        name: `${cleanName} Oficial`,
-        slug: cleanSlug,
-        customDomain: `${cleanSlug}.titufaris.online`,
-        domainStatus: 'ssl_active',
-        ownerName: `${cleanName} Admin`,
-        ownerEmail: `contacto@${cleanSlug}.titufaris.online`,
-        ownerPhone: '+54 9 11 5829-4310',
-        planId: 'pro',
-        subscriptionStatus: 'trial',
-        pricePerMonthARS: 45000,
-        billingCycle: 'monthly',
-        createdAt: new Date().toISOString(),
-        trialEndsAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
-        nextBillingDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
-        technicalHealth: {
-          status: 'healthy',
-          productsCount: 0,
-          categoriesCount: 0,
-          salesCount: 0,
-          lastSyncAt: new Date().toISOString(),
-          storageKB: 120,
-          maintenanceMode: false,
-          issuesDetected: [],
-          lastDiagnosticAt: new Date().toISOString()
-        }
-      } as SaaSTenantStore;
-    }
     return saasTenants[0];
   }, [saasTenants, activeTenantId]);
 
-  // Sync tenants with Firestore cloud on startup & auto-load active custom domain tenant
+  // Sync tenants with Firestore cloud on startup & verify active custom domain tenant
   useEffect(() => {
     syncTenantsWithFirestore(saasTenants).then(synced => {
       setSaaSTenants(synced);
-      const resolvedId = getActiveTenantId();
-      const matched = synced.find(
-        t => t.id === resolvedId || t.slug.toLowerCase() === resolvedId.toLowerCase()
-      );
-      if (matched && matched.id !== 'titufaris' && matched.id !== 'demo-generica') {
-        setActiveTenantIdState(matched.id);
-        setActiveTenantId(matched.id);
-        handleSelectTenant(matched.id, synced);
+      const currentResolved = getActiveTenantId();
+      if (currentResolved !== 'titufaris' && currentResolved !== 'demo-generica') {
+        const matched = synced.find(
+          t => t.id.toLowerCase() === currentResolved.toLowerCase() || t.slug.toLowerCase() === currentResolved.toLowerCase()
+        );
+        if (matched) {
+          setTenantNotFound(false);
+          setIsTenantChecking(false);
+          setActiveTenantIdState(matched.id);
+          setActiveTenantId(matched.id);
+          handleSelectTenant(matched.id, synced);
+        } else {
+          // The subdomain does NOT exist in Firestore -> Display 404!
+          setTenantNotFound(true);
+          setIsTenantChecking(false);
+        }
+      } else {
+        setTenantNotFound(false);
+        setIsTenantChecking(false);
       }
+    }).catch(err => {
+      console.warn('Firestore tenants sync error:', err);
+      setIsTenantChecking(false);
     });
 
     if (activeTenantId && activeTenantId !== 'titufaris' && activeTenantId !== 'demo-generica') {
-      handleSelectTenant(activeTenantId);
+      const known = saasTenants.find(
+        t => t.id.toLowerCase() === activeTenantId.toLowerCase() || t.slug.toLowerCase() === activeTenantId.toLowerCase()
+      );
+      if (known) {
+        handleSelectTenant(known.id);
+      }
     }
   }, []);
 
@@ -846,16 +874,16 @@ export default function App() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, [products, categories]);
 
-  // Sync from high-capacity IndexedDB and Firebase Firestore on startup
+  // Sync from high-capacity IndexedDB and Firebase Firestore on startup (Flagship Titufaris ONLY)
   useEffect(() => {
-    if (isDemoModeRef.current) {
-      // In Demo Mode, keep isolated generic demonstration data
+    if (isDemoModeRef.current || (activeTenantId && activeTenantId !== 'titufaris')) {
+      // In Demo Mode or specific tenant (e.g. zapas), keep isolated tenant data!
       return;
     }
 
     // 1. First sync from IndexedDB
     syncProductsFromIndexedDB().then(idbProducts => {
-      if (isDemoModeRef.current) return;
+      if (isDemoModeRef.current || (activeTenantId && activeTenantId !== 'titufaris')) return;
       if (idbProducts && Array.isArray(idbProducts) && idbProducts.length > 0) {
         setProducts(idbProducts);
       }
@@ -863,7 +891,7 @@ export default function App() {
 
     // 2. Validate Firestore connection & synchronize strictly with cloud database
     validateFirestoreConnection().then(async () => {
-      if (isDemoModeRef.current) return;
+      if (isDemoModeRef.current || (activeTenantId && activeTenantId !== 'titufaris')) return;
       try {
         const response = await fetchProductsFromFirestore();
         if (response.success && Array.isArray(response.data) && response.data.length > 0) {
@@ -1842,6 +1870,23 @@ export default function App() {
     setCompany(updatedCompany);
     saveCompany(updatedCompany, activeTenantId);
     saveCompanyToFirestore(updatedCompany, activeTenantId);
+
+    // Keep tenant list in sync with custom store name & branding
+    if (activeTenantId !== 'titufaris' && activeTenantId !== 'demo-generica') {
+      setSaaSTenants(prev => {
+        const updated = prev.map(t => {
+          if (t.id === activeTenantId || t.slug.toLowerCase() === activeTenantId.toLowerCase()) {
+            const nextTenant = { ...t, name: updatedCompany.name };
+            saveSaaSTenantToFirestore(nextTenant).catch(() => {});
+            return nextTenant;
+          }
+          return t;
+        });
+        saveSaaSTenants(updated);
+        return updated;
+      });
+    }
+
     addActivity(
       'company_updated',
       `Datos y Branding de ${updatedCompany.name} actualizados`,
@@ -2078,10 +2123,25 @@ export default function App() {
 
   const unreadNotifsCount = notifications.filter(n => !n.read).length;
 
+  // 404 Store Not Found handler for arbitrary uncreated subdomains (e.g. roca.titufaris.online)
+  if (tenantNotFound) {
+    return <StoreNotFoundView subdomain={activeTenantId} />;
+  }
+
+  // Brief verifying screen while checking newly accessed subdomains against Firestore
+  if (isTenantChecking) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-white font-sans p-4">
+        <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4" />
+        <p className="text-sm text-slate-300 font-mono">Verificando tienda https://{activeTenantId}.titufaris.online...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-slate-100 text-slate-900 selection:bg-orange-500 selection:text-white w-full max-w-full overflow-x-hidden">
-      {/* SaaS Active Tenant Inspection Banner (if not Titufaris and not tiendas demo) */}
-      {activeTenantId !== 'titufaris' && activeTenantId !== 'demo-generica' && (
+      {/* SaaS Active Tenant Inspection Banner (STRICTLY visible only when owner is in staff/admin mode) */}
+      {appMode === 'staff' && activeTenantId !== 'titufaris' && activeTenantId !== 'demo-generica' && (
         <div className="bg-slate-950 text-white text-xs px-4 py-2 border-b border-slate-800 shadow-xs relative z-40">
           <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2.5">
             <div className="flex items-center gap-2 flex-wrap">

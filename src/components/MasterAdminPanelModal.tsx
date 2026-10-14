@@ -1974,6 +1974,76 @@ export const MasterAdminPanelModal: React.FC<MasterAdminPanelModalProps> = ({
                   </div>
                 </div>
 
+                {/* Subdominios Automáticos Coolify & Cloudflare Alert */}
+                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 sm:p-5 text-slate-800 shadow-xs">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-amber-200/70 pb-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-2 bg-amber-500 text-white rounded-xl shadow-xs">
+                        <Zap className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-sm text-slate-900">
+                          Aprovisionamiento Definitivo de Subdominios (*.titufaris.online)
+                        </h4>
+                        <p className="text-xs text-slate-600">
+                          Solución al error <code className="bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded font-mono font-bold">no available server (503)</code> y validación de URL en Coolify
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <span className="inline-flex items-center gap-1.5 bg-emerald-100 text-emerald-800 text-[11px] font-bold px-2.5 py-1 rounded-full border border-emerald-300">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                        DNS y SSL Cloudflare Listo
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 text-xs text-slate-700 space-y-3">
+                    <p>
+                      Coolify no permite escribir comodines <code className="font-mono bg-amber-100 px-1 rounded">*</code> en el campo de dominios. Para activar los subdominios de forma <strong>automática e instantánea</strong> para cada tienda nueva, dispones de dos soluciones definitivas:
+                    </p>
+
+                    {/* Opción 1: Cloudflare Worker */}
+                    <div className="bg-white border border-amber-300 rounded-xl p-3.5 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="bg-indigo-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-md uppercase">Solución 1 (Recomendada)</span>
+                          <span className="font-bold text-slate-900 text-xs">Cloudflare Worker Inverso (2 minutos, 100% automático)</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const workerCode = `export default {\n  async fetch(request) {\n    const url = new URL(request.url);\n    if (url.hostname.endsWith('.titufaris.online') && url.hostname !== 'titufaris.online' && url.hostname !== 'tiendas.titufaris.online') {\n      const newHeaders = new Headers(request.headers);\n      newHeaders.set('Host', 'titufaris.online');\n      newHeaders.set('X-Forwarded-Host', url.hostname);\n      return fetch(new Request(request.url, { method: request.method, headers: newHeaders, body: request.body, redirect: 'follow' }));\n    }\n    return fetch(request);\n  }\n};`;
+                            navigator.clipboard.writeText(workerCode);
+                            showToast('¡Código del Cloudflare Worker copiado!');
+                          }}
+                          className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[11px] px-3 py-1.5 rounded-lg transition cursor-pointer flex items-center gap-1 shrink-0 shadow-xs"
+                        >
+                          <Copy className="w-3.5 h-3.5" />
+                          <span>Copiar Worker</span>
+                        </button>
+                      </div>
+                      <p className="text-[11px] text-slate-600">
+                        Crea un Worker en Cloudflare llamado <code className="font-mono font-bold text-slate-800">titufaris-subdominios</code>, pega el código copiado y asígnale la ruta <code className="font-mono font-bold text-indigo-700">*.titufaris.online/*</code>. Cada tienda nueva funcionará al segundo sin tocar Coolify.
+                      </p>
+                    </div>
+
+                    {/* Opción 2: Docker Compose */}
+                    <div className="bg-white border border-slate-200 rounded-xl p-3.5 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="bg-slate-700 text-white text-[10px] font-bold px-2 py-0.5 rounded-md uppercase">Solución 2</span>
+                          <span className="font-bold text-slate-900 text-xs">Docker Compose en Coolify (Traefik HostRegexp)</span>
+                        </div>
+                      </div>
+                      <p className="text-[11px] text-slate-600">
+                        En Coolify, cambia el <strong>Build Pack</strong> de la aplicación a <strong>Docker Compose</strong> (usando el <code className="font-mono text-slate-800">docker-compose.yml</code> ya incluido en el proyecto) y haz clic en <strong>Redeploy</strong>.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Infrastructure DNS Global Info Banner */}
                 <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-5 rounded-2xl border border-slate-700 shadow-md flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div className="space-y-1 max-w-xl">

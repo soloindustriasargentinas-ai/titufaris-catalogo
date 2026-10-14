@@ -1,0 +1,38 @@
+version: '3.8'
+
+# ============================================================================
+# Titufaris - Docker Compose para Coolify / Traefik
+# Enrutamiento automático universal para *.titufaris.online
+# ============================================================================
+
+services:
+  titufaris-web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: titufaris-web
+    restart: always
+    expose:
+      - "80"
+    networks:
+      - coolify
+    environment:
+      - NODE_ENV=production
+    labels:
+      - "coolify.managed=true"
+      - "traefik.enable=true"
+      # Enrutamiento HTTP (Port 80)
+      - "traefik.http.routers.titufaris-http.rule=Host(`titufaris.online`) || Host(`www.titufaris.online`) || Host(`tiendas.titufaris.online`) || HostRegexp(`^.+\\.titufaris\\.online$`)"
+      - "traefik.http.routers.titufaris-http.entrypoints=http"
+      - "traefik.http.routers.titufaris-http.service=titufaris-svc"
+      # Enrutamiento HTTPS (Port 443)
+      - "traefik.http.routers.titufaris-https.rule=Host(`titufaris.online`) || Host(`www.titufaris.online`) || Host(`tiendas.titufaris.online`) || HostRegexp(`^.+\\.titufaris\\.online$`)"
+      - "traefik.http.routers.titufaris-https.entrypoints=https"
+      - "traefik.http.routers.titufaris-https.service=titufaris-svc"
+      - "traefik.http.routers.titufaris-https.tls=true"
+      # Servicio interno
+      - "traefik.http.services.titufaris-svc.loadbalancer.server.port=80"
+
+networks:
+  coolify:
+    external: true

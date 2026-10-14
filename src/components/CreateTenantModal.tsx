@@ -16,9 +16,12 @@ import {
   Check,
   ExternalLink
 } from 'lucide-react';
+import { CompanyProfile } from '../types';
 import { SaaSTenantStore, SaaSPlanId } from '../types/saas';
-import { saveSaaSTenantToFirestore } from '../lib/firebase';
+import { saveSaaSTenantToFirestore, saveCompanyToFirestore } from '../lib/firebase';
 import { saveSaaSTenants } from '../utils/saasStorage';
+import { saveCompany } from '../utils/storage';
+import { saasCompany } from '../data/saasDemoData';
 
 interface CreateTenantModalProps {
   isOpen: boolean;
@@ -96,6 +99,8 @@ export const CreateTenantModal: React.FC<CreateTenantModalProps> = ({
         id: storeSlug,
         name: storeName.trim(),
         slug: storeSlug,
+        customDomain: `${storeSlug}.titufaris.online`,
+        domainStatus: 'ssl_active',
         isDefaultStore: false,
         ownerName: ownerName.trim() || 'Propietario de ' + storeName,
         ownerEmail: ownerEmail.trim(),
@@ -126,6 +131,20 @@ export const CreateTenantModal: React.FC<CreateTenantModalProps> = ({
       await saveSaaSTenantToFirestore(newTenant);
       const updatedList = [...tenants, newTenant];
       saveSaaSTenants(updatedList);
+
+      // Seed initial isolated branding and company profile in Firestore & local
+      const initialBrandCompany: CompanyProfile = {
+        ...saasCompany,
+        name: storeName.trim(),
+        tagline: 'Catálogo Oficial & Ventas Directas',
+        email: ownerEmail.trim(),
+        phone: ownerPhone.trim(),
+        website: `https://${storeSlug}.titufaris.online`,
+        brandColors: { primary: '#2563EB', secondary: '#0F172A', accent: '#3B82F6' },
+        fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+      };
+      await saveCompanyToFirestore(initialBrandCompany, storeSlug).catch(() => {});
+      saveCompany(initialBrandCompany, storeSlug);
 
       setCreatedTenant(newTenant);
       onTenantCreated(newTenant);
