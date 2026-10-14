@@ -11,7 +11,10 @@ import {
   ArrowRight,
   ShieldCheck,
   Zap,
-  Globe
+  Globe,
+  Copy,
+  Check,
+  ExternalLink
 } from 'lucide-react';
 import { SaaSTenantStore, SaaSPlanId } from '../types/saas';
 import { saveSaaSTenantToFirestore } from '../lib/firebase';
@@ -22,6 +25,7 @@ interface CreateTenantModalProps {
   onClose: () => void;
   tenants: SaaSTenantStore[];
   onTenantCreated: (newTenant: SaaSTenantStore) => void;
+  onSelectTenantDirectly?: (tenantId: string) => void;
 }
 
 export const CreateTenantModal: React.FC<CreateTenantModalProps> = ({
@@ -29,6 +33,7 @@ export const CreateTenantModal: React.FC<CreateTenantModalProps> = ({
   onClose,
   tenants,
   onTenantCreated,
+  onSelectTenantDirectly,
 }) => {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [storeName, setStoreName] = useState('');
@@ -40,6 +45,7 @@ export const CreateTenantModal: React.FC<CreateTenantModalProps> = ({
   const [selectedPlan, setSelectedPlan] = useState<SaaSPlanId>('pro');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [createdTenant, setCreatedTenant] = useState<SaaSTenantStore | null>(null);
+  const [copiedUrl, setCopiedUrl] = useState(false);
 
   if (!isOpen) return null;
 
@@ -453,17 +459,62 @@ export const CreateTenantModal: React.FC<CreateTenantModalProps> = ({
                 </div>
               </div>
 
-              <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
+              <div className="pt-2 flex flex-wrap items-center justify-center gap-2.5">
+                {/* 1. Official Cloudflare Subdomain Link */}
                 <a
-                  href={`?tienda=${createdTenant.slug}`}
-                  className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-5 py-2.5 rounded-xl transition cursor-pointer flex items-center gap-2 shadow-xs"
+                  href={`https://${createdTenant.slug}.titufaris.online`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs px-5 py-2.5 rounded-xl transition cursor-pointer flex items-center gap-2 shadow-md hover:scale-[1.02]"
                 >
-                  <Globe className="w-4 h-4" /> Ingresar a {createdTenant.slug}.titufaris.online
+                  <Globe className="w-4 h-4 text-slate-950" />
+                  <span>Abrir {createdTenant.slug}.titufaris.online</span>
+                  <ExternalLink className="w-3.5 h-3.5 text-slate-900" />
                 </a>
+
+                {/* 2. Copy Official URL */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (navigator.clipboard) {
+                      navigator.clipboard.writeText(`https://${createdTenant.slug}.titufaris.online`);
+                      setCopiedUrl(true);
+                      setTimeout(() => setCopiedUrl(false), 2500);
+                    }
+                  }}
+                  className="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs px-4 py-2.5 rounded-xl transition cursor-pointer flex items-center gap-1.5 border border-slate-200"
+                >
+                  {copiedUrl ? (
+                    <>
+                      <Check className="w-4 h-4 text-emerald-600" />
+                      <span className="text-emerald-700">¡Enlace Copiado!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-4 h-4 text-slate-600" />
+                      <span>Copiar Enlace</span>
+                    </>
+                  )}
+                </button>
+
+                {/* 3. Enter directly in current window */}
+                {onSelectTenantDirectly && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onSelectTenantDirectly(createdTenant.id);
+                      handleReset();
+                    }}
+                    className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition cursor-pointer flex items-center gap-1.5 shadow-xs"
+                  >
+                    <span>Administrar Ahora</span>
+                  </button>
+                )}
+
                 <button
                   type="button"
                   onClick={handleReset}
-                  className="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs px-4 py-2.5 rounded-xl transition cursor-pointer"
+                  className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs px-4 py-2.5 rounded-xl transition cursor-pointer"
                 >
                   Cerrar
                 </button>

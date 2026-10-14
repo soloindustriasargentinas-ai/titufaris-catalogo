@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useRef, useMemo, Suspense, lazy } from 'react';
 import {
   Search,
   Filter,
@@ -27,6 +27,8 @@ import {
   Check,
   RotateCcw,
   Share2,
+  ExternalLink,
+  Globe,
 } from 'lucide-react';
 
 import {
@@ -268,6 +270,12 @@ export default function App() {
     }
   });
 
+  const isTiendasHost = useMemo(() => {
+    if (typeof window === 'undefined') return false;
+    const h = window.location.hostname.toLowerCase();
+    return h === 'tiendas.titufaris.online' || h === 'www.tiendas.titufaris.online';
+  }, []);
+
   const isDemoModeRef = useRef(isDemoMode);
   isDemoModeRef.current = isDemoMode;
 
@@ -368,24 +376,78 @@ export default function App() {
     return p.get('dominio') === 'config' || p.get('domain') === 'setup';
   });
 
-  const activeTenant = saasTenants.find(t => t.id === activeTenantId) || saasTenants[0];
+  const activeTenant = useMemo(() => {
+    const found = saasTenants.find(
+      t => t.id === activeTenantId || t.slug.toLowerCase() === activeTenantId.toLowerCase()
+    );
+    if (found) return found;
+    // Dynamic fallback for newly loaded subdomains (e.g. zapas.titufaris.online)
+    if (activeTenantId && activeTenantId !== 'titufaris' && activeTenantId !== 'demo-generica') {
+      const cleanSlug = activeTenantId.toLowerCase();
+      const cleanName = cleanSlug.charAt(0).toUpperCase() + cleanSlug.slice(1);
+      return {
+        id: cleanSlug,
+        name: `${cleanName} Oficial`,
+        slug: cleanSlug,
+        customDomain: `${cleanSlug}.titufaris.online`,
+        domainStatus: 'ssl_active',
+        ownerName: `${cleanName} Admin`,
+        ownerEmail: `contacto@${cleanSlug}.titufaris.online`,
+        ownerPhone: '+54 9 11 5829-4310',
+        planId: 'pro',
+        subscriptionStatus: 'trial',
+        pricePerMonthARS: 45000,
+        billingCycle: 'monthly',
+        createdAt: new Date().toISOString(),
+        trialEndsAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
+        nextBillingDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
+        technicalHealth: {
+          status: 'healthy',
+          productsCount: 0,
+          categoriesCount: 0,
+          salesCount: 0,
+          lastSyncAt: new Date().toISOString(),
+          storageKB: 120,
+          maintenanceMode: false,
+          issuesDetected: [],
+          lastDiagnosticAt: new Date().toISOString()
+        }
+      } as SaaSTenantStore;
+    }
+    return saasTenants[0];
+  }, [saasTenants, activeTenantId]);
 
   // Sync tenants with Firestore cloud on startup & auto-load active custom domain tenant
   useEffect(() => {
     syncTenantsWithFirestore(saasTenants).then(synced => {
       setSaaSTenants(synced);
+      const resolvedId = getActiveTenantId();
+      const matched = synced.find(
+        t => t.id === resolvedId || t.slug.toLowerCase() === resolvedId.toLowerCase()
+      );
+      if (matched && matched.id !== 'titufaris' && matched.id !== 'demo-generica') {
+        setActiveTenantIdState(matched.id);
+        setActiveTenantId(matched.id);
+        handleSelectTenant(matched.id, synced);
+      }
     });
 
-    if (activeTenantId && activeTenantId !== 'titufaris') {
+    if (activeTenantId && activeTenantId !== 'titufaris' && activeTenantId !== 'demo-generica') {
       handleSelectTenant(activeTenantId);
     }
   }, []);
 
-  const handleSelectTenant = (tenantId: string) => {
-    setActiveTenantIdState(tenantId);
-    setActiveTenantId(tenantId);
+  const handleSelectTenant = (tenantId: string, currentTenantsList?: SaaSTenantStore[]) => {
+    const listToSearch = currentTenantsList || saasTenants;
+    const tenant = listToSearch.find(
+      t => t.id === tenantId || t.slug.toLowerCase() === tenantId.toLowerCase()
+    );
+    const resolvedTenantId = tenant ? tenant.id : tenantId;
 
-    if (tenantId === 'titufaris') {
+    setActiveTenantIdState(resolvedTenantId);
+    setActiveTenantId(resolvedTenantId);
+
+    if (resolvedTenantId === 'titufaris') {
       // Flagship Titufaris store: Always keep and restore standard Titufaris catalog and settings
       handleExitDemoMode();
       const tituProds = loadProducts('titufaris');
@@ -419,60 +481,115 @@ export default function App() {
           saveSales(remoteSales, 'titufaris');
         }
       });
+      document.title = 'Titufaris - Catálogo, Precios & POS';
     } else {
-      const tenant = saasTenants.find(t => t.id === tenantId);
-      if (tenant) {
-        const isolatedCompany: CompanyProfile = {
-          ...saasCompany,
-          name: tenant.name,
-          tagline: `CATÁLOGO OFICIAL · PLAN ${tenant.planId.toUpperCase()}`,
-          email: tenant.ownerEmail,
-          phone: tenant.ownerPhone,
-          website: tenant.customDomain ? `https://${tenant.customDomain}` : `https://${tenant.slug}.titufaris.online`,
-        };
-        const tenantComp = loadCompany(tenantId, isolatedCompany);
-        setCompany(tenantComp);
-
-        const tenantProds = loadProducts(tenantId, saasProducts);
-        setProducts(tenantProds);
-
-        const tenantCats = loadCategories(tenantId, saasCategories);
-        setCategories(tenantCats);
-
-        const tenantSales = loadSales(tenantId);
-        setSales(tenantSales);
-
-        const tenantLogs = loadLogs(tenantId);
-        setLogs(tenantLogs);
-
-        const tenantNotifs = loadNotifications(tenantId);
-        setNotifications(tenantNotifs);
-
-        setSelectedCategory('all');
-        setSearchQuery('');
-        setDetailProduct(null);
-        document.title = `${tenant.name} - Catálogo & POS`;
-
-        // Strictly isolated fetch from Firestore cloud under /tenants/{tenantId}
-        fetchProductsFromFirestore(tenantId).then(res => {
-          if (res.success && res.data && res.data.length > 0) {
-            setProducts(res.data);
-            saveProducts(res.data, tenantId);
+      // If switching to an individual tenant (like zapas), exit demo mode completely and clean trailing slugs
+      if (resolvedTenantId !== 'demo-generica') {
+        setIsDemoMode(false);
+        try {
+          const url = new URL(window.location.href);
+          if (url.searchParams.has('demo') || url.searchParams.has('tienda')) {
+            url.searchParams.delete('demo');
+            url.searchParams.delete('tienda');
+            window.history.replaceState(
+              {},
+              '',
+              url.pathname + (url.searchParams.toString() ? `?${url.searchParams.toString()}` : '')
+            );
           }
-        });
-        fetchCategoriesFromFirestore(tenantId).then(remoteCats => {
-          if (remoteCats && remoteCats.length > 0) {
-            setCategories(remoteCats);
-            saveCategories(remoteCats, tenantId);
-          }
-        });
-        fetchSalesFromFirestore(tenantId).then(remoteSales => {
-          if (remoteSales && remoteSales.length > 0) {
-            setSales(remoteSales);
-            saveSales(remoteSales, tenantId);
-          }
-        });
+        } catch {}
       }
+
+      const tenantToUse: SaaSTenantStore = tenant || {
+        id: resolvedTenantId,
+        name: resolvedTenantId.charAt(0).toUpperCase() + resolvedTenantId.slice(1),
+        slug: resolvedTenantId.toLowerCase(),
+        customDomain: `${resolvedTenantId.toLowerCase()}.titufaris.online`,
+        domainStatus: 'ssl_active',
+        ownerName: `${resolvedTenantId.charAt(0).toUpperCase() + resolvedTenantId.slice(1)} Admin`,
+        ownerEmail: `contacto@${resolvedTenantId.toLowerCase()}.titufaris.online`,
+        ownerPhone: '+54 9 11 5829-4310',
+        planId: 'pro',
+        subscriptionStatus: 'trial',
+        pricePerMonthARS: 45000,
+        billingCycle: 'monthly',
+        createdAt: new Date().toISOString(),
+        trialEndsAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
+        nextBillingDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
+        technicalHealth: {
+          status: 'healthy',
+          productsCount: 0,
+          categoriesCount: 0,
+          salesCount: 0,
+          lastSyncAt: new Date().toISOString(),
+          storageKB: 120,
+          maintenanceMode: false,
+          issuesDetected: [],
+          lastDiagnosticAt: new Date().toISOString()
+        }
+      };
+
+      const isZapasStore = tenantToUse.slug.toLowerCase().includes('zapas');
+      const isolatedCompany: CompanyProfile = {
+        ...saasCompany,
+        name: tenantToUse.name,
+        tagline: isZapasStore ? 'Calzado, Sneakers & Moda Urbana' : 'Catálogo Oficial & Ventas Directas',
+        email: tenantToUse.ownerEmail,
+        phone: tenantToUse.ownerPhone,
+        website: tenantToUse.customDomain ? `https://${tenantToUse.customDomain}` : `https://${tenantToUse.slug}.titufaris.online`,
+        brandColors: isZapasStore ? { primary: '#E11D48', secondary: '#09090B', accent: '#BE123C' } : { primary: '#EA580C', secondary: '#0F172A', accent: '#F97316' },
+        fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+      };
+      const tenantComp = loadCompany(resolvedTenantId, isolatedCompany);
+      setCompany(tenantComp);
+
+      // Load company profile from Firestore if previously saved
+      fetchCompanyFromFirestore(resolvedTenantId).then(remoteCompany => {
+        if (remoteCompany) {
+          setCompany(remoteCompany);
+          saveCompany(remoteCompany, resolvedTenantId);
+        }
+      });
+
+      const tenantProds = loadProducts(resolvedTenantId, saasProducts);
+      setProducts(tenantProds);
+
+      const tenantCats = loadCategories(resolvedTenantId, saasCategories);
+      setCategories(tenantCats);
+
+      const tenantSales = loadSales(resolvedTenantId);
+      setSales(tenantSales);
+
+      const tenantLogs = loadLogs(resolvedTenantId);
+      setLogs(tenantLogs);
+
+      const tenantNotifs = loadNotifications(resolvedTenantId);
+      setNotifications(tenantNotifs);
+
+      setSelectedCategory('all');
+      setSearchQuery('');
+      setDetailProduct(null);
+      document.title = `${tenantToUse.name} - Catálogo & POS Oficial`;
+
+      // Strictly isolated fetch from Firestore cloud under /tenants/{resolvedTenantId}
+      fetchProductsFromFirestore(resolvedTenantId).then(res => {
+        if (res.success && res.data && res.data.length > 0) {
+          setProducts(res.data);
+          saveProducts(res.data, resolvedTenantId);
+        }
+      });
+      fetchCategoriesFromFirestore(resolvedTenantId).then(remoteCats => {
+        if (remoteCats && remoteCats.length > 0) {
+          setCategories(remoteCats);
+          saveCategories(remoteCats, resolvedTenantId);
+        }
+      });
+      fetchSalesFromFirestore(resolvedTenantId).then(remoteSales => {
+        if (remoteSales && remoteSales.length > 0) {
+          setSales(remoteSales);
+          saveSales(remoteSales, resolvedTenantId);
+        }
+      });
     }
   };
 
@@ -1723,14 +1840,11 @@ export default function App() {
 
   const handleSaveCompany = (updatedCompany: CompanyProfile) => {
     setCompany(updatedCompany);
-    if (isDemoMode) {
-      return;
-    }
-    saveCompany(updatedCompany);
-    saveCompanyToFirestore(updatedCompany);
+    saveCompany(updatedCompany, activeTenantId);
+    saveCompanyToFirestore(updatedCompany, activeTenantId);
     addActivity(
       'company_updated',
-      'Datos de Empresa Titufaris actualizados',
+      `Datos y Branding de ${updatedCompany.name} actualizados`,
       `CUIT: ${updatedCompany.taxId} | Razón Social: ${updatedCompany.legalName}`
     );
   };
@@ -1968,28 +2082,49 @@ export default function App() {
     <div className="min-h-screen flex flex-col bg-slate-100 text-slate-900 selection:bg-orange-500 selection:text-white w-full max-w-full overflow-x-hidden">
       {/* SaaS Active Tenant Inspection Banner (if not Titufaris and not tiendas demo) */}
       {activeTenantId !== 'titufaris' && activeTenantId !== 'demo-generica' && (
-        <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white text-xs px-4 py-2 flex flex-wrap items-center justify-between gap-2 border-b border-indigo-800 shadow-md">
-          <div className="flex items-center gap-2">
-            <span className="bg-emerald-600 text-white font-bold text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider">
-              {activeTenant.planId === 'trial' ? 'Prueba 3 Meses' : `Plan ${activeTenant.planId.toUpperCase()}`}
-            </span>
-            <span className="text-slate-200 text-xs">
-              Tienda activa: <strong className="text-white">{activeTenant.name}</strong> ({activeTenant.slug}.titufaris.online)
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setIsSaaSSubscriptionModalOpen(true)}
-              className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-[11px] font-bold px-3 py-1 rounded-lg transition cursor-pointer shadow-xs"
-            >
-              🚀 Escalar Tienda
-            </button>
+        <div className="bg-slate-950 text-white text-xs px-4 py-2 border-b border-slate-800 shadow-xs relative z-40">
+          <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2.5">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-semibold text-white">
+                {activeTenant.name}
+              </span>
+              <span className="text-slate-600" aria-hidden="true">&middot;</span>
+              <a
+                href={`https://${activeTenant.slug}.titufaris.online`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-mono text-indigo-300 hover:text-indigo-200 hover:underline flex items-center gap-1"
+                title={`Abrir subdominio oficial https://${activeTenant.slug}.titufaris.online`}
+              >
+                <span>https://{activeTenant.slug}.titufaris.online</span>
+                <ExternalLink className="w-3 h-3 inline text-slate-400" />
+              </a>
+              <span className="text-slate-600 hidden md:inline" aria-hidden="true">&middot;</span>
+              <span className="text-emerald-400 text-[11px] font-medium hidden md:inline">
+                Subdominio Cloudflare SSL Activo
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setIsSaaSSubscriptionModalOpen(true)}
+                className="px-3 py-1 text-xs font-medium text-slate-200 hover:text-white bg-slate-900 hover:bg-slate-800 border border-slate-700 rounded-md transition-colors cursor-pointer"
+              >
+                Planes & Facturación
+              </button>
+              <button
+                onClick={() => handleSelectTenant('titufaris')}
+                className="px-2.5 py-1 text-xs text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
+              >
+                Volver a Matriz
+              </button>
+            </div>
           </div>
         </div>
       )}
 
-      {/* Generic Store Demo Mode Banner */}
-      {isDemoMode && (
+      {/* Generic Store Demo Mode Banner - STRICTLY on tiendas.titufaris.online only */}
+      {isDemoMode && isTiendasHost && (
         <DemoModeBanner
           onExitDemo={handleExitDemoMode}
           onOpenCreateStore={() => setIsCreateTenantModalOpen(true)}
@@ -2008,19 +2143,12 @@ export default function App() {
             onOpenCart={() => setIsCustomerCartOpen(true)}
             onOpenCatalogPDF={() => setIsExportModalOpen(true)}
             onSwitchToStaffMode={handleRequestStaffMode}
-            isDemoMode={isDemoMode}
+            isDemoMode={isDemoMode && isTiendasHost}
             onToggleDemoMode={() => (isDemoMode ? handleExitDemoMode() : handleEnterDemoMode())}
             onOpenMasterPanel={() => setIsMasterPanelOpen(true)}
             onOpenSubscriptionModal={() => setIsSaaSSubscriptionModalOpen(true)}
             onOpenCreateTenant={() => setIsCreateTenantModalOpen(true)}
             activeStoreName={activeTenant.name}
-          />
-
-          <TenantStatusBanner
-            tenant={activeTenant}
-            onOpenSubscriptionModal={() => setIsSaaSSubscriptionModalOpen(true)}
-            onOpenMasterPanel={() => setIsMasterPanelOpen(true)}
-            onOpenCustomDomain={() => setIsCustomDomainModalOpen(true)}
           />
 
           {activeTenant.subscriptionStatus === 'canceled' && !activeTenant.isDefaultStore && activeTenant.id !== 'titufaris' ? (
@@ -2109,6 +2237,7 @@ export default function App() {
             isOnline={isOnline && !isSimulatedOffline}
             cartCount={cartItemCount}
             unreadNotifsCount={unreadNotifsCount}
+            company={company}
             onOpenNotifications={() => setIsNotificationsOpen(true)}
             onOpenExport={() => setIsExportModalOpen(true)}
             onOpenWhatsAppCatalog={() => setIsWhatsAppCatalogModalOpen(true)}
@@ -2947,6 +3076,7 @@ export default function App() {
             onSave={handleSaveCompany}
             onOpenBackupModal={() => setIsBackupModalOpen(true)}
             onOpenCustomDomain={() => setIsCustomDomainModalOpen(true)}
+            onOpenSubscriptionModal={() => setIsSaaSSubscriptionModalOpen(true)}
           />
         )}
       </Suspense>
@@ -3102,6 +3232,10 @@ export default function App() {
             onTenantCreated={(newTenant) => {
               setSaaSTenants(prev => [...prev, newTenant]);
               handleSelectTenant(newTenant.id);
+            }}
+            onSelectTenantDirectly={(tenantId) => {
+              handleSelectTenant(tenantId);
+              setIsCreateTenantModalOpen(false);
             }}
           />
         </Suspense>

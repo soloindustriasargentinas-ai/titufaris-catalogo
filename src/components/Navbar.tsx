@@ -27,7 +27,7 @@ import {
   Building2,
 } from 'lucide-react';
 import { TitufarisLogo } from './TitufarisLogo';
-import { User, SyncStatus } from '../types';
+import { User, SyncStatus, CompanyProfile } from '../types';
 
 interface NavbarProps {
   activeTab: 'catalog' | 'pos' | 'reports';
@@ -37,6 +37,7 @@ interface NavbarProps {
   isOnline: boolean;
   cartCount: number;
   unreadNotifsCount: number;
+  company?: CompanyProfile;
   onOpenNotifications: () => void;
   onOpenExport: () => void;
   onOpenWhatsAppCatalog?: () => void;
@@ -61,6 +62,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   isOnline,
   cartCount,
   unreadNotifsCount,
+  company,
   onOpenNotifications,
   onOpenExport,
   onOpenWhatsAppCatalog,
@@ -128,8 +130,28 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
 
             <div className="flex items-center">
-              <TitufarisLogo size="sm" showTagline={false} className="sm:hidden" />
-              <TitufarisLogo size="md" showTagline={true} className="hidden sm:flex" />
+              {company?.logoUrl || company?.logo ? (
+                <div className="flex items-center gap-2.5">
+                  <img
+                    src={company.logoUrl || company.logo}
+                    alt={company.name}
+                    className="h-8 sm:h-9 w-auto max-w-[150px] object-contain"
+                  />
+                  <div className="hidden sm:block">
+                    <span className="text-xs font-bold text-slate-900 block leading-tight">
+                      {company.name}
+                    </span>
+                    <span className="text-[10px] text-slate-500 font-medium block">
+                      Admin POS
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <TitufarisLogo size="sm" showTagline={false} className="sm:hidden" />
+                  <TitufarisLogo size="md" showTagline={true} className="hidden sm:flex" />
+                </>
+              )}
             </div>
           </div>
 
@@ -436,6 +458,38 @@ export const Navbar: React.FC<NavbarProps> = ({
                             <div className="flex-1">
                               <div>Perfil de Empresa & Branding</div>
                               <div className="text-[10px] font-normal text-slate-500">Datos fiscales, WhatsApp, logo y redes</div>
+                            </div>
+                          </button>
+                        )}
+
+                        {onOpenSubscriptionModal && (
+                          <button
+                            onClick={() => {
+                              setIsAdminDropdownOpen(false);
+                              onOpenSubscriptionModal();
+                            }}
+                            className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-indigo-900 hover:bg-indigo-50 transition-colors cursor-pointer text-left font-bold"
+                          >
+                            <Sparkles className="w-4 h-4 text-indigo-600 shrink-0" />
+                            <div className="flex-1">
+                              <div>Escalar Tienda & Plan</div>
+                              <div className="text-[10px] font-normal text-indigo-700">Mejorar capacidad de productos y sucursales</div>
+                            </div>
+                          </button>
+                        )}
+
+                        {onOpenCustomDomain && (
+                          <button
+                            onClick={() => {
+                              setIsAdminDropdownOpen(false);
+                              onOpenCustomDomain();
+                            }}
+                            className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer text-left font-semibold"
+                          >
+                            <Globe className="w-4 h-4 text-blue-600 shrink-0" />
+                            <div className="flex-1">
+                              <div>Dominio Propio & SSL</div>
+                              <div className="text-[10px] font-normal text-slate-500">Vincular tu web .com o .com.ar</div>
                             </div>
                           </button>
                         )}

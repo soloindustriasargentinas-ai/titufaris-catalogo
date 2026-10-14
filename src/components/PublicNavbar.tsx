@@ -42,50 +42,75 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
   const [copiedLink, setCopiedLink] = useState(false);
 
   const handleShareStore = () => {
-    const url = getPublicStoreBaseUrl();
+    const url = company.website && company.website.startsWith('http') ? company.website : getPublicStoreBaseUrl();
     if (navigator.clipboard) {
       navigator.clipboard.writeText(url);
       setCopiedLink(true);
       setTimeout(() => setCopiedLink(false), 2500);
     }
   };
+
+  const brandPrimary = company.brandColors?.primary || '#ea580c';
+  const brandFont = company.fontFamily || 'inherit';
+  const isTitufarisBrand = company.name.toLowerCase().includes('titufaris') && !isDemoMode;
+
   return (
-    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-xs">
+    <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-2xs" style={{ fontFamily: brandFont }}>
       {/* Top Notification Announcement Bar */}
-      <div className="bg-slate-900 text-white text-[11px] py-1.5 px-4 font-medium">
+      <div className="bg-slate-950 text-white text-[11px] py-1.5 px-4 font-medium">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
           <div className="flex items-center gap-2 overflow-hidden text-ellipsis whitespace-nowrap">
-            <span className="bg-orange-500 text-white font-bold text-[9px] px-1.5 py-0.5 rounded tracking-wider uppercase">
-              Fábrica Directa
-            </span>
-            <span className="text-slate-300 hidden sm:inline">
-              Venta Mayorista (a partir de 10 unidades) y Minorista con asesoramiento de fábrica.
-            </span>
-            <span className="text-slate-300 sm:hidden">
-              Venta Mayorista (10+ u.) y Minorista Titufaris
-            </span>
+            {isTitufarisBrand ? (
+              <>
+                <span className="bg-orange-500 text-white font-bold text-[9px] px-1.5 py-0.5 rounded tracking-wider uppercase">
+                  Fábrica Directa
+                </span>
+                <span className="text-slate-300 hidden sm:inline">
+                  Venta Mayorista (a partir de 10 unidades) y Minorista con asesoramiento de fábrica.
+                </span>
+                <span className="text-slate-300 sm:hidden">
+                  Venta Mayorista (10+ u.) y Minorista Titufaris
+                </span>
+              </>
+            ) : (
+              <>
+                <span
+                  className="text-white font-bold text-[9px] px-2 py-0.5 rounded tracking-wider uppercase shadow-2xs"
+                  style={{ backgroundColor: brandPrimary }}
+                >
+                  Oficial
+                </span>
+                <span className="text-white font-semibold">{company.name}</span>
+                <span className="text-slate-500" aria-hidden="true">&middot;</span>
+                <span className="text-slate-300">
+                  {company.announcementBarText || company.tagline || 'Catálogo Oficial con pedidos directos por WhatsApp y envíos a todo el país'}
+                </span>
+              </>
+            )}
           </div>
 
           <div className="flex items-center gap-3 shrink-0 text-slate-300">
-            <div className="flex items-center gap-1.5">
-              <a
-                href={`https://wa.me/${company.phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(
-                  'Hola Titufaris! Quisiera hacer una consulta comercial sobre equipamiento comercial.'
-                )}`}
-                target="_blank"
-                rel="noreferrer"
-                className="hover:text-emerald-400 flex items-center gap-1 transition-colors"
-                title="Hacer clic para enviar mensaje directo por WhatsApp"
-              >
-                <MessageCircle className="w-3.5 h-3.5 text-emerald-400" />
-                <span className="font-semibold text-white">{company.phone}</span>
-              </a>
-            </div>
+            {company.phone && (
+              <div className="flex items-center gap-1.5">
+                <a
+                  href={`https://wa.me/${company.phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(
+                    `Hola ${company.name}! Quisiera hacer una consulta sobre los productos de la tienda.`
+                  )}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="hover:text-emerald-400 flex items-center gap-1 transition-colors"
+                  title="Enviar mensaje directo por WhatsApp"
+                >
+                  <MessageCircle className="w-3.5 h-3.5 text-emerald-400" />
+                  <span className="font-semibold text-white">{company.phone}</span>
+                </a>
+              </div>
+            )}
 
             {/* Share Public Store Link */}
             <button
               onClick={handleShareStore}
-              title="Copiar enlace público de la tienda para enviar a clientes por WhatsApp o redes"
+              title="Copiar enlace oficial de la tienda"
               className="hover:text-white flex items-center gap-1 text-slate-300 transition-colors cursor-pointer"
             >
               {copiedLink ? (
@@ -95,36 +120,12 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
                 </>
               ) : (
                 <>
-                  <Share2 className="w-3 h-3 text-orange-400" />
+                  <Share2 className="w-3 h-3 text-slate-400" />
                   <span className="hidden sm:inline">Compartir Tienda</span>
                   <span className="sm:hidden">Compartir</span>
                 </>
               )}
             </button>
-
-            {/* Escalar Tienda (lleva a mostrar los planes) */}
-            {isDemoMode && onOpenSubscriptionModal && (
-              <button
-                onClick={onOpenSubscriptionModal}
-                title="Conocer planes para escalar tu negocio"
-                className="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold transition shadow-xs cursor-pointer bg-indigo-600 hover:bg-indigo-500 text-white"
-              >
-                <span>🚀</span>
-                <span>Escalar Tienda</span>
-              </button>
-            )}
-
-            {isDemoMode && onOpenCreateTenant && (
-              <button
-                onClick={onOpenCreateTenant}
-                title="Crear una nueva tienda online con 3 meses gratis"
-                className="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-black transition shadow-xs cursor-pointer bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white"
-              >
-                <span>🎁</span>
-                <span className="hidden sm:inline">Crear Mi Tienda (3 Meses Gratis)</span>
-                <span className="sm:hidden">Crear Tienda</span>
-              </button>
-            )}
           </div>
         </div>
       </div>
@@ -132,23 +133,32 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
       {/* Main Public Header */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-3 sm:gap-6">
         {/* Brand Logo */}
-        <div className="flex items-center gap-3 cursor-pointer shrink-0">
-          {isDemoMode ? (
+        <div className="flex items-center gap-3 shrink-0">
+          {company.logoUrl || company.logo ? (
+            <img
+              src={company.logoUrl || company.logo}
+              alt={company.name}
+              className="h-9 sm:h-11 w-auto max-w-[200px] object-contain"
+            />
+          ) : isTitufarisBrand ? (
+            <TitufarisLogo className="h-9 sm:h-11 w-auto" />
+          ) : (
             <div className="flex items-center gap-2.5">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-white shadow-md font-black text-xl">
-                🏪
+              <div
+                className="w-10 h-10 rounded-xl text-white flex items-center justify-center font-bold text-base shadow-xs"
+                style={{ backgroundColor: brandPrimary }}
+              >
+                {company.name.charAt(0).toUpperCase()}
               </div>
               <div>
-                <div className="text-lg sm:text-xl font-black tracking-tight text-slate-900 leading-none">
+                <div className="text-base sm:text-lg font-bold tracking-tight text-slate-900 leading-tight">
                   {company.name}
                 </div>
-                <div className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-indigo-600 mt-0.5">
-                  {company.tagline || 'CATÁLOGO ONLINE & PUNTO DE VENTA'}
+                <div className="text-[10.5px] font-medium text-slate-500">
+                  {company.tagline || 'Tienda Oficial Online'}
                 </div>
               </div>
             </div>
-          ) : (
-            <TitufarisLogo className="h-9 sm:h-11 w-auto" />
           )}
         </div>
 
@@ -160,8 +170,8 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
               type="text"
               value={searchQuery}
               onChange={e => onSearchChange(e.target.value)}
-              placeholder={isDemoMode ? "Buscar productos, categorías, rubros o accesorios..." : "Buscar góndolas, heladeras, checkouts, balanzas o accesorios..."}
-              className="w-full pl-10 pr-4 py-2 text-sm bg-slate-50 hover:bg-slate-100/80 focus:bg-white border border-slate-300 focus:border-orange-500 rounded-xl outline-none transition-all placeholder:text-slate-400"
+              placeholder={isTitufarisBrand ? "Buscar góndolas, estanterías, racks, lockers..." : `Buscar en catálogo de ${company.name}...`}
+              className="w-full pl-10 pr-4 py-2 text-sm bg-slate-50 hover:bg-slate-100/80 focus:bg-white border border-slate-300 focus:border-slate-500 rounded-xl outline-none transition-all placeholder:text-slate-400"
             />
           </div>
         </div>
@@ -175,7 +185,7 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
               target="_blank"
               rel="noreferrer"
               className="hidden lg:flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-emerald-300 hover:border-emerald-400 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold transition-all cursor-pointer shadow-2xs"
-              title="Abrir Catálogo de Titufaris directamente en WhatsApp Business"
+              title={`Abrir Catálogo de ${company.name} directamente en WhatsApp Business`}
             >
               <MessageCircle className="w-4 h-4 fill-emerald-600 text-emerald-600" />
               <span>Catálogo en WhatsApp</span>
@@ -188,24 +198,28 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
             className="hidden sm:flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-300 hover:border-slate-400 bg-slate-50 hover:bg-white text-slate-700 text-xs font-bold transition-all cursor-pointer shadow-2xs"
             title="Descargar Catálogo Oficial con Fotos y Especificaciones"
           >
-            <FileText className="w-4 h-4 text-orange-600" />
+            <FileText className="w-4 h-4 text-slate-600" />
             <span>Catálogo PDF</span>
           </button>
 
           {/* Customer Cart Button */}
           <button
             onClick={onOpenCart}
-            className="relative flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold transition-all shadow-md shadow-orange-600/25 cursor-pointer"
+            style={{ backgroundColor: brandPrimary }}
+            className="relative flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-white text-xs font-bold transition-all shadow-md cursor-pointer hover:opacity-90"
           >
             <ShoppingBag className="w-4 h-4" />
             <span className="hidden sm:inline">Mi Pedido</span>
             {cartCount > 0 ? (
-              <span className="bg-white text-orange-600 px-1.5 py-0.5 rounded-full font-black text-[10px]">
+              <span
+                className="bg-white px-1.5 py-0.5 rounded-full font-black text-[10px]"
+                style={{ color: brandPrimary }}
+              >
                 {cartCount}
               </span>
             ) : null}
             {cartTotal > 0 && (
-              <span className="font-extrabold hidden md:inline border-l border-orange-500/80 pl-2">
+              <span className="font-extrabold hidden md:inline border-l border-white/40 pl-2">
                 {formatCurrency(cartTotal)}
               </span>
             )}

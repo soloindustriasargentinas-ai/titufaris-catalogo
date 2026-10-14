@@ -13,6 +13,8 @@ import {
   Sparkles,
   CheckCircle2,
   Package,
+  Store,
+  CreditCard,
   MessageCircle,
   Star,
   ArrowUpDown,
@@ -94,20 +96,40 @@ export const PublicStoreView: React.FC<PublicStoreViewProps> = ({
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [isMobileCatMenuOpen, setIsMobileCatMenuOpen] = useState(false);
 
+  const isTitufaris = !isDemoMode && company.name.toLowerCase().includes('titufaris');
+  const isGenericDemo = isDemoMode;
+  const isCustomStore = !isTitufaris && !isGenericDemo;
+  const brandPrimary = company.brandColors?.primary || '#EA580C';
+  const brandFont = company.fontFamily || 'inherit';
+
   // Dynamic Hero Configuration with customizable title, subtitle, image and CTA
-  const displayHeroTitle = company.heroTitle?.trim() || (isDemoMode
-    ? 'Catálogo online interactivo y ventas por WhatsApp: Electrónica, Hogar, Bazar, Moda y Herramientas'
-    : 'Instalaciones comerciales e industriales: Góndolas, Estanterías Metálicas, Racks y Lockers');
+  const displayHeroTitle = company.heroTitle?.trim() || (
+    isCustomStore
+      ? `${company.name} · Catálogo Oficial & Ventas Directas`
+      : isGenericDemo
+      ? 'Catálogo Digital & Tienda Online Oficial'
+      : 'Instalaciones comerciales e industriales: Góndolas, Estanterías Metálicas, Racks y Lockers'
+  );
 
-  const displayHeroSubtitle = company.heroSubtitle?.trim() || (isDemoMode
-    ? 'Demostración de catálogo comercial moderno: diseño ultra responsivo, sincronización instantánea de stock, listas de precios mayorista/minorista, pasarela de cobros y pedidos directos a WhatsApp para potenciar las ventas de tu negocio.'
-    : 'Fabricación directa de soluciones de exhibición y almacenamiento: Góndolas comerciales reforzadas, Estanterías Metálicas de alta durabilidad, Racks Livianos para carga manual, Racks Selectivos para cargas pesadas paletizadas, Lockers y Guardarropas para personal e instituciones, y Otros Productos a medida. Asesoramiento técnico en layouts y envíos a todo el país.');
+  const displayHeroSubtitle = company.heroSubtitle?.trim() || (
+    isCustomStore
+      ? `${company.tagline || 'Explorá todos nuestros artículos con stock en vivo, precios oficiales y pedidos directos por WhatsApp con envíos rápidos a todo el país.'}`
+      : isGenericDemo
+      ? 'Demostración de catálogo comercial moderno con sincronización instantánea de inventario, pasarela de cobros y pedidos directos a WhatsApp para potenciar las ventas de tu negocio.'
+      : 'Fabricación directa de soluciones de exhibición y almacenamiento: Góndolas comerciales reforzadas, Estanterías Metálicas de alta durabilidad, Racks Livianos para carga manual, Racks Selectivos para cargas pesadas paletizadas, Lockers y Guardarropas para personal e instituciones. Asesoramiento técnico en layouts y envíos a todo el país.'
+  );
 
-  const heroImageSrc = company.heroImageUrl?.trim() || (isDemoMode
-    ? 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=1200&q=80'
-    : 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&w=1200&q=80');
+  const heroImageSrc = company.heroImageUrl?.trim() || (
+    isCustomStore
+      ? 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&w=1200&q=80'
+      : isGenericDemo
+      ? 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=1200&q=80'
+      : 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&w=1200&q=80'
+  );
 
-  const heroCtaLabel = company.heroCtaText?.trim() || (isDemoMode ? 'Hacer Consulta por WhatsApp' : 'Asesoramiento por WhatsApp');
+  const heroCtaLabel = company.heroCtaText?.trim() || (
+    isCustomStore ? `Consultar a ${company.name}` : isGenericDemo ? 'Hacer Consulta por WhatsApp' : 'Asesoramiento por WhatsApp'
+  );
 
   useEffect(() => {
     const handleScroll = () => {
@@ -181,7 +203,10 @@ export const PublicStoreView: React.FC<PublicStoreViewProps> = ({
     });
   }, [products, sortBy, filterFeaturedOnly, deliveryFilter]);
   return (
-    <div className="flex-1 pb-24 md:pb-16 w-full max-w-full overflow-x-hidden">
+    <div
+      className="flex-1 pb-24 md:pb-16 w-full max-w-full overflow-x-hidden"
+      style={{ fontFamily: brandFont }}
+    >
       {/* Hero Banner Comercial */}
       <section className="bg-slate-950 text-white pt-10 pb-12 px-4 sm:px-6 relative overflow-hidden border-b border-slate-800">
         {/* Ambient atmospheric gradients & structural grid pattern */}
@@ -195,11 +220,12 @@ export const PublicStoreView: React.FC<PublicStoreViewProps> = ({
             {/* Left Content Column */}
             <div className="lg:col-span-7 space-y-5">
               <div className="flex flex-wrap items-center gap-2.5">
-                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-orange-500/15 border border-orange-500/30 text-orange-400 text-xs font-bold tracking-wide shadow-xs">
-                  <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 text-xs font-medium">
                   <span>
-                    {isDemoMode
-                      ? 'Catálogo Digital & Tienda Online Multirubro'
+                    {isCustomStore
+                      ? `${company.name} · Tienda Oficial Verificada`
+                      : isGenericDemo
+                      ? 'Catálogo Digital & Terminal POS'
                       : 'Fabricación Directa de Equipamiento Comercial'}
                   </span>
                 </div>
@@ -209,10 +235,10 @@ export const PublicStoreView: React.FC<PublicStoreViewProps> = ({
                     type="button"
                     onClick={onOpenHeroSettings}
                     title="Modificar el título (H1), texto descriptivo y foto de portada"
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900/90 hover:bg-orange-600 text-amber-300 hover:text-white border border-amber-400/40 hover:border-orange-500 text-xs font-bold transition-all cursor-pointer shadow-xs hover:scale-105"
+                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 text-xs font-medium transition cursor-pointer"
                   >
-                    <Edit3 className="w-3.5 h-3.5 text-amber-400 group-hover:text-white" />
-                    <span>✏️ Modificar Portada & Foto</span>
+                    <Edit3 className="w-3.5 h-3.5 text-slate-400" />
+                    <span>Modificar Portada</span>
                   </button>
                 )}
               </div>
@@ -221,11 +247,18 @@ export const PublicStoreView: React.FC<PublicStoreViewProps> = ({
               <h1 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight text-white leading-[1.12] text-balance">
                 {company.heroTitle ? (
                   <span>{company.heroTitle}</span>
-                ) : isDemoMode ? (
+                ) : isCustomStore ? (
                   <>
-                    Catálogo online interactivo y ventas por WhatsApp:{' '}
-                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-orange-300 to-indigo-400">
-                      Electrónica, Hogar, Bazar, Moda y Herramientas
+                    <span>{company.name}: </span>
+                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-orange-300 to-amber-300">
+                      Catálogo Oficial & Ventas Directas
+                    </span>
+                  </>
+                ) : isGenericDemo ? (
+                  <>
+                    Catálogo comercial interactivo:{' '}
+                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-300 via-teal-200 to-indigo-300">
+                      Ventas Directas por WhatsApp & Terminal POS
                     </span>
                   </>
                 ) : (
@@ -246,7 +279,7 @@ export const PublicStoreView: React.FC<PublicStoreViewProps> = ({
               <div className="pt-1">
                 <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5 text-orange-400" />
-                  <span>{isDemoMode ? 'Categorías y rubros de muestra:' : 'Líneas de fabricación disponibles:'}</span>
+                  <span>{isCustomStore ? 'Líneas y categorías de la tienda:' : isGenericDemo ? 'Categorías y rubros de muestra:' : 'Líneas de fabricación disponibles:'}</span>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {activeCategories.map(c => {
@@ -336,10 +369,10 @@ export const PublicStoreView: React.FC<PublicStoreViewProps> = ({
                   </div>
                   <div>
                     <div className="text-[11px] font-bold text-white leading-tight">
-                      Stock Permanente
+                      {isCustomStore ? 'Catálogo en Vivo' : 'Stock Permanente'}
                     </div>
                     <div className="text-[10px] text-slate-400">
-                      Entrega y despacho inmediato
+                      {isCustomStore ? 'Precios y stock actualizados' : 'Entrega y despacho inmediato'}
                     </div>
                   </div>
                 </div>
@@ -351,10 +384,10 @@ export const PublicStoreView: React.FC<PublicStoreViewProps> = ({
                   </div>
                   <div>
                     <div className="text-[11px] font-bold text-white leading-tight">
-                      {isDemoMode ? 'Pedidos por WhatsApp' : 'Envíos a Todo el País'}
+                      {isCustomStore ? 'Pedidos por WhatsApp' : isDemoMode ? 'Pedidos por WhatsApp' : 'Envíos a Todo el País'}
                     </div>
                     <div className="text-[10px] text-slate-400">
-                      {isDemoMode ? 'Recepción de carritos en 1 clic' : 'Embalaje reforzado de fábrica'}
+                      {isCustomStore ? 'Atención comercial directa' : isDemoMode ? 'Recepción de carritos en 1 clic' : 'Embalaje reforzado de fábrica'}
                     </div>
                   </div>
                 </div>
@@ -366,28 +399,28 @@ export const PublicStoreView: React.FC<PublicStoreViewProps> = ({
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 pt-8 border-t border-slate-800">
             <div className="bg-slate-900/60 border border-slate-800 p-3.5 rounded-2xl flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center shrink-0">
-                {isDemoMode ? <ShoppingBag className="w-5 h-5 text-orange-400" /> : <Building2 className="w-5 h-5 text-orange-400" />}
+                {isCustomStore ? <Store className="w-5 h-5 text-indigo-400" /> : isDemoMode ? <ShoppingBag className="w-5 h-5 text-orange-400" /> : <Building2 className="w-5 h-5 text-orange-400" />}
               </div>
               <div>
                 <div className="text-xs font-bold text-white">
-                  {isDemoMode ? 'Catálogo Digital' : 'Directo de Fábrica'}
+                  {isCustomStore ? 'Catálogo Oficial' : isDemoMode ? 'Catálogo Digital' : 'Directo de Fábrica'}
                 </div>
                 <div className="text-[11px] text-slate-400">
-                  {isDemoMode ? 'Celulares, tablets y PC' : 'Sin intermediarios'}
+                  {isCustomStore ? `${company.name} online` : isDemoMode ? 'Celulares, tablets y PC' : 'Sin intermediarios'}
                 </div>
               </div>
             </div>
 
             <div className="bg-slate-900/60 border border-slate-800 p-3.5 rounded-2xl flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center shrink-0">
-                {isDemoMode ? <MessageCircle className="w-5 h-5 text-emerald-400" /> : <ShieldCheck className="w-5 h-5 text-orange-400" />}
+                {isCustomStore ? <MessageCircle className="w-5 h-5 text-emerald-400" /> : isDemoMode ? <MessageCircle className="w-5 h-5 text-emerald-400" /> : <ShieldCheck className="w-5 h-5 text-orange-400" />}
               </div>
               <div>
                 <div className="text-xs font-bold text-white">
-                  {isDemoMode ? 'Ventas por WhatsApp' : 'Garantía 12 Meses'}
+                  {isCustomStore ? 'Ventas Directas' : isDemoMode ? 'Ventas por WhatsApp' : 'Garantía 12 Meses'}
                 </div>
                 <div className="text-[11px] text-slate-400">
-                  {isDemoMode ? 'Sin comisiones por venta' : 'Estructuras reforzadas'}
+                  {isCustomStore ? 'Atención personalizada' : isDemoMode ? 'Sin comisiones por venta' : 'Estructuras reforzadas'}
                 </div>
               </div>
             </div>
@@ -398,24 +431,24 @@ export const PublicStoreView: React.FC<PublicStoreViewProps> = ({
               </div>
               <div>
                 <div className="text-xs font-bold text-white">
-                  {isDemoMode ? 'Envíos y Retiro' : 'Envíos a Todo el País'}
+                  {isCustomStore ? 'Envíos y Retiro' : isDemoMode ? 'Envíos y Retiro' : 'Envíos a Todo el País'}
                 </div>
                 <div className="text-[11px] text-slate-400">
-                  {isDemoMode ? 'Mostrador y logística' : 'Embalaje de fábrica'}
+                  {isCustomStore ? 'Logística y entregas' : isDemoMode ? 'Mostrador y logística' : 'Embalaje de fábrica'}
                 </div>
               </div>
             </div>
 
             <div className="bg-slate-900/60 border border-slate-800 p-3.5 rounded-2xl flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center shrink-0">
-                {isDemoMode ? <Lock className="w-5 h-5 text-amber-400" /> : <CheckCircle2 className="w-5 h-5 text-orange-400" />}
+                {isCustomStore ? <CreditCard className="w-5 h-5 text-sky-400" /> : isDemoMode ? <Lock className="w-5 h-5 text-amber-400" /> : <CheckCircle2 className="w-5 h-5 text-orange-400" />}
               </div>
               <div>
                 <div className="text-xs font-bold text-white">
-                  {isDemoMode ? 'Punto de Venta POS' : 'Calidad Certificada'}
+                  {isCustomStore ? 'Medios de Pago' : isDemoMode ? 'Punto de Venta POS' : 'Calidad Certificada'}
                 </div>
                 <div className="text-[11px] text-slate-400">
-                  {isDemoMode ? 'Control de caja integrado' : 'Pintura epoxi horneada'}
+                  {isCustomStore ? 'Efectivo, tarjetas y MP' : isDemoMode ? 'Control de caja integrado' : 'Pintura epoxi horneada'}
                 </div>
               </div>
             </div>
@@ -1018,23 +1051,30 @@ export const PublicStoreView: React.FC<PublicStoreViewProps> = ({
       <footer id="public-store-footer" className="mt-20 border-t border-slate-200 bg-white pt-12 pb-8 px-4 sm:px-6 text-slate-600">
         <div className="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8 mb-8">
           <div className="space-y-3">
-            {company.logo ? (
+            {company.logoUrl || company.logo ? (
               <img
-                src={company.logo}
+                src={company.logoUrl || company.logo}
                 alt={`Logo de ${company.name}`}
-                className="h-9 sm:h-11 w-auto object-contain"
+                className="h-9 sm:h-11 w-auto max-w-[200px] object-contain"
               />
-            ) : !isDemoMode ? (
+            ) : isTitufaris ? (
               <TitufarisLogo className="h-9 sm:h-11 w-auto" />
             ) : (
-              <div className="flex items-center gap-2">
-                <span className="text-2xl">🏪</span>
+              <div className="flex items-center gap-2.5">
+                <div
+                  className="w-9 h-9 rounded-xl text-white flex items-center justify-center font-bold text-base shadow-xs"
+                  style={{ backgroundColor: brandPrimary }}
+                >
+                  {company.name.charAt(0).toUpperCase()}
+                </div>
                 <span className="text-base font-black text-slate-900">{company.name}</span>
               </div>
             )}
             <p className="text-xs text-slate-600 max-w-md leading-relaxed">
-              {isDemoMode
-                ? 'Plataforma integral de catálogo digital interactivo, pedidos automáticos por WhatsApp y Punto de Venta (POS) para mostrador. Solución de software comercial de marca blanca lista para operar en cualquier empresa.'
+              {isCustomStore
+                ? (company.tagline || `${company.name} - Catálogo oficial con stock en tiempo real y atención directa por WhatsApp. Despachos y retiros coordinados directamente.`)
+                : isDemoMode
+                ? 'Plataforma integral de catálogo digital interactivo, pedidos automáticos por WhatsApp y Punto de Venta (POS) para mostrador.'
                 : 'Tienda online de equipamiento comercial, estanterías pesadas y checkouts. Desarrollamos soluciones a medida para optimizar el layout y las ventas de tu salón comercial.'}
             </p>
             <div className="text-xs text-slate-600 space-y-1">

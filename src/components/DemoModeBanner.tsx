@@ -78,51 +78,51 @@ Luego de los 3 meses gratis, podés continuar con planes accesibles desde $25.00
 
   return (
     <>
-      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-950 text-white text-xs sm:text-sm px-4 py-3 border-b border-indigo-500/30 shadow-xl relative z-50">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3">
-          <div className="flex items-center gap-3 text-center md:text-left">
-            <div className="flex items-center justify-center w-9 h-9 rounded-2xl bg-gradient-to-tr from-amber-400 via-orange-400 to-amber-300 text-slate-950 shrink-0 font-black shadow-md">
-              <Gift className="w-5 h-5" />
+      <div className="bg-slate-950 text-white text-xs px-4 py-2.5 border-b border-slate-800/80 shadow-sm relative z-40">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="flex items-center gap-3 text-center sm:text-left">
+            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 shrink-0 font-medium">
+              <Store className="w-4 h-4" />
             </div>
-            <div>
-              <div className="flex items-center gap-2 flex-wrap justify-center md:justify-start">
-                <span className="font-black text-white text-sm sm:text-base tracking-tight">
-                  Lanzá tu Propia Tienda Online
-                </span>
-                <span className="px-2.5 py-0.5 rounded-full bg-emerald-500 text-slate-950 text-[10.5px] font-black uppercase tracking-wider shadow-xs">
-                  3 Meses 100% Gratis
-                </span>
-                <span className="text-[11px] text-indigo-200 hidden sm:inline">
-                  (Sin tarjeta de crédito &middot; Hasta 50 productos con acceso total)
-                </span>
-              </div>
-              <p className="text-slate-300 text-xs mt-0.5 leading-snug">
-                Subdominio propio seguro con SSL, catálogo digital, pedidos por WhatsApp, terminal POS de cobro y resguardo en la nube.
-              </p>
+            <div className="flex items-center gap-2 flex-wrap justify-center sm:justify-start">
+              <span className="font-semibold text-white tracking-tight text-xs sm:text-sm">
+                Plataforma de Tiendas Online & Terminal POS
+              </span>
+              <span className="text-slate-500 hidden sm:inline" aria-hidden="true">&middot;</span>
+              <span className="text-emerald-400 font-medium text-xs">
+                3 Meses Bonificados sin tarjeta
+              </span>
+              <span className="text-slate-500 hidden md:inline" aria-hidden="true">&middot;</span>
+              <span className="text-slate-400 text-xs hidden md:inline">
+                Subdominio Cloudflare SSL, catálogo y ventas por WhatsApp
+              </span>
             </div>
           </div>
 
-          <div className="flex items-center flex-wrap justify-center gap-2 shrink-0">
-            {/* Create Free Store 3 Months Button */}
+          <div className="flex items-center gap-3 shrink-0">
+            <button
+              onClick={() => setIsOfferModalOpen(true)}
+              className="text-xs text-slate-300 hover:text-white transition-colors cursor-pointer whitespace-nowrap"
+            >
+              Ver Planes
+            </button>
+
             {onOpenCreateStore && (
               <button
                 onClick={onOpenCreateStore}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs shadow-lg transition-all hover:scale-105 cursor-pointer ring-2 ring-emerald-300/40"
-                title="Crear mi tienda online gratis por 3 meses"
+                className="px-3.5 py-1.5 rounded-lg bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-semibold text-xs transition cursor-pointer whitespace-nowrap shadow-xs"
               >
-                <Sparkles className="w-3.5 h-3.5 text-slate-950" />
-                <span>Crear Mi Tienda (3 Meses Gratis)</span>
+                Crear Mi Tienda
               </button>
             )}
 
-            {/* Escalar Tienda */}
             <button
-              onClick={() => setIsOfferModalOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-indigo-800/80 hover:bg-indigo-700 text-white font-bold text-xs shadow-sm transition cursor-pointer border border-indigo-500/40"
-              title="Conocer planes para escalar tu negocio"
+              onClick={handleCopyLink}
+              title="Copiar enlace oficial de tiendas.titufaris.online"
+              className="p-1.5 text-slate-400 hover:text-white transition-colors cursor-pointer hidden lg:flex items-center gap-1 text-[11px]"
             >
-              <CreditCard className="w-3.5 h-3.5 text-sky-300" />
-              <span>Escalar Tienda</span>
+              {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+              <span>{copiedLink ? 'Copiado' : 'Compartir'}</span>
             </button>
           </div>
         </div>

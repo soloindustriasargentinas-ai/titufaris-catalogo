@@ -63,29 +63,8 @@ export const TenantStatusBanner: React.FC<TenantStatusBannerProps> = ({
     );
   }
 
-  if (tenant.subscriptionStatus === 'trial') {
-    return (
-      <div className="bg-gradient-to-r from-blue-700 via-indigo-700 to-blue-800 text-white text-xs px-4 py-2 flex flex-wrap items-center justify-between gap-2 shadow-xs border-b border-blue-600">
-        <div className="flex items-center gap-2">
-          <Clock className="w-4 h-4 text-sky-300 animate-pulse" />
-          <span>
-            Prueba de 3 Meses Activa para <strong className="font-bold">{tenant.name}</strong>:{' '}
-            <span className="bg-sky-400 text-slate-950 font-bold px-1.5 py-0.2 rounded text-[10px]">
-              {trialDaysRemaining} días restantes &middot; Hasta 50 productos
-            </span>
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={onOpenSubscriptionModal}
-            className="bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-black px-3 py-1 rounded-lg transition cursor-pointer flex items-center gap-1.5 shadow-xs"
-          >
-            <CreditCard className="w-3.5 h-3.5" /> Escalar Tienda
-          </button>
-        </div>
-      </div>
-    );
-  }
+  // Note: Standard trial status is consolidated cleanly in the top bar to prevent banner repetition
+
 
   if (tenant.subscriptionStatus === 'past_due') {
     return (

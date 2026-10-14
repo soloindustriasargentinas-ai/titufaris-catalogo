@@ -2234,9 +2234,20 @@ export const MasterAdminPanelModal: React.FC<MasterAdminPanelModalProps> = ({
                                     </a>
                                   </div>
                                 ) : (
-                                  <span className="inline-flex items-center gap-1 text-[11px] text-slate-500 font-mono bg-slate-100 px-2 py-0.5 rounded">
-                                    {t.slug}.titufaris.online
-                                  </span>
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="inline-flex items-center gap-1 text-[11px] text-slate-700 font-mono bg-slate-100 px-2 py-0.5 rounded">
+                                      {t.slug}.titufaris.online
+                                    </span>
+                                    <a
+                                      href={`https://${t.slug}.titufaris.online`}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="p-1 text-slate-400 hover:text-indigo-600 transition"
+                                      title={`Abrir https://${t.slug}.titufaris.online en nueva pestaña`}
+                                    >
+                                      <ExternalLink className="w-3 h-3" />
+                                    </a>
+                                  </div>
                                 )}
                               </td>
 

@@ -1,8 +1,41 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Building2, Save, Check, ShieldCheck, Download, Phone, Globe, Copy, ExternalLink, MessageCircle, Upload, Loader2, Instagram, Facebook, Linkedin, Share2 } from 'lucide-react';
+import {
+  X,
+  Building2,
+  Save,
+  Check,
+  ShieldCheck,
+  Download,
+  Phone,
+  Globe,
+  Copy,
+  ExternalLink,
+  MessageCircle,
+  Upload,
+  Loader2,
+  Instagram,
+  Facebook,
+  Linkedin,
+  Share2,
+  Palette,
+  Type,
+  Sparkles,
+  Image as ImageIcon,
+  Trash2,
+  Eye,
+  Rocket,
+  CreditCard,
+  FileText
+} from 'lucide-react';
 import { CompanyProfile } from '../types';
 import { normalizeMercadoPagoUrl, getPublicStoreBaseUrl } from '../utils/qrCode';
 import { compressImageFile } from '../utils/imageCompression';
+import {
+  BRAND_FONT_OPTIONS,
+  BRAND_PALETTE_PRESETS,
+  extractPaletteFromImage,
+  ExtractedPalette
+} from '../utils/brandColorExtractor';
 
 interface CompanySettingsModalProps {
   company: CompanyProfile;
@@ -11,6 +44,7 @@ interface CompanySettingsModalProps {
   onSave: (updated: CompanyProfile) => void;
   onOpenBackupModal?: () => void;
   onOpenCustomDomain?: () => void;
+  onOpenSubscriptionModal?: () => void;
 }
 
 export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
@@ -20,26 +54,91 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
   onSave,
   onOpenBackupModal,
   onOpenCustomDomain,
+  onOpenSubscriptionModal,
 }) => {
+  const [activeTab, setActiveTab] = useState<'branding' | 'legal' | 'payment' | 'scaling'>('branding');
   const [formData, setFormData] = useState<CompanyProfile>(company);
   const [copiedPublicUrl, setCopiedPublicUrl] = useState(false);
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [isUploadingHero, setIsUploadingHero] = useState(false);
+  const [isExtractingColors, setIsExtractingColors] = useState(false);
+  const [extractedPalette, setExtractedPalette] = useState<ExtractedPalette | null>(null);
+
+  const fileLogoInputRef = useRef<HTMLInputElement | null>(null);
   const fileHeroInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (isOpen) {
       setFormData(company);
+      // Auto-extract palette if logo already exists
+      if (company.logoUrl && !extractedPalette) {
+        extractPaletteFromImage(company.logoUrl).then(palette => {
+          if (palette) setExtractedPalette(palette);
+        });
+      }
     }
   }, [isOpen, company]);
 
   if (!isOpen) return null;
 
   const publicStoreUrl = getPublicStoreBaseUrl();
+  const currentPrimaryColor = formData.brandColors?.primary || '#EA580C';
+  const currentSecondaryColor = formData.brandColors?.secondary || '#0F172A';
+  const currentFontFamily = formData.fontFamily || "'Plus Jakarta Sans', system-ui, sans-serif";
 
   const handleCopyPublicUrl = () => {
     navigator.clipboard.writeText(publicStoreUrl);
     setCopiedPublicUrl(true);
     setTimeout(() => setCopiedPublicUrl(false), 2500);
+  };
+
+  // Upload and process official logo
+  const handleUploadLogoFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setIsUploadingLogo(true);
+      const compressedDataUrl = await compressImageFile(file, 800, 0.92);
+      setFormData(prev => ({
+        ...prev,
+        logoUrl: compressedDataUrl,
+        logo: compressedDataUrl,
+      }));
+
+      // Extract colors from uploaded logo
+      setIsExtractingColors(true);
+      const palette = await extractPaletteFromImage(compressedDataUrl);
+      if (palette) {
+        setExtractedPalette(palette);
+        // Automatically suggest applying extracted colors if no custom colors exist yet
+        setFormData(prev => ({
+          ...prev,
+          brandColors: {
+            primary: palette.primary,
+            secondary: palette.secondary,
+            accent: palette.accent,
+          }
+        }));
+      }
+    } catch (err) {
+      console.error('Error procesando logo oficial:', err);
+    } finally {
+      setIsUploadingLogo(false);
+      setIsExtractingColors(false);
+      if (fileLogoInputRef.current) fileLogoInputRef.current.value = '';
+    }
+  };
+
+  const handleApplyExtractedPalette = () => {
+    if (!extractedPalette) return;
+    setFormData(prev => ({
+      ...prev,
+      brandColors: {
+        primary: extractedPalette.primary,
+        secondary: extractedPalette.secondary,
+        accent: extractedPalette.accent,
+      }
+    }));
   };
 
   const handleUploadHeroFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -53,30 +152,50 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
         heroImageUrl: compressedDataUrl,
       }));
     } catch (err) {
-      console.error('Error procesando imagen de portada:', err);
+      console.error('Error procesando foto de portada:', err);
     } finally {
       setIsUploadingHero(false);
-      if (fileHeroInputRef.current) {
-        fileHeroInputRef.current.value = '';
-      }
+      if (fileHeroInputRef.current) fileHeroInputRef.current.value = '';
     }
   };
 
-  const handleChange = (field: keyof CompanyProfile, value: string) => {
-    setFormData({
-      ...formData,
+  const handleChange = (field: keyof CompanyProfile, value: unknown) => {
+    setFormData(prev => ({
+      ...prev,
       [field]: value,
-    });
+    }));
+  };
+
+  const handleColorChange = (key: 'primary' | 'secondary' | 'accent', value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      brandColors: {
+        primary: key === 'primary' ? value : (prev.brandColors?.primary || '#EA580C'),
+        secondary: key === 'secondary' ? value : (prev.brandColors?.secondary || '#0F172A'),
+        accent: key === 'accent' ? value : (prev.brandColors?.accent || '#F97316'),
+      }
+    }));
+  };
+
+  const handleApplyPresetPalette = (preset: typeof BRAND_PALETTE_PRESETS[0]) => {
+    setFormData(prev => ({
+      ...prev,
+      brandColors: {
+        primary: preset.primary,
+        secondary: preset.secondary,
+        accent: preset.accent,
+      }
+    }));
   };
 
   const handleBankChange = (field: keyof CompanyProfile['bankAccount'], value: string) => {
-    setFormData({
-      ...formData,
+    setFormData(prev => ({
+      ...prev,
       bankAccount: {
-        ...formData.bankAccount,
+        ...prev.bankAccount,
         [field]: value,
       },
-    });
+    }));
   };
 
   const handleSocialChange = (network: 'instagram' | 'facebook' | 'linkedin' | 'tiktok', value: string) => {
@@ -91,8 +210,9 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const sanitizedFormData = {
+    const sanitizedFormData: CompanyProfile = {
       ...formData,
+      logo: formData.logoUrl || formData.logo,
       bankAccount: {
         ...formData.bankAccount,
         mercadoPagoLink: formData.bankAccount.mercadoPagoLink?.trim()
@@ -106,717 +226,961 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden border border-slate-200 flex flex-col max-h-[92vh]">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full overflow-hidden border border-slate-200 flex flex-col max-h-[92vh]">
         {/* Header */}
-        <div className="bg-slate-900 text-white p-4 px-6 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-lg bg-orange-500/20 text-orange-400">
+        <div className="bg-slate-950 text-white p-4 px-6 flex items-center justify-between shrink-0 border-b border-slate-800">
+          <div className="flex items-center gap-3">
+            <div
+              className="p-2.5 rounded-xl text-white shadow-xs"
+              style={{ backgroundColor: currentPrimaryColor }}
+            >
               <Building2 className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="font-bold text-base">Datos de la Empresa & Membrete</h2>
-              <p className="text-xs text-slate-400">Información legal, fiscal y de contacto para catálogos y comprobantes</p>
+              <div className="flex items-center gap-2">
+                <h2 className="font-bold text-base leading-tight">Configuración & Editor de Marca</h2>
+                <span className="text-[10px] bg-slate-800 text-slate-300 font-bold px-2 py-0.5 rounded-full uppercase">
+                  Branding Oficial
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Personalizá el logo oficial, paleta cromática, tipografía y datos comerciales de tu tienda
+              </p>
             </div>
           </div>
           <button
             onClick={onClose}
             className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+            title="Cerrar modal"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
+        {/* Tab Navigation Bar */}
+        <div className="flex border-b border-slate-200 bg-slate-50 px-6 shrink-0 gap-1 overflow-x-auto">
+          <button
+            type="button"
+            onClick={() => setActiveTab('branding')}
+            className={`py-3 px-3.5 text-xs font-bold border-b-2 transition-colors flex items-center gap-2 shrink-0 cursor-pointer ${
+              activeTab === 'branding'
+                ? 'border-orange-600 text-orange-600 bg-white'
+                : 'border-transparent text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Palette className="w-4 h-4" />
+            <span>🎨 Marca & Editor Visual</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('legal')}
+            className={`py-3 px-3.5 text-xs font-bold border-b-2 transition-colors flex items-center gap-2 shrink-0 cursor-pointer ${
+              activeTab === 'legal'
+                ? 'border-orange-600 text-orange-600 bg-white'
+                : 'border-transparent text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <FileText className="w-4 h-4" />
+            <span>🏛️ Datos Legales & Contacto</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('payment')}
+            className={`py-3 px-3.5 text-xs font-bold border-b-2 transition-colors flex items-center gap-2 shrink-0 cursor-pointer ${
+              activeTab === 'payment'
+                ? 'border-orange-600 text-orange-600 bg-white'
+                : 'border-transparent text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <CreditCard className="w-4 h-4" />
+            <span>💳 Cobros & Medios de Pago</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('scaling')}
+            className={`py-3 px-3.5 text-xs font-bold border-b-2 transition-colors flex items-center gap-2 shrink-0 cursor-pointer ${
+              activeTab === 'scaling'
+                ? 'border-indigo-600 text-indigo-700 bg-white font-extrabold'
+                : 'border-transparent text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Rocket className="w-4 h-4 text-indigo-600" />
+            <span>🚀 Escalar & Dominio Propio</span>
+          </button>
+        </div>
+
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-5">
-          {/* Public Store Link Card (Para compartir con clientes sin cuenta Google) */}
-          <div className="p-4 bg-emerald-50/80 border border-emerald-200 rounded-2xl space-y-2.5">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <Globe className="w-4 h-4 text-emerald-700" />
-                <span className="text-xs font-bold text-emerald-900 uppercase tracking-wider">
-                  Enlace Público para Clientes (Sin pedir cuenta de Google)
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-6">
+          {/* ========================================================================= */}
+          {/* TAB 1: MARCA & EDITOR VISUAL (BRANDING, LOGO, PALETA, FUENTE)             */}
+          {/* ========================================================================= */}
+          {activeTab === 'branding' && (
+            <div className="space-y-6">
+              {/* 1. SECCIÓN: LOGO OFICIAL DE LA MARCA */}
+              <div className="p-4 sm:p-5 bg-slate-50 border border-slate-200 rounded-2xl space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 rounded-lg bg-orange-100 text-orange-700">
+                      <ImageIcon className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h3 className="text-xs font-black uppercase tracking-wider text-slate-900">
+                        Logo Oficial de la Empresa
+                      </h3>
+                      <p className="text-[11px] text-slate-500">
+                        Ocupa el lugar insignia de la cabecera, pie de página y membrete de comprobantes
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] bg-slate-200 text-slate-800 font-extrabold px-2 py-0.5 rounded-full uppercase">
+                    Cabecera & Footer
+                  </span>
+                </div>
+
+                {/* Previsualización y carga del Logo */}
+                <div className="flex flex-col sm:flex-row gap-4 items-center sm:items-start">
+                  {/* Vista Previa del Logo en modo claro y oscuro */}
+                  <div className="flex gap-2">
+                    {/* Caja fondo claro */}
+                    <div className="w-32 h-20 rounded-xl border border-slate-300 bg-white flex flex-col items-center justify-center p-2 relative overflow-hidden group">
+                      {formData.logoUrl ? (
+                        <img
+                          src={formData.logoUrl}
+                          alt="Logo oficial"
+                          className="max-h-full max-w-full object-contain"
+                        />
+                      ) : (
+                        <div className="text-center text-slate-400">
+                          <ImageIcon className="w-6 h-6 mx-auto mb-1 opacity-40" />
+                          <span className="text-[9px] font-bold block">Sin logo</span>
+                        </div>
+                      )}
+                      <span className="absolute bottom-1 right-1 text-[8px] bg-slate-100 text-slate-500 px-1 rounded font-mono">
+                        Claro
+                      </span>
+                    </div>
+
+                    {/* Caja fondo oscuro */}
+                    <div className="w-32 h-20 rounded-xl border border-slate-800 bg-slate-950 flex flex-col items-center justify-center p-2 relative overflow-hidden group">
+                      {formData.logoUrl ? (
+                        <img
+                          src={formData.logoUrl}
+                          alt="Logo oficial en oscuro"
+                          className="max-h-full max-w-full object-contain"
+                        />
+                      ) : (
+                        <div className="text-center text-slate-600">
+                          <ImageIcon className="w-6 h-6 mx-auto mb-1 opacity-30" />
+                          <span className="text-[9px] font-bold block">Sin logo</span>
+                        </div>
+                      )}
+                      <span className="absolute bottom-1 right-1 text-[8px] bg-slate-800 text-slate-400 px-1 rounded font-mono">
+                        Oscuro
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Acciones de subida de Logo */}
+                  <div className="flex-1 space-y-2.5 w-full">
+                    <div className="flex flex-wrap gap-2 items-center">
+                      <input
+                        ref={fileLogoInputRef}
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                        onChange={handleUploadLogoFile}
+                        className="hidden"
+                      />
+
+                      <button
+                        type="button"
+                        disabled={isUploadingLogo}
+                        onClick={() => fileLogoInputRef.current?.click()}
+                        className="px-3.5 py-2 bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs rounded-xl transition shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                      >
+                        {isUploadingLogo ? (
+                          <>
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            <span>Procesando...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="w-3.5 h-3.5" />
+                            <span>Subir Logo Oficial (PNG / SVG / JPG)</span>
+                          </>
+                        )}
+                      </button>
+
+                      {formData.logoUrl && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleChange('logoUrl', '');
+                            handleChange('logo', '');
+                            setExtractedPalette(null);
+                          }}
+                          className="px-3 py-2 border border-slate-300 hover:bg-red-50 hover:text-red-600 text-slate-600 font-bold text-xs rounded-xl transition flex items-center gap-1 cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Quitar Logo</span>
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">
+                        O pega la URL directa de la imagen del logo:
+                      </label>
+                      <input
+                        type="url"
+                        value={formData.logoUrl || ''}
+                        onChange={e => {
+                          const val = e.target.value;
+                          handleChange('logoUrl', val);
+                          handleChange('logo', val);
+                          if (val && val.startsWith('http')) {
+                            extractPaletteFromImage(val).then(pal => {
+                              if (pal) setExtractedPalette(pal);
+                            });
+                          }
+                        }}
+                        placeholder="https://ejemplo.com/mi-logo.png"
+                        className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-xl focus:border-orange-500 outline-none font-mono text-slate-800"
+                      />
+                    </div>
+
+                    {/* Extracción de paleta desde el logo */}
+                    {extractedPalette && (
+                      <div className="pt-2 flex flex-wrap items-center gap-2.5 bg-white p-2.5 rounded-xl border border-orange-200">
+                        <Sparkles className="w-4 h-4 text-orange-500 shrink-0" />
+                        <span className="text-xs font-bold text-slate-800">
+                          Colores detectados en tu logo:
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span
+                            className="w-5 h-5 rounded-full border border-slate-300 shadow-2xs inline-block"
+                            style={{ backgroundColor: extractedPalette.primary }}
+                            title={`Primario: ${extractedPalette.primary}`}
+                          />
+                          <span
+                            className="w-5 h-5 rounded-full border border-slate-300 shadow-2xs inline-block"
+                            style={{ backgroundColor: extractedPalette.secondary }}
+                            title={`Secundario: ${extractedPalette.secondary}`}
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleApplyExtractedPalette}
+                          className="px-2.5 py-1 bg-orange-100 hover:bg-orange-200 text-orange-800 font-extrabold text-[11px] rounded-lg transition cursor-pointer ml-auto"
+                        >
+                          ✨ Aplicar paleta del logo
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* 2. SECCIÓN: PALETA DE COLORES DE LA MARCA */}
+              <div className="p-4 sm:p-5 bg-slate-50 border border-slate-200 rounded-2xl space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 rounded-lg bg-indigo-100 text-indigo-700">
+                      <Palette className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h3 className="text-xs font-black uppercase tracking-wider text-slate-900">
+                        Paleta de Colores de la Marca
+                      </h3>
+                      <p className="text-[11px] text-slate-500">
+                        Aplica a botones de pedido, destacados, insignias y elementos corporativos
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] bg-slate-200 text-slate-800 font-extrabold px-2 py-0.5 rounded-full uppercase">
+                    Cromática Oficial
+                  </span>
+                </div>
+
+                {/* Selectores de color Primario y Secundario */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Color Primario */}
+                  <div className="bg-white p-3.5 rounded-xl border border-slate-200 space-y-2">
+                    <label className="text-xs font-bold text-slate-800 flex items-center justify-between">
+                      <span>Color Primario (Botones, Acentos & Carrito)</span>
+                      <span className="font-mono text-[11px] text-slate-500 font-normal">
+                        {currentPrimaryColor}
+                      </span>
+                    </label>
+                    <div className="flex items-center gap-2.5">
+                      <input
+                        type="color"
+                        value={currentPrimaryColor}
+                        onChange={e => handleColorChange('primary', e.target.value)}
+                        className="w-10 h-10 rounded-lg cursor-pointer border border-slate-300 p-0.5"
+                      />
+                      <input
+                        type="text"
+                        value={currentPrimaryColor}
+                        onChange={e => handleColorChange('primary', e.target.value)}
+                        placeholder="#EA580C"
+                        className="flex-1 px-3 py-1.5 text-xs bg-slate-50 border border-slate-300 rounded-lg font-mono font-bold text-slate-800 uppercase"
+                      />
+                      <div
+                        className="px-3 py-1.5 rounded-lg text-white text-xs font-bold shadow-2xs"
+                        style={{ backgroundColor: currentPrimaryColor }}
+                      >
+                        Botón
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Color Secundario */}
+                  <div className="bg-white p-3.5 rounded-xl border border-slate-200 space-y-2">
+                    <label className="text-xs font-bold text-slate-800 flex items-center justify-between">
+                      <span>Color Secundario / Fondo Oscuro</span>
+                      <span className="font-mono text-[11px] text-slate-500 font-normal">
+                        {currentSecondaryColor}
+                      </span>
+                    </label>
+                    <div className="flex items-center gap-2.5">
+                      <input
+                        type="color"
+                        value={currentSecondaryColor}
+                        onChange={e => handleColorChange('secondary', e.target.value)}
+                        className="w-10 h-10 rounded-lg cursor-pointer border border-slate-300 p-0.5"
+                      />
+                      <input
+                        type="text"
+                        value={currentSecondaryColor}
+                        onChange={e => handleColorChange('secondary', e.target.value)}
+                        placeholder="#0F172A"
+                        className="flex-1 px-3 py-1.5 text-xs bg-slate-50 border border-slate-300 rounded-lg font-mono font-bold text-slate-800 uppercase"
+                      />
+                      <div
+                        className="px-3 py-1.5 rounded-lg text-white text-xs font-bold shadow-2xs"
+                        style={{ backgroundColor: currentSecondaryColor }}
+                      >
+                        Base
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Paletas de Colores Predefinidas por Rubro */}
+                <div className="space-y-2 pt-1">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                    O elegí una paleta recomendada para tu rubro con 1 clic:
+                  </span>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {BRAND_PALETTE_PRESETS.map(preset => (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        onClick={() => handleApplyPresetPalette(preset)}
+                        className="p-2.5 rounded-xl border border-slate-200 hover:border-slate-400 bg-white hover:bg-slate-50 transition text-left cursor-pointer group"
+                      >
+                        <div className="flex items-center gap-1.5 mb-1.5">
+                          <span
+                            className="w-4 h-4 rounded-full border border-black/10 inline-block"
+                            style={{ backgroundColor: preset.primary }}
+                          />
+                          <span
+                            className="w-3.5 h-3.5 rounded-full border border-black/10 inline-block"
+                            style={{ backgroundColor: preset.secondary }}
+                          />
+                          <span
+                            className="w-2.5 h-2.5 rounded-full border border-black/10 inline-block"
+                            style={{ backgroundColor: preset.accent }}
+                          />
+                        </div>
+                        <div className="text-[11px] font-bold text-slate-800 leading-tight">
+                          {preset.name}
+                        </div>
+                        <div className="text-[9.5px] text-slate-400 truncate">
+                          {preset.category}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* 3. SECCIÓN: TIPOGRAFÍA OFICIAL DE LA MARCA */}
+              <div className="p-4 sm:p-5 bg-slate-50 border border-slate-200 rounded-2xl space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 rounded-lg bg-emerald-100 text-emerald-700">
+                      <Type className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h3 className="text-xs font-black uppercase tracking-wider text-slate-900">
+                        Tipografía Oficial de la Marca
+                      </h3>
+                      <p className="text-[11px] text-slate-500">
+                        Aplica en todos los textos, títulos y catálogos de tu tienda online
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] bg-slate-200 text-slate-800 font-extrabold px-2 py-0.5 rounded-full uppercase">
+                    Fuente Web
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                  {BRAND_FONT_OPTIONS.map(font => {
+                    const isSelected = (formData.fontFamily || "'Plus Jakarta Sans', system-ui, sans-serif") === font.fontFamily;
+                    return (
+                      <button
+                        key={font.id}
+                        type="button"
+                        onClick={() => handleChange('fontFamily', font.fontFamily)}
+                        className={`p-3 rounded-xl border text-left transition cursor-pointer relative ${
+                          isSelected
+                            ? 'border-orange-500 bg-orange-50/50 shadow-xs ring-1 ring-orange-500'
+                            : 'border-slate-200 bg-white hover:border-slate-300'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <span
+                            className="text-sm font-bold text-slate-900"
+                            style={{ fontFamily: font.fontFamily }}
+                          >
+                            {font.name}
+                          </span>
+                          {isSelected && (
+                            <span className="w-4 h-4 rounded-full bg-orange-500 text-white flex items-center justify-center text-[10px]">
+                              ✓
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[10px] font-semibold text-orange-700 mb-1">
+                          {font.category}
+                        </div>
+                        <p
+                          className="text-[11px] text-slate-600 line-clamp-2 leading-relaxed"
+                          style={{ fontFamily: font.fontFamily }}
+                        >
+                          Catálogo oficial y precios mayoristas
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* 4. SECCIÓN: BARRA DE ANUNCIOS SUPERIOR */}
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                    Barra de Anuncios Superior de la Tienda
+                  </span>
+                  <span className="text-[10px] text-slate-500 font-mono">Top Bar</span>
+                </div>
+                <input
+                  type="text"
+                  value={formData.announcementBarText || ''}
+                  onChange={e => handleChange('announcementBarText', e.target.value)}
+                  placeholder="Envíos a todo el país · Asesoramiento personalizado por WhatsApp · Venta oficial"
+                  className="w-full px-3.5 py-2 text-xs bg-white border border-slate-300 rounded-xl focus:border-orange-500 outline-none font-medium text-slate-800"
+                />
+                <span className="text-[10px] text-slate-500 block">
+                  Se muestra en la franja superior de la cabecera. Si se deja vacía, se usa el eslogan de la empresa.
                 </span>
               </div>
-              <span className="text-[10px] bg-emerald-200/80 text-emerald-900 font-bold px-2 py-0.5 rounded-full">
-                Acceso Libre
-              </span>
-            </div>
-            <p className="text-[11px] text-emerald-800 leading-relaxed">
-              Este es el enlace oficial que podés enviar a cualquier cliente por WhatsApp o redes sociales. Funciona en cualquier celular o computadora directamente, <strong>sin pedir iniciar sesión con Google</strong>:
-            </p>
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                readOnly
-                value={publicStoreUrl}
-                className="flex-1 px-3 py-1.5 text-xs bg-white border border-emerald-300 rounded-xl font-mono text-emerald-950 select-all"
-              />
-              <button
-                type="button"
-                onClick={handleCopyPublicUrl}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition-all cursor-pointer shrink-0 shadow-xs"
-              >
-                {copiedPublicUrl ? (
-                  <>
-                    <Check className="w-3.5 h-3.5" />
-                    <span>¡Copiado!</span>
-                  </>
-                ) : (
-                  <>
-                    <Copy className="w-3.5 h-3.5" />
-                    <span>Copiar Enlace</span>
-                  </>
-                )}
-              </button>
-              <a
-                href={publicStoreUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="p-1.5 text-emerald-700 hover:text-emerald-900 hover:bg-emerald-100 rounded-lg transition-colors shrink-0"
-                title="Abrir tienda en nueva pestaña"
-              >
-                <ExternalLink className="w-4 h-4" />
-              </a>
-            </div>
-            <p className="text-[10px] text-slate-500 italic">
-              *Nota: El enlace que tiene <code className="text-orange-600 font-mono">ais-dev-</code> es tu entorno privado de programación de Google AI Studio, por eso ese te pide cuenta de Google. Para clientes siempre se usa este enlace público (<code className="text-emerald-700 font-mono">ais-pre-</code>).
-            </p>
-          </div>
 
-          {/* Custom Domain Section (Paso 4 SaaS) */}
-          {onOpenCustomDomain && (
-            <div className="p-4 bg-gradient-to-r from-indigo-50 to-blue-50 border border-indigo-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
-              <div className="flex items-start gap-3">
-                <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-xs">
-                  <Globe className="w-5 h-5" />
-                </div>
-                <div>
+              {/* 5. SECCIÓN: PORTADA & VITRINA PRINCIPAL (HERO) */}
+              <div className="p-4 sm:p-5 bg-gradient-to-br from-orange-50/60 to-white border border-orange-200 rounded-2xl space-y-4">
+                <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-black text-indigo-950 uppercase tracking-wider">
-                      Dominio Propio (Web Personalizada)
-                    </span>
-                    <span className="text-[10px] bg-indigo-200 text-indigo-900 font-extrabold px-1.5 py-0.2 rounded-full">
-                      Paso 4
-                    </span>
+                    <Globe className="w-4 h-4 text-orange-600" />
+                    <div>
+                      <h3 className="text-xs font-black uppercase tracking-wider text-slate-900">
+                        Portada de Inicio (Hero Title & Foto)
+                      </h3>
+                      <p className="text-[11px] text-slate-600">
+                        El primer impacto visual que ven tus clientes al entrar a tu web
+                      </p>
+                    </div>
                   </div>
-                  <p className="text-[11px] text-indigo-800 mt-0.5">
-                    Vinculá tu propio dominio registrado (ej: <strong>mitienda.com</strong> o <strong>www.mimarca.com.ar</strong>) con certificado SSL automático y enrutamiento directo.
-                  </p>
+                  <span className="text-[10px] bg-orange-200 text-orange-950 font-bold px-2 py-0.5 rounded-full uppercase">
+                    Vitrina
+                  </span>
                 </div>
-              </div>
-              <button
-                type="button"
-                onClick={onOpenCustomDomain}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl transition cursor-pointer shrink-0 shadow-xs flex items-center justify-center gap-1.5"
-              >
-                <Globe className="w-3.5 h-3.5" />
-                <span>Configurar Dominio</span>
-              </button>
-            </div>
-          )}
 
-          {/* Brand Info */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-                Nombre de Fantasía / Marca
-              </label>
-              <input
-                type="text"
-                required
-                value={formData.name}
-                onChange={e => handleChange('name', e.target.value)}
-                className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:border-orange-500 outline-none font-bold text-slate-900"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-                Eslogan / Bajada de Marca
-              </label>
-              <input
-                type="text"
-                value={formData.tagline}
-                onChange={e => handleChange('tagline', e.target.value)}
-                placeholder="EQUIPAMIENTO COMERCIAL & LAYOUT"
-                className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:border-orange-500 outline-none font-medium"
-              />
-            </div>
-          </div>
-
-          {/* Personalización de la Portada / Página de Inicio (Hero Title, Subtitle y Foto) */}
-          <div className="p-4 sm:p-5 bg-gradient-to-br from-orange-50/80 via-amber-50/50 to-white border border-orange-200/90 rounded-2xl space-y-4 shadow-2xs">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 rounded-lg bg-orange-500/20 text-orange-600">
-                  <Globe className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="text-xs font-black uppercase tracking-wider text-orange-950">
-                    Portada de Inicio & Vitrina Principal (Hero)
-                  </h3>
-                  <p className="text-[11px] text-orange-900/80">
-                    Modifica el título principal (H1), el texto explicativo y la foto de portada de tu tienda.
-                  </p>
-                </div>
-              </div>
-              <span className="text-[10px] bg-orange-200 text-orange-900 font-extrabold px-2 py-0.5 rounded-full uppercase shrink-0">
-                Página de Inicio
-              </span>
-            </div>
-
-            {/* Título Principal de Inicio */}
-            <div className="space-y-1">
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center justify-between">
-                <span>Título Principal de la Portada (H1)</span>
-                <span className="text-[10px] text-orange-700 font-normal">Titular de impacto</span>
-              </label>
-              <textarea
-                rows={2}
-                value={formData.heroTitle ?? ''}
-                onChange={e => handleChange('heroTitle', e.target.value)}
-                placeholder={
-                  formData.name === 'Titufaris'
-                    ? 'Instalaciones comerciales e industriales: Góndolas, Estanterías Metálicas, Racks y Lockers'
-                    : 'Catálogo online interactivo y ventas por WhatsApp: Electrónica, Hogar, Bazar, Moda y Herramientas'
-                }
-                className="w-full px-3.5 py-2 text-xs bg-white border border-orange-200 rounded-xl focus:border-orange-500 outline-none font-bold text-slate-900 placeholder:text-slate-400 placeholder:font-normal"
-              />
-              <span className="text-[10px] text-slate-500 block">
-                Este título se muestra en tamaño destacado en la cabecera de la página de inicio. Si lo dejas vacío, se usa el predeterminado.
-              </span>
-            </div>
-
-            {/* Texto Descriptivo / Bajada de Inicio */}
-            <div className="space-y-1">
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center justify-between">
-                <span>Texto Descriptivo / Párrafo de Portada</span>
-                <span className="text-[10px] text-orange-700 font-normal">Explicación para clientes</span>
-              </label>
-              <textarea
-                rows={3}
-                value={formData.heroSubtitle ?? ''}
-                onChange={e => handleChange('heroSubtitle', e.target.value)}
-                placeholder={
-                  formData.name === 'Titufaris'
-                    ? 'Fabricación directa de soluciones de exhibición y almacenamiento: Góndolas comerciales reforzadas, Estanterías Metálicas, Racks Livianos, Racks Selectivos, Lockers y Otros Productos a medida. Asesoramiento técnico en layouts y envíos a todo el país.'
-                    : 'Demostración de catálogo comercial moderno: diseño ultra responsivo, sincronización instantánea de stock, listas de precios mayorista/minorista, pasarela de cobros y pedidos directos a WhatsApp para potenciar las ventas de tu negocio.'
-                }
-                className="w-full px-3.5 py-2 text-xs bg-white border border-orange-200 rounded-xl focus:border-orange-500 outline-none text-slate-800 leading-relaxed placeholder:text-slate-400"
-              />
-            </div>
-
-            {/* Foto de la Portada / Hero Image */}
-            <div className="space-y-2">
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center justify-between">
-                <span>Foto de Portada de la Tienda (Hero Image)</span>
-                <span className="text-[10px] text-orange-700 font-normal">URL directa o preset</span>
-              </label>
-
-              <div className="flex flex-col sm:flex-row gap-3 items-start">
-                {/* Image Preview */}
-                <div className="w-full sm:w-36 h-24 rounded-xl overflow-hidden border border-slate-300 bg-slate-900 shrink-0 relative group">
-                  <img
-                    src={
-                      formData.heroImageUrl?.trim() ||
-                      (formData.name === 'Titufaris'
-                        ? 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&w=600&q=80'
-                        : 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=600&q=80')
-                    }
-                    alt="Vista previa de foto de portada"
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src =
-                        'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&w=600&q=80';
-                    }}
+                <div className="space-y-1">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-800">
+                    Título Principal de Portada (H1)
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={formData.heroTitle ?? ''}
+                    onChange={e => handleChange('heroTitle', e.target.value)}
+                    placeholder="Calzado Oficial, Sneakers Urbanos y Modelos Exclusivos"
+                    className="w-full px-3.5 py-2 text-xs bg-white border border-slate-300 rounded-xl focus:border-orange-500 outline-none font-bold text-slate-900"
                   />
-                  <div className="absolute inset-0 bg-slate-950/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <span className="text-[10px] text-white font-bold px-2 py-1 bg-black/60 rounded">
-                      Vista previa
-                    </span>
-                  </div>
                 </div>
 
-                {/* Input and Quick presets */}
-                <div className="flex-1 space-y-2 w-full">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="url"
-                      value={formData.heroImageUrl ?? ''}
-                      onChange={e => handleChange('heroImageUrl', e.target.value)}
-                      placeholder="https://images.unsplash.com/photo-... o sube una foto"
-                      className="flex-1 px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-xl focus:border-orange-500 outline-none font-mono text-slate-800"
-                    />
+                <div className="space-y-1">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-800">
+                    Párrafo Descriptivo de Portada
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={formData.heroSubtitle ?? ''}
+                    onChange={e => handleChange('heroSubtitle', e.target.value)}
+                    placeholder="Explorá nuestro catálogo completo con stock en tiempo real y pedidos directos por WhatsApp."
+                    className="w-full px-3.5 py-2 text-xs bg-white border border-slate-300 rounded-xl focus:border-orange-500 outline-none text-slate-800 text-xs"
+                  />
+                </div>
 
-                    <input
-                      ref={fileHeroInputRef}
-                      type="file"
-                      accept="image/*"
-                      onChange={handleUploadHeroFile}
-                      className="hidden"
+                {/* Subir foto de portada */}
+                <div className="flex flex-col sm:flex-row gap-3 items-start">
+                  <div className="w-full sm:w-36 h-20 rounded-xl overflow-hidden border border-slate-300 bg-slate-900 shrink-0">
+                    <img
+                      src={
+                        formData.heroImageUrl?.trim() ||
+                        'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=600&q=80'
+                      }
+                      alt="Portada"
+                      className="w-full h-full object-cover"
                     />
-
-                    <button
-                      type="button"
-                      disabled={isUploadingHero}
-                      onClick={() => fileHeroInputRef.current?.click()}
-                      title="Subir foto desde tu dispositivo o celular"
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold transition-colors cursor-pointer shrink-0 disabled:opacity-60"
-                    >
-                      {isUploadingHero ? (
-                        <>
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          <span>Optimizando...</span>
-                        </>
-                      ) : (
-                        <>
-                          <Upload className="w-3.5 h-3.5" />
-                          <span>Subir Foto</span>
-                        </>
-                      )}
-                    </button>
                   </div>
 
-                  {/* Presets rápidos */}
-                  <div>
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide block mb-1">
-                      O elige una foto recomendada con 1 clic:
-                    </span>
-                    <div className="flex flex-wrap gap-1.5">
+                  <div className="flex-1 space-y-2 w-full">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="url"
+                        value={formData.heroImageUrl ?? ''}
+                        onChange={e => handleChange('heroImageUrl', e.target.value)}
+                        placeholder="URL de foto o sube un archivo"
+                        className="flex-1 px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-xl font-mono text-slate-800"
+                      />
+                      <input
+                        ref={fileHeroInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleUploadHeroFile}
+                        className="hidden"
+                      />
                       <button
                         type="button"
-                        onClick={() =>
-                          handleChange(
-                            'heroImageUrl',
-                            'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&w=1200&q=80'
-                          )
-                        }
-                        className="px-2 py-1 text-[10px] font-semibold bg-white hover:bg-orange-100 text-slate-700 border border-slate-200 rounded-lg transition-colors cursor-pointer"
+                        disabled={isUploadingHero}
+                        onClick={() => fileHeroInputRef.current?.click()}
+                        className="px-3 py-1.5 rounded-xl bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold transition flex items-center gap-1 cursor-pointer shrink-0 disabled:opacity-60"
                       >
-                        🏭 Fábrica & Góndolas
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handleChange(
-                            'heroImageUrl',
-                            'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=1200&q=80'
-                          )
-                        }
-                        className="px-2 py-1 text-[10px] font-semibold bg-white hover:bg-orange-100 text-slate-700 border border-slate-200 rounded-lg transition-colors cursor-pointer"
-                      >
-                        📦 Racks & Almacén
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handleChange(
-                            'heroImageUrl',
-                            'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=1200&q=80'
-                          )
-                        }
-                        className="px-2 py-1 text-[10px] font-semibold bg-white hover:bg-orange-100 text-slate-700 border border-slate-200 rounded-lg transition-colors cursor-pointer"
-                      >
-                        🛍️ Tienda Comercial
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handleChange(
-                            'heroImageUrl',
-                            'https://images.unsplash.com/photo-1472851294608-062f824d29cc?auto=format&fit=crop&w=1200&q=80'
-                          )
-                        }
-                        className="px-2 py-1 text-[10px] font-semibold bg-white hover:bg-orange-100 text-slate-700 border border-slate-200 rounded-lg transition-colors cursor-pointer"
-                      >
-                        🏢 Showroom Moderno
+                        {isUploadingHero ? (
+                          <>
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            <span>Subiendo...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="w-3.5 h-3.5" />
+                            <span>Subir Foto</span>
+                          </>
+                        )}
                       </button>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
+          )}
 
-            {/* Meta Descripción SEO */}
-            <div className="space-y-1 pt-1 border-t border-orange-200/60">
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center justify-between">
-                <span>Meta Descripción para Google (SEO)</span>
-                <span className="text-[10px] font-mono text-slate-500">
-                  {formData.metaDescription?.length || 0}/160 car. (ideal: 120-160)
-                </span>
-              </label>
-              <input
-                type="text"
-                maxLength={180}
-                value={formData.metaDescription ?? ''}
-                onChange={e => handleChange('metaDescription', e.target.value)}
-                placeholder="Fabricación directa de góndolas, estanterías metálicas y racks. Catálogo online con precios actualizados y envíos a todo el país."
-                className="w-full px-3.5 py-2 text-xs bg-white border border-slate-300 rounded-xl focus:border-orange-500 outline-none text-slate-800"
-              />
-            </div>
-          </div>
-
-          {/* Legal and Tax */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-                Razón Social Legal
-              </label>
-              <input
-                type="text"
-                value={formData.legalName}
-                onChange={e => handleChange('legalName', e.target.value)}
-                className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:border-orange-500 outline-none font-medium"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-                CUIT / Identificación Fiscal
-              </label>
-              <input
-                type="text"
-                value={formData.taxId}
-                onChange={e => handleChange('taxId', e.target.value)}
-                className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:border-orange-500 outline-none font-mono font-bold"
-              />
-            </div>
-          </div>
-
-          {/* Contact Details */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="space-y-1">
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center justify-between">
-                <span>Teléfono / WhatsApp</span>
-                <span className="text-[10px] text-emerald-600 font-bold lowercase">atención clientes</span>
-              </label>
-              <input
-                type="text"
-                value={formData.phone}
-                onChange={e => handleChange('phone', e.target.value)}
-                placeholder="+54 9 11 5824-9100"
-                className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:border-orange-500 outline-none font-medium"
-              />
-              <span className="text-[10px] text-slate-500 block">
-                Número para recibir pedidos del carrito y consultas web por WhatsApp.
-              </span>
-            </div>
-
-            <div className="space-y-1 sm:col-span-2">
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-                Correo Electrónico Oficial
-              </label>
-              <input
-                type="email"
-                value={formData.email}
-                onChange={e => handleChange('email', e.target.value)}
-                className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:border-orange-500 outline-none font-medium"
-              />
-            </div>
-          </div>
-
-          {/* WhatsApp Business Catalog Settings */}
-          <div className="p-4 bg-emerald-50/70 border border-emerald-200 rounded-2xl space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <MessageCircle className="w-4 h-4 text-emerald-600 fill-emerald-600" />
-                <span className="text-xs font-bold uppercase tracking-wider text-emerald-950">
-                  Catálogo Oficial de WhatsApp Business
-                </span>
-              </div>
-              <span className="text-[10px] bg-emerald-200 text-emerald-900 font-extrabold px-2 py-0.5 rounded-full uppercase">
-                wa.me/c
-              </span>
-            </div>
-            <p className="text-[11px] text-emerald-800 leading-relaxed">
-              Enlace directo al catálogo de WhatsApp para que tus clientes puedan explorar productos directamente en WhatsApp:
-            </p>
-            <div className="flex items-center gap-2">
-              <input
-                type="url"
-                value={formData.whatsappCatalogUrl || ''}
-                onChange={e => handleChange('whatsappCatalogUrl', e.target.value)}
-                placeholder={`https://wa.me/c/${formData.phone.replace(/[^0-9]/g, '') || '5491158249100'}`}
-                className="flex-1 px-3 py-1.5 text-xs bg-white border border-emerald-300 rounded-xl font-mono text-emerald-950 outline-none focus:border-emerald-500"
-              />
-              {formData.whatsappCatalogUrl && (
-                <a
-                  href={formData.whatsappCatalogUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="p-1.5 text-emerald-700 hover:text-emerald-900 hover:bg-emerald-100 rounded-lg transition-colors"
-                  title="Abrir enlace de WhatsApp"
-                >
-                  <ExternalLink className="w-4 h-4" />
-                </a>
-              )}
-            </div>
-            <label className="flex items-center gap-2 cursor-pointer select-none pt-1">
-              <input
-                type="checkbox"
-                checked={formData.showWhatsAppCatalogButton ?? true}
-                onChange={e => setFormData({ ...formData, showWhatsAppCatalogButton: e.target.checked })}
-                className="w-4 h-4 text-emerald-600 rounded border-emerald-300 focus:ring-emerald-500"
-              />
-              <span className="text-xs font-semibold text-emerald-900">
-                Mostrar botón destacado "Ver Catálogo en WhatsApp" en la Tienda Pública
-              </span>
-            </label>
-          </div>
-
-          {/* Redes Sociales Oficiales */}
-          <div className="p-4 bg-orange-50/50 border border-orange-200/90 rounded-2xl space-y-3.5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Share2 className="w-4 h-4 text-orange-600" />
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-900">
-                  Redes Sociales Oficiales (Pie de Página)
-                </span>
-              </div>
-              <span className="text-[10px] bg-orange-100 text-orange-800 font-extrabold px-2.5 py-0.5 rounded-full uppercase">
-                Tienda Online
-              </span>
-            </div>
-            <p className="text-[11px] text-slate-600 leading-relaxed">
-              Configura los enlaces directos a las redes sociales de tu empresa. Se mostrarán entre Líneas de Producción y Marco Legal en el pie de página para que tus clientes puedan seguirte:
-            </p>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-              {/* Instagram */}
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                  <Instagram className="w-3.5 h-3.5 text-pink-600" />
-                  <span>Instagram</span>
-                </label>
-                <input
-                  type="text"
-                  value={formData.socialLinks?.instagram || ''}
-                  onChange={e => handleSocialChange('instagram', e.target.value)}
-                  placeholder="https://instagram.com/titufaris"
-                  className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-xl focus:border-orange-500 outline-none text-slate-800"
-                />
-              </div>
-
-              {/* Facebook */}
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                  <Facebook className="w-3.5 h-3.5 text-blue-600" />
-                  <span>Facebook</span>
-                </label>
-                <input
-                  type="text"
-                  value={formData.socialLinks?.facebook || ''}
-                  onChange={e => handleSocialChange('facebook', e.target.value)}
-                  placeholder="https://facebook.com/titufaris"
-                  className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-xl focus:border-orange-500 outline-none text-slate-800"
-                />
-              </div>
-
-              {/* LinkedIn */}
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                  <Linkedin className="w-3.5 h-3.5 text-sky-700" />
-                  <span>LinkedIn</span>
-                </label>
-                <input
-                  type="text"
-                  value={formData.socialLinks?.linkedin || ''}
-                  onChange={e => handleSocialChange('linkedin', e.target.value)}
-                  placeholder="https://linkedin.com/company/titufaris"
-                  className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-xl focus:border-orange-500 outline-none text-slate-800"
-                />
-              </div>
-
-              {/* TikTok */}
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                  <span className="text-xs font-black">🎵</span>
-                  <span>TikTok</span>
-                </label>
-                <input
-                  type="text"
-                  value={formData.socialLinks?.tiktok || ''}
-                  onChange={e => handleSocialChange('tiktok', e.target.value)}
-                  placeholder="https://tiktok.com/@titufaris"
-                  className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-xl focus:border-orange-500 outline-none text-slate-800"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Address */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-                Dirección Física / Fábrica
-              </label>
-              <input
-                type="text"
-                value={formData.address}
-                onChange={e => handleChange('address', e.target.value)}
-                className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:border-orange-500 outline-none font-medium"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-                Ciudad / Provincia
-              </label>
-              <input
-                type="text"
-                value={formData.city}
-                onChange={e => handleChange('city', e.target.value)}
-                className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:border-orange-500 outline-none font-medium"
-              />
-            </div>
-          </div>
-
-          {/* Banking Data */}
-          <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">
-              Datos Bancarios para Transferencias & Remitos
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="space-y-1">
-                <label className="block text-[11px] font-semibold text-slate-600">Entidad Bancaria</label>
-                <input
-                  type="text"
-                  value={formData.bankAccount.bank}
-                  onChange={e => handleBankChange('bank', e.target.value)}
-                  className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg outline-none"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="block text-[11px] font-semibold text-slate-600">Alias CBU</label>
-                <input
-                  type="text"
-                  value={formData.bankAccount.alias}
-                  onChange={e => handleBankChange('alias', e.target.value)}
-                  className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg outline-none font-bold text-orange-600"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="block text-[11px] font-semibold text-slate-600">Número de CBU</label>
-                <input
-                  type="text"
-                  value={formData.bankAccount.cbu}
-                  onChange={e => handleBankChange('cbu', e.target.value)}
-                  className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg outline-none font-mono"
-                />
-              </div>
-            </div>
-
-            {/* Mercado Pago & Digital Wallets */}
-            <div className="pt-2 border-t border-slate-200/80 space-y-2.5">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* ========================================================================= */}
+          {/* TAB 2: DATOS LEGALES & CONTACTO                                          */}
+          {/* ========================================================================= */}
+          {activeTab === 'legal' && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="block text-[11px] font-semibold text-sky-700 flex items-center justify-between">
-                    <span>Alias Mercado Pago (CVU)</span>
-                    <span className="text-[10px] text-slate-400 font-normal">opcional</span>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                    Nombre de Fantasía / Marca
                   </label>
                   <input
                     type="text"
-                    value={formData.bankAccount.mercadoPagoAlias || ''}
-                    onChange={e => handleBankChange('mercadoPagoAlias', e.target.value)}
-                    placeholder="TITUFARIS.MP"
-                    className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg outline-none font-bold text-sky-700"
+                    required
+                    value={formData.name}
+                    onChange={e => handleChange('name', e.target.value)}
+                    className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:border-orange-500 outline-none font-bold text-slate-900"
                   />
-                  <span className="text-[10px] text-slate-500 block">
-                    Tu Alias de MP para transferencias directas sin comisiones extra.
-                  </span>
                 </div>
 
                 <div className="space-y-1">
-                  <label className="block text-[11px] font-semibold text-sky-700 flex items-center justify-between">
-                    <span>Link de Cobro / QR Oficial MP</span>
-                    <span className="text-[10px] text-slate-400 font-normal">URL oficial</span>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                    Eslogan / Bajada de Marca
                   </label>
                   <input
-                    type="url"
-                    value={formData.bankAccount.mercadoPagoLink || ''}
-                    onChange={e => handleBankChange('mercadoPagoLink', e.target.value)}
-                    placeholder="https://link.mercadopago.com.ar/tu-negocio"
-                    className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg outline-none font-mono text-slate-700"
+                    type="text"
+                    value={formData.tagline}
+                    onChange={e => handleChange('tagline', e.target.value)}
+                    placeholder="CALZADO OFICIAL & TIENDA ONLINE"
+                    className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:border-orange-500 outline-none font-medium"
                   />
-                  <span className="text-[10px] text-slate-500 block">
-                    Ej: https://link.mercadopago.com.ar/tu-alias o link de cobro generado en tu app.
-                  </span>
                 </div>
               </div>
 
-              <div className="p-2.5 bg-sky-50/70 border border-sky-200 rounded-lg text-[11px] text-sky-900 space-y-1">
-                <p className="font-bold text-sky-950 flex items-center gap-1.5">
-                  <span>ℹ️ ¿Cómo obtener tu Link de Mercado Pago?</span>
-                </p>
-                <p className="text-sky-850 leading-relaxed text-[10px]">
-                  En tu app de Mercado Pago, entrá a <strong>"Cobrar con Link de pago"</strong> o <strong>"Cobrar con QR"</strong> ➔ Compartir tu link/QR ➔ Copiá el enlace y pegalo arriba. El código QR de la tienda dirigirá a los clientes directamente a tu pasarela para cobrar en cuenta.
-                </p>
-                <p className="text-[10px] text-amber-800 bg-amber-50 p-1.5 rounded border border-amber-200">
-                  <strong>Nota sobre las pruebas:</strong> Si vos mismo escaneás el QR desde el mismo teléfono o cuenta dueña del link, Mercado Pago dirá <em>"No podés pagarte a vos mismo"</em>. Eso indica que el link está bien vinculado a tu cuenta. Para probar el pago real, escanealo desde otra cuenta o pedile a un tercero que lo abra.
-                </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                    Razón Social Legal
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.legalName}
+                    onChange={e => handleChange('legalName', e.target.value)}
+                    className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:border-orange-500 outline-none font-medium"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                    CUIT / Identificación Fiscal
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.taxId}
+                    onChange={e => handleChange('taxId', e.target.value)}
+                    className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:border-orange-500 outline-none font-mono font-bold"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="space-y-1">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center justify-between">
+                    <span>Teléfono / WhatsApp</span>
+                    <span className="text-[10px] text-emerald-600 font-bold lowercase">pedidos web</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.phone}
+                    onChange={e => handleChange('phone', e.target.value)}
+                    placeholder="+54 9 11 5824-9100"
+                    className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:border-orange-500 outline-none font-medium"
+                  />
+                </div>
+
+                <div className="space-y-1 sm:col-span-2">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                    Correo Electrónico Oficial
+                  </label>
+                  <input
+                    type="email"
+                    value={formData.email}
+                    onChange={e => handleChange('email', e.target.value)}
+                    className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:border-orange-500 outline-none font-medium"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                    Dirección Física / Salón
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.address}
+                    onChange={e => handleChange('address', e.target.value)}
+                    className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:border-orange-500 outline-none font-medium"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                    Ciudad / Provincia
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.city}
+                    onChange={e => handleChange('city', e.target.value)}
+                    className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:border-orange-500 outline-none font-medium"
+                  />
+                </div>
+              </div>
+
+              {/* Redes Sociales */}
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-800 block">
+                  Redes Sociales Oficiales (Pie de Página)
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                      <Instagram className="w-3.5 h-3.5 text-pink-600" />
+                      <span>Instagram</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.socialLinks?.instagram || ''}
+                      onChange={e => handleSocialChange('instagram', e.target.value)}
+                      placeholder="https://instagram.com/mimarca"
+                      className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-xl outline-none"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                      <Facebook className="w-3.5 h-3.5 text-blue-600" />
+                      <span>Facebook</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.socialLinks?.facebook || ''}
+                      onChange={e => handleSocialChange('facebook', e.target.value)}
+                      placeholder="https://facebook.com/mimarca"
+                      className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-xl outline-none"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
-          {/* Terms & Warranty printed on PDF */}
-          <div className="space-y-1">
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-              Condiciones Comerciales & Garantía (Pie de Catálogo PDF)
-            </label>
-            <textarea
-              rows={2}
-              value={formData.catalogNotes}
-              onChange={e => handleChange('catalogNotes', e.target.value)}
-              className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:border-orange-500 outline-none"
-            />
-          </div>
+          {/* ========================================================================= */}
+          {/* TAB 3: COBROS & MEDIOS DE PAGO                                            */}
+          {/* ========================================================================= */}
+          {activeTab === 'payment' && (
+            <div className="space-y-4">
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                  Datos Bancarios para Transferencias & Remitos
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="space-y-1">
+                    <label className="block text-[11px] font-semibold text-slate-600">Entidad Bancaria</label>
+                    <input
+                      type="text"
+                      value={formData.bankAccount.bank}
+                      onChange={e => handleBankChange('bank', e.target.value)}
+                      className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg outline-none"
+                    />
+                  </div>
 
-          {/* Backup & System Security Box */}
-          {onOpenBackupModal && (
-            <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <ShieldCheck className="w-5 h-5 text-blue-600 shrink-0" />
-                <div>
-                  <h4 className="text-xs font-bold text-slate-900">
-                    Copia de Seguridad y Migración al Servidor
-                  </h4>
-                  <p className="text-[11px] text-slate-500">
-                    Descargue un archivo de respaldo con sus artículos o restaure una copia previa.
-                  </p>
+                  <div className="space-y-1">
+                    <label className="block text-[11px] font-semibold text-slate-600">Alias CBU / CVU</label>
+                    <input
+                      type="text"
+                      value={formData.bankAccount.alias}
+                      onChange={e => handleBankChange('alias', e.target.value)}
+                      className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg outline-none font-bold text-orange-600"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-[11px] font-semibold text-slate-600">Número de CBU</label>
+                    <input
+                      type="text"
+                      value={formData.bankAccount.cbu}
+                      onChange={e => handleBankChange('cbu', e.target.value)}
+                      className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg outline-none font-mono"
+                    />
+                  </div>
+                </div>
+
+                {/* Mercado Pago */}
+                <div className="pt-2 border-t border-slate-200 space-y-2.5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="block text-[11px] font-semibold text-sky-700">
+                        Alias Mercado Pago (CVU)
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.bankAccount.mercadoPagoAlias || ''}
+                        onChange={e => handleBankChange('mercadoPagoAlias', e.target.value)}
+                        placeholder="MIMARCA.MP"
+                        className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg outline-none font-bold text-sky-700"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-[11px] font-semibold text-sky-700">
+                        Link de Cobro / QR Oficial MP
+                      </label>
+                      <input
+                        type="url"
+                        value={formData.bankAccount.mercadoPagoLink || ''}
+                        onChange={e => handleBankChange('mercadoPagoLink', e.target.value)}
+                        placeholder="https://link.mercadopago.com.ar/mimarca"
+                        className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg outline-none font-mono text-slate-700"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={() => {
-                  onClose();
-                  onOpenBackupModal();
-                }}
-                className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg shadow-2xs transition-colors shrink-0 cursor-pointer"
-              >
-                Abrir Respaldo
-              </button>
+
+              {/* Condiciones comerciales en PDF */}
+              <div className="space-y-1">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                  Condiciones Comerciales & Garantía (Pie de Catálogo PDF)
+                </label>
+                <textarea
+                  rows={2}
+                  value={formData.catalogNotes}
+                  onChange={e => handleChange('catalogNotes', e.target.value)}
+                  className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:border-orange-500 outline-none"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================================= */}
+          {/* TAB 4: ESCALAR & DOMINIO PROPIO (EXCLUSIVO DEL PANEL DE ADMIN)            */}
+          {/* ========================================================================= */}
+          {activeTab === 'scaling' && (
+            <div className="space-y-4">
+              {/* Tarjeta de Escalar Plan */}
+              <div className="p-4 sm:p-5 bg-gradient-to-r from-indigo-900 to-slate-900 text-white rounded-2xl space-y-3 shadow-md">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <Rocket className="w-5 h-5 text-indigo-400" />
+                    <div>
+                      <h3 className="text-sm font-bold">Escalar Plan & Capacidad de Tienda</h3>
+                      <p className="text-xs text-indigo-200">
+                        Mejora tu suscripción para habilitar más sucursales, facturación y almacenamiento ilimitado
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] bg-indigo-500/30 text-indigo-300 font-bold px-2 py-0.5 rounded-full uppercase border border-indigo-500/40">
+                    Admin
+                  </span>
+                </div>
+
+                {onOpenSubscriptionModal && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      onOpenSubscriptionModal();
+                    }}
+                    className="w-full sm:w-auto px-5 py-2.5 bg-indigo-500 hover:bg-indigo-600 text-white font-bold text-xs rounded-xl transition shadow-xs flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <Rocket className="w-4 h-4" />
+                    <span>Ver Planes & Opciones de Escala</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Configurar Dominio Propio */}
+              {onOpenCustomDomain && (
+                <div className="p-4 sm:p-5 bg-slate-50 border border-slate-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
+                      <Globe className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                        Dominio Propio & Certificado SSL
+                      </h4>
+                      <p className="text-[11px] text-slate-600 mt-0.5">
+                        Conecta tu dominio web registrado (ej: <strong>mitienda.com</strong> o <strong>mimarca.com.ar</strong>) con Cloudflare DNS y HTTPS activo.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      onOpenCustomDomain();
+                    }}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl transition cursor-pointer shrink-0 shadow-xs flex items-center justify-center gap-1.5"
+                  >
+                    <Globe className="w-3.5 h-3.5" />
+                    <span>Configurar Dominio</span>
+                  </button>
+                </div>
+              )}
+
+              {/* Enlace Público para Compartir */}
+              <div className="p-4 bg-emerald-50/80 border border-emerald-200 rounded-2xl space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-emerald-950 uppercase tracking-wider flex items-center gap-1.5">
+                    <Globe className="w-4 h-4 text-emerald-700" />
+                    Enlace Público Oficial de la Tienda
+                  </span>
+                  <span className="text-[10px] bg-emerald-200 text-emerald-900 font-bold px-2 py-0.5 rounded-full">
+                    Clientes
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value={formData.website || publicStoreUrl}
+                    className="flex-1 px-3 py-1.5 text-xs bg-white border border-emerald-300 rounded-xl font-mono text-emerald-950 select-all"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleCopyPublicUrl}
+                    className="flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition cursor-pointer shrink-0"
+                  >
+                    {copiedPublicUrl ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copiedPublicUrl ? '¡Copiado!' : 'Copiar'}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Copia de Seguridad */}
+              {onOpenBackupModal && (
+                <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <ShieldCheck className="w-5 h-5 text-blue-600 shrink-0" />
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-900">
+                        Copia de Seguridad y Migración
+                      </h4>
+                      <p className="text-[11px] text-slate-500">
+                        Descarga un archivo JSON de respaldo de artículos y catálogo
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      onOpenBackupModal();
+                    }}
+                    className="px-3 py-1.5 bg-slate-700 hover:bg-slate-900 text-white font-bold text-xs rounded-lg transition shrink-0 cursor-pointer"
+                  >
+                    Abrir Respaldo
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </form>
 
         {/* Footer */}
-        <div className="p-4 px-6 bg-slate-50 border-t border-slate-200 flex items-center justify-end gap-3 shrink-0">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900 rounded-xl hover:bg-slate-200 transition-colors cursor-pointer"
-          >
-            Cancelar
-          </button>
-          <button
-            onClick={handleSubmit}
-            className="flex items-center gap-2 px-6 py-2.5 bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs rounded-xl shadow-md shadow-orange-500/20 transition-all cursor-pointer"
-          >
-            <Check className="w-4 h-4" />
-            <span>Guardar Configuración</span>
-          </button>
+        <div className="p-4 px-6 bg-slate-50 border-t border-slate-200 flex items-center justify-between shrink-0">
+          <div className="text-[11px] text-slate-500 flex items-center gap-2">
+            <span
+              className="w-3 h-3 rounded-full inline-block"
+              style={{ backgroundColor: currentPrimaryColor }}
+            />
+            <span>Marca: <strong className="text-slate-800">{formData.name}</strong></span>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900 rounded-xl hover:bg-slate-200 transition-colors cursor-pointer"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleSubmit}
+              className="flex items-center gap-2 px-6 py-2.5 text-white font-bold text-xs rounded-xl shadow-md transition-all cursor-pointer"
+              style={{ backgroundColor: currentPrimaryColor }}
+            >
+              <Check className="w-4 h-4" />
+              <span>Guardar & Aplicar Branding</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>

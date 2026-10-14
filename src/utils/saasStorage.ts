@@ -70,27 +70,9 @@ export function getActiveTenantId(): string {
   try {
     const tenants = loadSaaSTenants();
 
-    // 1. Check URL parameters
-    const params = new URLSearchParams(window.location.search);
-    const domainParam = params.get('dominio') || params.get('domain');
-    if (domainParam) {
-      const cleanParam = sanitizeDomainName(domainParam);
-      const match = tenants.find(
-        t => t.customDomain && sanitizeDomainName(t.customDomain) === cleanParam
-      );
-      if (match) return match.id;
-    }
-
-    const storeParam = params.get('tienda') || params.get('store') || params.get('tenant');
-    if (storeParam) {
-      const cleanSlug = storeParam.toLowerCase().trim();
-      const match = tenants.find(t => t.slug === cleanSlug || t.id === cleanSlug);
-      if (match) return match.id;
-    }
-
-    // 2. Check window.location.hostname in production or custom domain mapping
+    // 1. Check window.location.hostname FIRST for true Subdomain & Custom Domain routing
     const hostname = window.location.hostname.toLowerCase().trim();
-    if (hostname && hostname !== 'localhost' && !hostname.endsWith('.run.app') && !hostname.includes('webcontainer')) {
+    if (hostname && !hostname.endsWith('.run.app') && !hostname.includes('webcontainer')) {
       // Subdominio especial: tiendas.titufaris.online muestra la tienda genérica SaaS
       if (hostname === 'tiendas.titufaris.online' || hostname === 'www.tiendas.titufaris.online') {
         const genericMatch = tenants.find(t => t.id === 'demo-generica' || t.slug === 'generica' || t.slug === 'mitienda');
@@ -111,11 +93,25 @@ export function getActiveTenantId(): string {
       });
       if (matchedDomain) return matchedDomain.id;
 
-      // Subdomain check on titufaris.online
+      // Subdomain check on titufaris.online (e.g. zapas.titufaris.online)
       if (hostname.endsWith('.titufaris.online')) {
         const sub = hostname.replace('.titufaris.online', '').trim();
-        const matchedSub = tenants.find(t => t.slug === sub || t.id === sub);
-        if (matchedSub) return matchedSub.id;
+        if (sub && sub !== 'www' && sub !== 'cname' && sub !== 'mail') {
+          const matchedSub = tenants.find(t => t.slug.toLowerCase() === sub || t.id.toLowerCase() === sub);
+          if (matchedSub) return matchedSub.id;
+          // Subdominio directo Cloudflare: retornar el slug del subdominio de forma autoritativa
+          return sub;
+        }
+      }
+
+      // Subdominio local para desarrollo (ej: zapas.localhost)
+      if (hostname.includes('.localhost')) {
+        const sub = hostname.split('.')[0].trim();
+        if (sub && sub !== 'www' && sub !== 'admin' && sub !== 'tiendas') {
+          const matchedSub = tenants.find(t => t.slug.toLowerCase() === sub || t.id.toLowerCase() === sub);
+          if (matchedSub) return matchedSub.id;
+          return sub;
+        }
       }
 
       if (hostname === 'titufaris.online' || hostname === 'www.titufaris.online') {
@@ -123,15 +119,47 @@ export function getActiveTenantId(): string {
       }
     }
 
+    // 2. Check URL parameters as explicit query override
+    const params = new URLSearchParams(window.location.search);
+    const domainParam = params.get('dominio') || params.get('domain');
+    if (domainParam) {
+      const cleanParam = sanitizeDomainName(domainParam);
+      const match = tenants.find(
+        t => t.customDomain && sanitizeDomainName(t.customDomain) === cleanParam
+      );
+      if (match) return match.id;
+    }
+
+    const storeParam = params.get('tienda') || params.get('store') || params.get('tenant');
+    if (storeParam) {
+      const cleanSlug = storeParam.toLowerCase().trim();
+      const match = tenants.find(t => t.slug.toLowerCase() === cleanSlug || t.id.toLowerCase() === cleanSlug);
+      if (match) return match.id;
+      return cleanSlug;
+    }
+
     // 3. Saved localStorage preference
     const saved = localStorage.getItem(SAAS_ACTIVE_TENANT_KEY);
-    if (saved && tenants.some(t => t.id === saved)) {
-      return saved;
+    if (saved && tenants.some(t => t.id === saved || t.slug.toLowerCase() === saved.toLowerCase())) {
+      const match = tenants.find(t => t.id === saved || t.slug.toLowerCase() === saved.toLowerCase());
+      return match ? match.id : saved;
     }
   } catch {
     // Fallback safely
   }
   return 'titufaris';
+}
+
+/**
+ * Returns the canonical public URL for any tenant:
+ * Uses custom domain if configured, or the official Cloudflare SSL subdomain https://[slug].titufaris.online
+ */
+export function getTenantStoreUrl(tenant: { slug: string; customDomain?: string }): string {
+  if (tenant.customDomain && tenant.customDomain.trim()) {
+    const clean = tenant.customDomain.trim().replace(/^https?:\/\//, '');
+    return `https://${clean}`;
+  }
+  return `https://${tenant.slug}.titufaris.online`;
 }
 
 export function setActiveTenantId(tenantId: string): void {

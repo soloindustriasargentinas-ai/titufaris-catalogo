@@ -68,6 +68,12 @@ export interface Product {
   updatedBy?: string;
 }
 
+export interface BrandColors {
+  primary: string; // Hex color e.g. '#ea580c'
+  secondary?: string; // Hex color e.g. '#0f172a'
+  accent?: string; // Hex color e.g. '#f97316'
+}
+
 export interface CompanyProfile {
   name: string;
   tagline: string;
@@ -89,6 +95,12 @@ export interface CompanyProfile {
     mercadoPagoLink?: string;
   };
   logoUrl?: string;
+  logo?: string; // Alias for backward compatibility
+  faviconUrl?: string;
+  brandColors?: BrandColors;
+  fontFamily?: string; // e.g. 'Inter', 'Outfit', 'Plus Jakarta Sans', 'Montserrat', 'Playfair Display', etc.
+  announcementBarText?: string;
+  showAnnouncementBar?: boolean;
   catalogNotes: string;
   termsAndConditions: string;
   whatsappCatalogUrl?: string;

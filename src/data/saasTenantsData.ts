@@ -94,6 +94,50 @@ export const initialSaaSTenants: SaaSTenantStore[] = [
     }
   },
   {
+    id: 'zapas',
+    name: 'Zapas - Calzado & Sneakers Oficial',
+    slug: 'zapas',
+    customDomain: 'zapas.titufaris.online',
+    domainStatus: 'ssl_active',
+    domainConfig: {
+      domain: 'zapas.titufaris.online',
+      status: 'ssl_active',
+      sslActive: true,
+      sslIssuer: "Cloudflare Inc ECC CA-3",
+      sslExpiresAt: '2026-12-31T23:59:59.000Z',
+      forceHttps: true,
+      verificationToken: 'zapas-verify=cf-subdomain-key',
+      dnsRecords: [
+        { type: 'CNAME', name: 'zapas', target: 'cname.titufaris.online', status: 'resolved', ttl: 3600, description: 'Subdominio Cloudflare SSL zapas.titufaris.online' }
+      ],
+      verifiedAt: '2025-01-10T12:00:00.000Z',
+      lastDnsCheckAt: new Date().toISOString()
+    },
+    ownerName: 'Zapas Oficial',
+    ownerEmail: 'contacto@zapas.titufaris.online',
+    ownerPhone: '+54 9 11 5829-4310',
+    planId: 'pro',
+    subscriptionStatus: 'trial',
+    pricePerMonthARS: 45000,
+    billingCycle: 'monthly',
+    mercadoPagoSubscriptionId: 'TRIAL-90D-FREE-ZAPAS',
+    createdAt: new Date().toISOString(),
+    trialEndsAt: new Date(Date.now() + 3600000 * 24 * 90).toISOString(),
+    nextBillingDate: new Date(Date.now() + 3600000 * 24 * 90).toISOString(),
+    notes: 'Tienda de calzado y zapatillas (zapas.titufaris.online). Enrutamiento por subdominio Cloudflare, catálogo y POS en la nube.',
+    technicalHealth: {
+      status: 'healthy',
+      productsCount: 15,
+      categoriesCount: 3,
+      salesCount: 8,
+      lastSyncAt: new Date().toISOString(),
+      storageKB: 140,
+      maintenanceMode: false,
+      issuesDetected: [],
+      lastDiagnosticAt: new Date().toISOString()
+    }
+  },
+  {
     id: 'bazar-gourmet',
     name: 'Bazar Gourmet & Café',
     slug: 'bazargourmet',
