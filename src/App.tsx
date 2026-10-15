@@ -582,39 +582,7 @@ export default function App() {
       const tenantComp = loadCompany(resolvedTenantId, isolatedCompany);
       setCompany(tenantComp);
 
-      // Load company profile from Firestore if previously saved
-      fetchCompanyFromFirestore(resolvedTenantId).then(remoteCompany => {
-        if (remoteCompany) {
-          setCompany(remoteCompany);
-          saveCompany(remoteCompany, resolvedTenantId);
-        }
-      });
-
-      // Load products from Firestore for this tenant
-      fetchProductsFromFirestore(resolvedTenantId).then(res => {
-        if (res.success && res.data && res.data.length > 0) {
-          const cleaned = cleanProductList(res.data);
-          setProducts(cleaned);
-          saveProducts(cleaned, resolvedTenantId);
-        }
-      });
-
-      // Load categories from Firestore for this tenant
-      fetchCategoriesFromFirestore(resolvedTenantId).then(remoteCats => {
-        if (remoteCats && remoteCats.length > 0) {
-          setCategories(remoteCats);
-          saveCategories(remoteCats, resolvedTenantId);
-        }
-      });
-
-      // Load sales from Firestore for this tenant
-      fetchSalesFromFirestore(resolvedTenantId).then(remoteSales => {
-        if (remoteSales && remoteSales.length > 0) {
-          setSales(remoteSales);
-          saveSales(remoteSales, resolvedTenantId);
-        }
-      });
-
+      // Synchronously load cached tenant data FIRST so user-saved changes are immediately active
       const tenantProds = loadProducts(resolvedTenantId, saasProducts);
       setProducts(tenantProds);
 
@@ -629,6 +597,36 @@ export default function App() {
 
       const tenantNotifs = loadNotifications(resolvedTenantId);
       setNotifications(tenantNotifs);
+
+      // Then check Firestore for any newer cloud updates
+      fetchCompanyFromFirestore(resolvedTenantId).then(remoteCompany => {
+        if (remoteCompany) {
+          setCompany(remoteCompany);
+          saveCompany(remoteCompany, resolvedTenantId);
+        }
+      });
+
+      fetchProductsFromFirestore(resolvedTenantId).then(res => {
+        if (res.success && res.data && res.data.length > 0) {
+          const cleaned = cleanProductList(res.data, resolvedTenantId);
+          setProducts(cleaned);
+          saveProducts(cleaned, resolvedTenantId);
+        }
+      });
+
+      fetchCategoriesFromFirestore(resolvedTenantId).then(remoteCats => {
+        if (remoteCats && remoteCats.length > 0) {
+          setCategories(remoteCats);
+          saveCategories(remoteCats, resolvedTenantId);
+        }
+      });
+
+      fetchSalesFromFirestore(resolvedTenantId).then(remoteSales => {
+        if (remoteSales && remoteSales.length > 0) {
+          setSales(remoteSales);
+          saveSales(remoteSales, resolvedTenantId);
+        }
+      });
 
       setSelectedCategory('all');
       setSearchQuery('');
@@ -918,7 +916,7 @@ export default function App() {
           try {
             const prodRes = await fetchProductsFromFirestore(activeTenantId);
             if (prodRes.success && Array.isArray(prodRes.data) && prodRes.data.length > 0) {
-              const cleaned = cleanProductList(prodRes.data);
+              const cleaned = cleanProductList(prodRes.data, activeTenantId);
               setProducts(cleaned);
               saveProducts(cleaned, activeTenantId);
             }
@@ -947,7 +945,7 @@ export default function App() {
     }
 
     // 1. First sync from IndexedDB
-    syncProductsFromIndexedDB().then(idbProducts => {
+    syncProductsFromIndexedDB('titufaris').then(idbProducts => {
       if (isDemoModeRef.current || (activeTenantId && activeTenantId !== 'titufaris')) return;
       if (idbProducts && Array.isArray(idbProducts) && idbProducts.length > 0) {
         setProducts(idbProducts);
@@ -958,47 +956,25 @@ export default function App() {
     validateFirestoreConnection().then(async () => {
       if (isDemoModeRef.current || (activeTenantId && activeTenantId !== 'titufaris')) return;
       try {
-        const response = await fetchProductsFromFirestore();
+        const response = await fetchProductsFromFirestore('titufaris');
         if (response.success && Array.isArray(response.data) && response.data.length > 0) {
-          const cleaned = cleanProductList(response.data);
+          const cleaned = cleanProductList(response.data, 'titufaris');
           setProducts(cleaned);
-          saveProducts(cleaned);
+          saveProducts(cleaned, 'titufaris');
           setSyncStatus('synced');
         }
 
-        // Sync categories from cloud ensuring strictly the 6 defined categories exist
+        // Sync categories from cloud preserving any user/admin created categories
         const remoteCategories = await fetchCategoriesFromFirestore();
-        const validCategoryIds = new Set([
-          'gondolas',
-          'estanterias-metalicas',
-          'racks-livianos',
-          'racks-selectivos',
-          'lockers-guardarropas',
-          'otros-productos'
-        ]);
-
-        const hasInvalidRemote = remoteCategories && remoteCategories.some(c => !validCategoryIds.has(c.id));
-        const hasAllSix =
-          remoteCategories &&
-          validCategoryIds.size === remoteCategories.length &&
-          remoteCategories.every(c => validCategoryIds.has(c.id));
-
-        if (hasAllSix && !hasInvalidRemote) {
+        if (remoteCategories && Array.isArray(remoteCategories) && remoteCategories.length > 0) {
           setCategories(remoteCategories);
           saveCategories(remoteCategories);
         } else {
-          // Purge any outdated or legacy categories from Firestore
-          if (remoteCategories && remoteCategories.length > 0) {
-            for (const cat of remoteCategories) {
-              if (!validCategoryIds.has(cat.id)) {
-                await deleteCategoryFromFirestore(cat.id).catch(() => {});
-              }
-            }
+          const localCats = loadCategories();
+          if (localCats && localCats.length > 0) {
+            setCategories(localCats);
+            await seedCategoriesToFirestore(localCats);
           }
-          // Enforce and seed the 6 exact categories
-          setCategories(initialCategories);
-          saveCategories(initialCategories);
-          await seedCategoriesToFirestore(initialCategories);
         }
 
         // Sync company profile
@@ -1088,7 +1064,7 @@ export default function App() {
     return () => {
       unsubscribeProducts();
     };
-  }, []);
+  }, [activeTenantId]);
 
   // Save changes to persistent storage
   useEffect(() => {
@@ -1976,15 +1952,15 @@ export default function App() {
   const handleRestoreBackup = (backupData: AppBackupData, mode: 'replace' | 'merge') => {
     if (mode === 'replace') {
       setProducts(backupData.products);
-      saveProducts(backupData.products);
+      saveProducts(backupData.products, activeTenantId);
 
       if (backupData.categories && backupData.categories.length > 0) {
         setCategories(backupData.categories);
-        saveCategories(backupData.categories);
+        saveCategories(backupData.categories, activeTenantId);
       }
       if (backupData.company) {
         setCompany(backupData.company);
-        saveCompany(backupData.company);
+        saveCompany(backupData.company, activeTenantId);
       }
       if (backupData.users && backupData.users.length > 0) {
         setUsers(backupData.users);
@@ -1992,7 +1968,7 @@ export default function App() {
       }
       if (backupData.sales && backupData.sales.length > 0) {
         setSales(backupData.sales);
-        saveSales(backupData.sales);
+        saveSales(backupData.sales, activeTenantId);
       }
     } else {
       // Merge mode: preserve existing items and append new ones by id
@@ -2000,7 +1976,7 @@ export default function App() {
         const existingIds = new Set(prev.map(p => p.id));
         const newItems = backupData.products.filter(p => !existingIds.has(p.id));
         const merged = [...prev, ...newItems];
-        saveProducts(merged);
+        saveProducts(merged, activeTenantId);
         return merged;
       });
       if (backupData.categories && backupData.categories.length > 0) {
@@ -2008,21 +1984,21 @@ export default function App() {
           const existingCatIds = new Set(prev.map(c => c.id));
           const newCats = backupData.categories.filter(c => !existingCatIds.has(c.id));
           const merged = [...prev, ...newCats];
-          saveCategories(merged);
+          saveCategories(merged, activeTenantId);
           return merged;
         });
       }
     }
 
-    // Push restored products and categories to Firestore immediately so they are permanently in cloud
-    seedProductsToFirestore(backupData.products).catch(err => {
+    // Push restored products and categories to Firestore immediately so they are permanently in cloud for this tenant
+    seedProductsToFirestore(backupData.products, activeTenantId).catch(err => {
       console.warn('Sync restored products to Firestore:', err);
     });
     if (backupData.categories && backupData.categories.length > 0) {
-      seedCategoriesToFirestore(backupData.categories).catch(() => {});
+      seedCategoriesToFirestore(backupData.categories, activeTenantId).catch(() => {});
     }
     if (backupData.company) {
-      saveCompanyToFirestore(backupData.company).catch(() => {});
+      saveCompanyToFirestore(backupData.company, activeTenantId).catch(() => {});
     }
 
     addActivity(
@@ -2052,12 +2028,12 @@ export default function App() {
       prev.forEach(p => map.set(p.id, p));
       productsToRestore.forEach(p => map.set(p.id, p));
       const merged = Array.from(map.values());
-      saveProducts(merged);
+      saveProducts(merged, activeTenantId);
       return merged;
     });
 
-    // Upload to Firestore right away!
-    await seedProductsToFirestore(productsToRestore);
+    // Upload to Firestore right away for the current tenant!
+    await seedProductsToFirestore(productsToRestore, activeTenantId);
 
     addActivity(
       'product_created',
@@ -3256,6 +3232,7 @@ export default function App() {
             currentProducts={products}
             onRecoverProducts={handleRecoverProducts}
             onOpenBackupModal={() => setIsBackupModalOpen(true)}
+            tenantId={activeTenantId}
           />
         )}
       </Suspense>

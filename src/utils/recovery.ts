@@ -13,11 +13,12 @@ export interface RecoveredItemSource {
  * products that may have existed locally before the cloud sync.
  */
 export function scanBrowserForLostProducts(
-  currentProducts: Product[]
+  currentProducts: Product[],
+  tenantId?: string
 ): RecoveredItemSource[] {
   if (typeof window === 'undefined') return [];
 
-  const deletedIds = getDeletedProductIds();
+  const deletedIds = getDeletedProductIds(tenantId);
   const existingIds = new Set(currentProducts.map(p => p.id));
   const existingSkus = new Set(currentProducts.map(p => p.sku?.toLowerCase().trim()).filter(Boolean));
   const recovered: RecoveredItemSource[] = [];
@@ -53,7 +54,7 @@ export function scanBrowserForLostProducts(
               'retailPrice' in item
             ) {
               const p = item as Product;
-              if (deletedIds.has(p.id) || FAKE_ITEMS_TO_PURGE.has(p.id) || FAKE_ITEMS_TO_PURGE.has(p.sku)) {
+              if (deletedIds.has(p.id) || (tenantId === 'titufaris' && (FAKE_ITEMS_TO_PURGE.has(p.id) || FAKE_ITEMS_TO_PURGE.has(p.sku)))) {
                 continue;
               }
               const skuNorm = (p.sku || '').toLowerCase().trim();
@@ -126,44 +127,50 @@ export function scanBrowserForLostProducts(
 
   // 3. Scan Sales History (products that were sold previously)
   try {
-    const rawSales = localStorage.getItem('titufaris_sales_v1');
-    if (rawSales) {
-      const sales = JSON.parse(rawSales) as Sale[];
-      if (Array.isArray(sales)) {
-        for (const sale of sales) {
-          if (Array.isArray(sale.items)) {
-            for (const item of sale.items) {
-              const itemId = item.productId || 'recov-sale-' + item.sku;
-              const itemSku = (item.sku || '').toLowerCase().trim();
-              if (!existingIds.has(itemId) && (!itemSku || !existingSkus.has(itemSku)) && !recoveredIds.has(itemId)) {
-                const recoveredProduct: Product = {
-                  id: itemId,
-                  sku: item.sku || `REC-${Date.now().toString().slice(-4)}`,
-                  name: item.name || 'Artículo Recuperado de Ventas',
-                  category: 'gondolas',
-                  description: 'Artículo recuperado automáticamente desde el historial de ventas registradas.',
-                  costPrice: Math.round(item.unitPrice * 0.65),
-                  wholesalePrice: Math.round(item.unitPrice * 0.85),
-                  retailPrice: item.unitPrice,
-                  stock: 10,
-                  minStock: 2,
-                  unit: 'unidad',
-                  barcode: (item.sku || itemId).replace(/[^0-9]/g, '').padEnd(12, '0').slice(0, 13) || '7791234567890',
-                  imageUrl: 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&w=800&q=80',
-                  tags: ['Recuperado'],
-                  specifications: [],
-                  featured: false,
-                  active: true,
-                  updatedAt: sale.createdAt || new Date().toISOString(),
-                  updatedBy: 'Recuperador Automático',
-                };
-                recovered.push({
-                  product: recoveredProduct,
-                  source: 'sales_history',
-                  originalKeyOrId: sale.receiptNumber || sale.id,
-                });
-                recoveredIds.add(itemId);
-                if (itemSku) existingSkus.add(itemSku);
+    const salesKeys = [
+      tenantId && tenantId !== 'titufaris' ? `tenant_${tenantId}_titufaris_sales_v1` : 'titufaris_sales_v1',
+      'titufaris_sales_v1'
+    ];
+    for (const salesKey of salesKeys) {
+      const rawSales = localStorage.getItem(salesKey);
+      if (rawSales) {
+        const sales = JSON.parse(rawSales) as Sale[];
+        if (Array.isArray(sales)) {
+          for (const sale of sales) {
+            if (Array.isArray(sale.items)) {
+              for (const item of sale.items) {
+                const itemId = item.productId || 'recov-sale-' + item.sku;
+                const itemSku = (item.sku || '').toLowerCase().trim();
+                if (!existingIds.has(itemId) && (!itemSku || !existingSkus.has(itemSku)) && !recoveredIds.has(itemId)) {
+                  const recoveredProduct: Product = {
+                    id: itemId,
+                    sku: item.sku || `REC-${Date.now().toString().slice(-4)}`,
+                    name: item.name || 'Artículo Recuperado de Ventas',
+                    category: 'gondolas',
+                    description: 'Artículo recuperado automáticamente desde el historial de ventas registradas.',
+                    costPrice: Math.round(item.unitPrice * 0.65),
+                    wholesalePrice: Math.round(item.unitPrice * 0.85),
+                    retailPrice: item.unitPrice,
+                    stock: 10,
+                    minStock: 2,
+                    unit: 'unidad',
+                    barcode: (item.sku || itemId).replace(/[^0-9]/g, '').padEnd(12, '0').slice(0, 13) || '7791234567890',
+                    imageUrl: 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&w=800&q=80',
+                    tags: ['Recuperado'],
+                    specifications: [],
+                    featured: false,
+                    active: true,
+                    updatedAt: sale.createdAt || new Date().toISOString(),
+                    updatedBy: 'Recuperador Automático',
+                  };
+                  recovered.push({
+                    product: recoveredProduct,
+                    source: 'sales_history',
+                    originalKeyOrId: sale.receiptNumber || sale.id,
+                  });
+                  recoveredIds.add(itemId);
+                  if (itemSku) existingSkus.add(itemSku);
+                }
               }
             }
           }
@@ -176,8 +183,13 @@ export function scanBrowserForLostProducts(
 
   // 4. Scan Activity Logs (logs of created or edited products)
   try {
-    const rawLogs = localStorage.getItem('titufaris_activity_logs_v1');
-    if (rawLogs) {
+    const logsKeys = [
+      tenantId && tenantId !== 'titufaris' ? `tenant_${tenantId}_titufaris_activity_logs_v1` : 'titufaris_activity_logs_v1',
+      'titufaris_activity_logs_v1'
+    ];
+    for (const logsKey of logsKeys) {
+      const rawLogs = localStorage.getItem(logsKey);
+      if (rawLogs) {
       const logs = JSON.parse(rawLogs) as ActivityLog[];
       if (Array.isArray(logs)) {
         for (const log of logs) {
@@ -246,6 +258,7 @@ export function scanBrowserForLostProducts(
             }
           }
         }
+      }
       }
     }
   } catch (err) {
