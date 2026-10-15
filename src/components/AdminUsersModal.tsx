@@ -12,6 +12,8 @@ const AVATAR_PRESETS = [
   'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=200&q=80',
 ];
 
+import { SaaSPlanId } from '../types/saas';
+
 interface AdminUsersModalProps {
   users: User[];
   currentUser: User;
@@ -19,6 +21,9 @@ interface AdminUsersModalProps {
   onClose: () => void;
   onSaveUser: (user: User) => void;
   onSwitchUser: (userId: string) => void;
+  planId?: SaaSPlanId;
+  onOpenUpgradeModal?: () => void;
+  isDefaultStore?: boolean;
 }
 
 export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
@@ -28,10 +33,14 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
   onClose,
   onSaveUser,
   onSwitchUser,
+  planId = 'pro',
+  onOpenUpgradeModal,
+  isDefaultStore = false,
 }) => {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [mustResetPassword, setMustResetPassword] = useState(false);
+  const [limitWarning, setLimitWarning] = useState<string | null>(null);
 
   // Form states
   const [name, setName] = useState('');
@@ -64,6 +73,23 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
   };
 
   const handleStartCreate = () => {
+    setLimitWarning(null);
+
+    if (!isDefaultStore) {
+      if (planId === 'basic' && users.length >= 1) {
+        setLimitWarning(
+          'El Plan Emprendedor incluye 1 usuario administrador. Para incorporar hasta 5 colaboradores con roles de cajero/admin, por favor escala al Plan Negocio Pro.'
+        );
+        return;
+      }
+      if (planId === 'pro' && users.length >= 5) {
+        setLimitWarning(
+          'El Plan Negocio Pro incluye hasta 5 usuarios y cajeros. Para habilitar usuarios ilimitados con control multi-sucursal, por favor escala al Plan Empresa.'
+        );
+        return;
+      }
+    }
+
     setEditingUser(null);
     setIsCreating(true);
     setMustResetPassword(false);
@@ -528,6 +554,29 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
                   <span>Nuevo Empleado</span>
                 </button>
               </div>
+
+              {limitWarning && (
+                <div className="p-3.5 bg-amber-50 border border-amber-300 rounded-xl text-xs text-amber-900 flex items-start justify-between gap-3 animate-fadeIn">
+                  <div className="flex items-start gap-2">
+                    <Shield className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-bold">Límite de Usuarios del Plan Alcanzado</p>
+                      <p className="text-amber-800 mt-0.5">{limitWarning}</p>
+                    </div>
+                  </div>
+                  {onOpenUpgradeModal && (
+                    <button
+                      onClick={() => {
+                        onClose();
+                        onOpenUpgradeModal();
+                      }}
+                      className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg shrink-0 cursor-pointer text-xs shadow-xs"
+                    >
+                      Escalar Plan
+                    </button>
+                  )}
+                </div>
+              )}
 
               <div className="space-y-2.5">
                 {users.map(u => {
