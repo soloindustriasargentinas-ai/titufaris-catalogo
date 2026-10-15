@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
-import { ShoppingCart, Plus, Minus, Trash2, CreditCard, Search, Tag, Barcode, Check, AlertCircle, FileText } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, Trash2, CreditCard, Search, Tag, Barcode, Check, AlertCircle } from 'lucide-react';
 import { Product, Category, CartItem, User, CompanyProfile } from '../types';
 import { formatCurrency } from '../utils/storage';
 import { playBeep } from '../utils/audio';
-import { QuoteModal } from './QuoteModal';
 
 interface POSViewProps {
   products: Product[];
@@ -11,8 +10,6 @@ interface POSViewProps {
   cart: CartItem[];
   company: CompanyProfile;
   currentUser: User;
-  activeBranchName?: string;
-  onOpenMultiSucursal?: () => void;
   onAddToCart: (product: Product, priceType?: 'retail' | 'wholesale') => void;
   onUpdateCartQty: (productId: string, qty: number) => void;
   onRemoveCartItem: (productId: string) => void;
@@ -26,8 +23,6 @@ export const POSView: React.FC<POSViewProps> = ({
   cart,
   company,
   currentUser,
-  activeBranchName = 'Sucursal Central',
-  onOpenMultiSucursal,
   onAddToCart,
   onUpdateCartQty,
   onRemoveCartItem,
@@ -39,7 +34,6 @@ export const POSView: React.FC<POSViewProps> = ({
   const [priceType, setPriceType] = useState<'retail' | 'wholesale'>('retail');
   const [discount, setDiscount] = useState<number>(0);
   const [scanMessage, setScanMessage] = useState<string | null>(null);
-  const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false);
 
   const filteredProducts = products.filter(p => {
     if (!p.active) return false;
@@ -120,17 +114,6 @@ export const POSView: React.FC<POSViewProps> = ({
                 <Barcode className="w-4 h-4 text-orange-400" />
                 <span className="hidden sm:inline">Escanear</span>
               </button>
-
-              {onOpenMultiSucursal && (
-                <button
-                  onClick={onOpenMultiSucursal}
-                  title="Punto de venta y sucursal de facturación"
-                  className="flex items-center gap-1.5 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-200 rounded-xl text-xs font-bold transition-colors cursor-pointer shrink-0"
-                >
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                  <span className="truncate max-w-[120px] sm:max-w-none">{activeBranchName}</span>
-                </button>
-              )}
             </div>
           </div>
 
@@ -405,28 +388,16 @@ export const POSView: React.FC<POSViewProps> = ({
               <button
                 onClick={onClearCart}
                 title="Vaciar carrito"
-                className="px-3 py-3 rounded-xl border border-slate-300 text-slate-500 hover:text-red-600 hover:bg-white text-xs font-semibold cursor-pointer shrink-0"
+                className="px-3 py-3 rounded-xl border border-slate-300 text-slate-500 hover:text-red-600 hover:bg-white text-xs font-semibold cursor-pointer"
               >
                 <Trash2 className="w-4 h-4" />
               </button>
             )}
 
             <button
-              type="button"
-              onClick={() => setIsQuoteModalOpen(true)}
-              disabled={cart.length === 0}
-              title="Generar presupuesto oficial en PDF con membrete de la empresa"
-              className="px-3 sm:px-4 py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40 shrink-0 border border-slate-700"
-            >
-              <FileText className="w-4 h-4 text-orange-400" />
-              <span className="hidden sm:inline">Presupuesto Membretado</span>
-              <span className="sm:hidden">Presupuesto</span>
-            </button>
-
-            <button
               onClick={() => onOpenCheckout(discount)}
               disabled={cart.length === 0}
-              className="flex-1 py-3 px-3 sm:px-4 bg-orange-600 hover:bg-orange-700 text-white font-black text-xs sm:text-sm rounded-xl shadow-md shadow-orange-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-40 disabled:hover:bg-orange-600"
+              className="flex-1 py-3 px-4 bg-orange-600 hover:bg-orange-700 text-white font-black text-sm rounded-xl shadow-md shadow-orange-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-40 disabled:hover:bg-orange-600"
             >
               <CreditCard className="w-4 h-4" />
               <span>Cobrar Venta ({formatCurrency(total)})</span>
@@ -434,17 +405,6 @@ export const POSView: React.FC<POSViewProps> = ({
           </div>
         </div>
       </div>
-
-      {/* Modal de Presupuesto Membretado Oficial */}
-      <QuoteModal
-        isOpen={isQuoteModalOpen}
-        onClose={() => setIsQuoteModalOpen(false)}
-        cart={cart}
-        company={company}
-        currentUser={currentUser}
-        activeBranchName={activeBranchName}
-        initialDiscount={discount}
-      />
     </div>
   );
 };

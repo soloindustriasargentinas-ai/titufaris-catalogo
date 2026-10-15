@@ -254,7 +254,23 @@ export function loadCategories(tenantId?: string, fallbackCategories?: Category[
   const key = getTenantStorageKey(STORAGE_KEYS.CATEGORIES, tenantId);
   const fallback = fallbackCategories !== undefined ? fallbackCategories : initialCategories;
   const loaded = safeGet<Category[]>(key, fallback);
-  return Array.isArray(loaded) && loaded.length > 0 ? loaded : fallback;
+  if (!tenantId || tenantId === 'titufaris') {
+    const validIds = new Set([
+      'gondolas',
+      'estanterias-metalicas',
+      'racks-livianos',
+      'racks-selectivos',
+      'lockers-guardarropas',
+      'otros-productos'
+    ]);
+    const hasInvalid = loaded.some(c => !validIds.has(c.id));
+    const hasAll = validIds.size === loaded.length && loaded.every(c => validIds.has(c.id));
+    if (hasInvalid || !hasAll) {
+      safeSet(key, initialCategories);
+      return initialCategories;
+    }
+  }
+  return loaded;
 }
 
 export function saveCategories(categories: Category[], tenantId?: string): void {
@@ -265,7 +281,12 @@ export function saveCategories(categories: Category[], tenantId?: string): void 
 export function loadCompany(tenantId?: string, fallbackCompany?: CompanyProfile): CompanyProfile {
   const key = getTenantStorageKey(STORAGE_KEYS.COMPANY, tenantId);
   const fallback = fallbackCompany || initialCompany;
-  return safeGet<CompanyProfile>(key, fallback);
+  const comp = safeGet<CompanyProfile>(key, fallback);
+  if ((!tenantId || tenantId === 'titufaris') && comp.termsAndConditions && comp.termsAndConditions.includes('5 unidades')) {
+    comp.termsAndConditions = comp.termsAndConditions.replace('5 unidades', '10 unidades');
+    saveCompany(comp, tenantId);
+  }
+  return comp;
 }
 
 export function saveCompany(company: CompanyProfile, tenantId?: string): void {

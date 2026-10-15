@@ -674,9 +674,9 @@ export const MasterAdminPanelModal: React.FC<MasterAdminPanelModalProps> = ({
 
     const priceMap: Record<SaaSPlanId, number> = {
       trial: 0,
-      basic: 8990,
-      pro: 16990,
-      enterprise: 29990
+      basic: 25000,
+      pro: 45000,
+      enterprise: 85000
     };
 
     const newStore: SaaSTenantStore = {

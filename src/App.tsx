@@ -137,8 +137,6 @@ const MasterAdminPanelModal = lazy(() => import('./components/MasterAdminPanelMo
 const SaaSSubscriptionModal = lazy(() => import('./components/SaaSSubscriptionModal').then(m => ({ default: m.SaaSSubscriptionModal })));
 const CreateTenantModal = lazy(() => import('./components/CreateTenantModal').then(m => ({ default: m.CreateTenantModal })));
 const CustomDomainModal = lazy(() => import('./components/CustomDomainModal').then(m => ({ default: m.CustomDomainModal })));
-const MultiSucursalModal = lazy(() => import('./components/MultiSucursalModal').then(m => ({ default: m.MultiSucursalModal })));
-import { sendBrowserPushNotification } from './utils/webNotifications';
 
 import { CookieConsentBanner } from './components/CookieConsentBanner';
 import { TenantStatusBanner } from './components/TenantStatusBanner';
@@ -270,8 +268,6 @@ export default function App() {
   const [isLegalModalOpen, setIsLegalModalOpen] = useState(false);
   const [legalModalTab, setLegalModalTab] = useState<LegalTab>('terms');
   const [isSitemapModalOpen, setIsSitemapModalOpen] = useState(false);
-  const [isMultiSucursalModalOpen, setIsMultiSucursalModalOpen] = useState(false);
-  const [activeBranchId, setActiveBranchId] = useState<string>('branch-central');
 
   const handleOpenLegalModal = (tab: LegalTab = 'terms') => {
     setLegalModalTab(tab);
@@ -420,11 +416,7 @@ export default function App() {
     if (resolvedTenantId === 'titufaris' || resolvedTenantId === 'demo-generica') return false;
     return !isKnownTenantLocally;
   });
-  const [tenantNotFound, setTenantNotFound] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false;
-    if (resolvedTenantId === 'titufaris' || resolvedTenantId === 'demo-generica') return false;
-    return !isKnownTenantLocally;
-  });
+  const [tenantNotFound, setTenantNotFound] = useState<boolean>(false);
 
   const activeTenant = useMemo(() => {
     const found = saasTenants.find(
@@ -461,9 +453,6 @@ export default function App() {
     }).catch(err => {
       console.warn('Firestore tenants sync error:', err);
       setIsTenantChecking(false);
-      if (!isKnownTenantLocally) {
-        setTenantNotFound(true);
-      }
     });
 
     if (activeTenantId && activeTenantId !== 'titufaris' && activeTenantId !== 'demo-generica') {
@@ -582,7 +571,14 @@ export default function App() {
       const tenantComp = loadCompany(resolvedTenantId, isolatedCompany);
       setCompany(tenantComp);
 
-      // Synchronously load cached tenant data FIRST so user-saved changes are immediately active
+      // Load company profile from Firestore if previously saved
+      fetchCompanyFromFirestore(resolvedTenantId).then(remoteCompany => {
+        if (remoteCompany) {
+          setCompany(remoteCompany);
+          saveCompany(remoteCompany, resolvedTenantId);
+        }
+      });
+
       const tenantProds = loadProducts(resolvedTenantId, saasProducts);
       setProducts(tenantProds);
 
@@ -597,36 +593,6 @@ export default function App() {
 
       const tenantNotifs = loadNotifications(resolvedTenantId);
       setNotifications(tenantNotifs);
-
-      // Then check Firestore for any newer cloud updates
-      fetchCompanyFromFirestore(resolvedTenantId).then(remoteCompany => {
-        if (remoteCompany) {
-          setCompany(remoteCompany);
-          saveCompany(remoteCompany, resolvedTenantId);
-        }
-      });
-
-      fetchProductsFromFirestore(resolvedTenantId).then(res => {
-        if (res.success && res.data && res.data.length > 0) {
-          const cleaned = cleanProductList(res.data, resolvedTenantId);
-          setProducts(cleaned);
-          saveProducts(cleaned, resolvedTenantId);
-        }
-      });
-
-      fetchCategoriesFromFirestore(resolvedTenantId).then(remoteCats => {
-        if (remoteCats && remoteCats.length > 0) {
-          setCategories(remoteCats);
-          saveCategories(remoteCats, resolvedTenantId);
-        }
-      });
-
-      fetchSalesFromFirestore(resolvedTenantId).then(remoteSales => {
-        if (remoteSales && remoteSales.length > 0) {
-          setSales(remoteSales);
-          saveSales(remoteSales, resolvedTenantId);
-        }
-      });
 
       setSelectedCategory('all');
       setSearchQuery('');
@@ -908,44 +874,15 @@ export default function App() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, [products, categories]);
 
-  // Sync from high-capacity IndexedDB and Firebase Firestore on startup
+  // Sync from high-capacity IndexedDB and Firebase Firestore on startup (Flagship Titufaris ONLY)
   useEffect(() => {
     if (isDemoModeRef.current || (activeTenantId && activeTenantId !== 'titufaris')) {
-      if (activeTenantId && activeTenantId !== 'titufaris' && activeTenantId !== 'demo-generica') {
-        validateFirestoreConnection().then(async () => {
-          try {
-            const prodRes = await fetchProductsFromFirestore(activeTenantId);
-            if (prodRes.success && Array.isArray(prodRes.data) && prodRes.data.length > 0) {
-              const cleaned = cleanProductList(prodRes.data, activeTenantId);
-              setProducts(cleaned);
-              saveProducts(cleaned, activeTenantId);
-            }
-            const catRes = await fetchCategoriesFromFirestore(activeTenantId);
-            if (catRes && Array.isArray(catRes) && catRes.length > 0) {
-              setCategories(catRes);
-              saveCategories(catRes, activeTenantId);
-            }
-            const compRes = await fetchCompanyFromFirestore(activeTenantId);
-            if (compRes) {
-              setCompany(compRes);
-              saveCompany(compRes, activeTenantId);
-            }
-            const salesRes = await fetchSalesFromFirestore(activeTenantId);
-            if (salesRes && Array.isArray(salesRes) && salesRes.length > 0) {
-              setSales(salesRes);
-              saveSales(salesRes, activeTenantId);
-            }
-            setSyncStatus('synced');
-          } catch (e) {
-            console.warn(`Error syncing tenant ${activeTenantId}:`, e);
-          }
-        });
-      }
+      // In Demo Mode or specific tenant (e.g. zapas), keep isolated tenant data!
       return;
     }
 
     // 1. First sync from IndexedDB
-    syncProductsFromIndexedDB('titufaris').then(idbProducts => {
+    syncProductsFromIndexedDB().then(idbProducts => {
       if (isDemoModeRef.current || (activeTenantId && activeTenantId !== 'titufaris')) return;
       if (idbProducts && Array.isArray(idbProducts) && idbProducts.length > 0) {
         setProducts(idbProducts);
@@ -956,25 +893,47 @@ export default function App() {
     validateFirestoreConnection().then(async () => {
       if (isDemoModeRef.current || (activeTenantId && activeTenantId !== 'titufaris')) return;
       try {
-        const response = await fetchProductsFromFirestore('titufaris');
+        const response = await fetchProductsFromFirestore();
         if (response.success && Array.isArray(response.data) && response.data.length > 0) {
-          const cleaned = cleanProductList(response.data, 'titufaris');
+          const cleaned = cleanProductList(response.data);
           setProducts(cleaned);
-          saveProducts(cleaned, 'titufaris');
+          saveProducts(cleaned);
           setSyncStatus('synced');
         }
 
-        // Sync categories from cloud preserving any user/admin created categories
+        // Sync categories from cloud ensuring strictly the 6 defined categories exist
         const remoteCategories = await fetchCategoriesFromFirestore();
-        if (remoteCategories && Array.isArray(remoteCategories) && remoteCategories.length > 0) {
+        const validCategoryIds = new Set([
+          'gondolas',
+          'estanterias-metalicas',
+          'racks-livianos',
+          'racks-selectivos',
+          'lockers-guardarropas',
+          'otros-productos'
+        ]);
+
+        const hasInvalidRemote = remoteCategories && remoteCategories.some(c => !validCategoryIds.has(c.id));
+        const hasAllSix =
+          remoteCategories &&
+          validCategoryIds.size === remoteCategories.length &&
+          remoteCategories.every(c => validCategoryIds.has(c.id));
+
+        if (hasAllSix && !hasInvalidRemote) {
           setCategories(remoteCategories);
           saveCategories(remoteCategories);
         } else {
-          const localCats = loadCategories();
-          if (localCats && localCats.length > 0) {
-            setCategories(localCats);
-            await seedCategoriesToFirestore(localCats);
+          // Purge any outdated or legacy categories from Firestore
+          if (remoteCategories && remoteCategories.length > 0) {
+            for (const cat of remoteCategories) {
+              if (!validCategoryIds.has(cat.id)) {
+                await deleteCategoryFromFirestore(cat.id).catch(() => {});
+              }
+            }
           }
+          // Enforce and seed the 6 exact categories
+          setCategories(initialCategories);
+          saveCategories(initialCategories);
+          await seedCategoriesToFirestore(initialCategories);
         }
 
         // Sync company profile
@@ -1064,7 +1023,7 @@ export default function App() {
     return () => {
       unsubscribeProducts();
     };
-  }, [activeTenantId]);
+  }, []);
 
   // Save changes to persistent storage
   useEffect(() => {
@@ -1287,16 +1246,16 @@ export default function App() {
         }).catch(err => console.warn('Error en auto-sync Meta:', err));
       }
     } else {
-      // Create new product - Enforce trial and Emprendedor (250 products) limits
+      // Create new product - Enforce trial (50 products) and basic (150 products) limits
       const isTrial = activeTenant.id !== 'titufaris' && (activeTenant.planId === 'trial' || activeTenant.subscriptionStatus === 'trial');
       const isBasic = activeTenant.id !== 'titufaris' && activeTenant.planId === 'basic';
-      if (isTrial && products.length >= 250) {
-        alert('Has alcanzado el límite de 250 productos de tu prueba gratuita bonificada de 3 meses. Todas las funciones permanecen activas, pero para incorporar más artículos por favor escala al Plan Negocio Pro con productos ilimitados.');
+      if (isTrial && products.length >= 50) {
+        alert('Has alcanzado el límite de 50 productos de tu prueba gratuita de 3 meses. Todas las funciones permanecen activas, pero para incorporar más artículos por favor escala tu tienda a un plan comercial.');
         setIsSaaSSubscriptionModalOpen(true);
         return;
       }
-      if (isBasic && products.length >= 250) {
-        alert('Has alcanzado el límite de 250 productos del Plan Emprendedor. Para contar con productos ilimitados y multi-caja, por favor escala al Plan Negocio Pro.');
+      if (isBasic && products.length >= 150) {
+        alert('Has alcanzado el límite de 150 productos del Plan Básico. Para contar con productos ilimitados, por favor escala al Plan Profesional Pro.');
         setIsSaaSSubscriptionModalOpen(true);
         return;
       }
@@ -1365,13 +1324,13 @@ export default function App() {
   const handleOpenNewProduct = () => {
     const isTrial = activeTenant.id !== 'titufaris' && (activeTenant.planId === 'trial' || activeTenant.subscriptionStatus === 'trial');
     const isBasic = activeTenant.id !== 'titufaris' && activeTenant.planId === 'basic';
-    if (isTrial && products.length >= 250) {
-      alert('Has alcanzado el límite de 250 productos de tu prueba gratuita bonificada de 3 meses. Todas las funciones permanecen activas, pero para incorporar más artículos por favor escala al Plan Negocio Pro.');
+    if (isTrial && products.length >= 50) {
+      alert('Has alcanzado el límite de 50 productos de tu prueba gratuita de 3 meses. Todas las funciones permanecen activas, pero para incorporar más artículos por favor escala tu tienda.');
       setIsSaaSSubscriptionModalOpen(true);
       return;
     }
-    if (isBasic && products.length >= 250) {
-      alert('Has alcanzado el límite de 250 productos del Plan Emprendedor. Para contar con productos ilimitados, por favor escala al Plan Negocio Pro.');
+    if (isBasic && products.length >= 150) {
+      alert('Has alcanzado el límite de 150 productos del Plan Básico. Para contar con productos ilimitados, por favor escala al Plan Profesional Pro.');
       setIsSaaSSubscriptionModalOpen(true);
       return;
     }
@@ -1450,13 +1409,13 @@ export default function App() {
   const handleDuplicateProduct = (product: Product) => {
     const isTrial = activeTenant.id !== 'titufaris' && (activeTenant.planId === 'trial' || activeTenant.subscriptionStatus === 'trial');
     const isBasic = activeTenant.id !== 'titufaris' && activeTenant.planId === 'basic';
-    if (isTrial && products.length >= 250) {
-      alert('Has alcanzado el límite de 250 productos de tu prueba gratuita bonificada de 3 meses. Para duplicar y agregar más productos, por favor escala al Plan Negocio Pro.');
+    if (isTrial && products.length >= 50) {
+      alert('Has alcanzado el límite de 50 productos de tu prueba gratuita de 3 meses. Para duplicar y agregar más productos, por favor escala tu tienda a un plan comercial.');
       setIsSaaSSubscriptionModalOpen(true);
       return;
     }
-    if (isBasic && products.length >= 250) {
-      alert('Has alcanzado el límite de 250 productos del Plan Emprendedor. Por favor escala al Plan Negocio Pro para productos ilimitados.');
+    if (isBasic && products.length >= 150) {
+      alert('Has alcanzado el límite de 150 productos del Plan Básico. Por favor escala al Plan Profesional Pro para productos ilimitados.');
       setIsSaaSSubscriptionModalOpen(true);
       return;
     }
@@ -1627,13 +1586,11 @@ export default function App() {
     const saleId = 'sale-' + Date.now();
     const createdSale: Sale = {
       id: saleId,
-      branchId: activeBranchId,
-      branchName: activeBranchId === 'branch-norte' ? 'Sucursal Norte' : activeBranchId === 'branch-deposito' ? 'Depósito Central' : 'Sucursal Central',
       createdAt: new Date().toISOString(),
       ...saleData,
     };
 
-    // 1. Optimistic Local Stock Deduction (including multi-branch stock)
+    // 1. Optimistic Local Stock Deduction
     setProducts(prev => {
       const updated = [...prev];
       saleData.items.forEach(item => {
@@ -1641,11 +1598,7 @@ export default function App() {
         if (idx !== -1) {
           const currentProd = updated[idx];
           const nextStock = Math.max(0, currentProd.stock - item.quantity);
-          const nextBranchStock = { ...(currentProd.branchStock || {}) };
-          if (activeBranchId) {
-            nextBranchStock[activeBranchId] = Math.max(0, (nextBranchStock[activeBranchId] ?? currentProd.stock) - item.quantity);
-          }
-          updated[idx] = { ...currentProd, stock: nextStock, branchStock: nextBranchStock };
+          updated[idx] = { ...currentProd, stock: nextStock };
 
           // Trigger warning if reached low threshold
           if (nextStock <= currentProd.minStock) {
@@ -1659,9 +1612,6 @@ export default function App() {
               productId: item.productId,
             };
             setNotifications(n => [notif, ...n]);
-            sendBrowserPushNotification(`⚠️ Stock Crítico: ${item.name}`, {
-              body: `Nivel de inventario bajo: solo restan ${nextStock} unidades.`
-            });
           }
         }
       });
@@ -1714,7 +1664,7 @@ export default function App() {
       saleData.total
     );
 
-    // 5. Add In-App Notification & Native Browser Push
+    // 5. Add Notification
     const saleNotif: PushNotification = {
       id: 'notif-' + Date.now(),
       title: `Venta Registrada ${saleData.receiptNumber}`,
@@ -1724,11 +1674,6 @@ export default function App() {
       timestamp: 'Recién',
     };
     setNotifications(prev => [saleNotif, ...prev]);
-
-    // Trigger Native Web Push Notification (Plan Pro & Empresa)
-    sendBrowserPushNotification(`🛒 Venta Cobrada: ${createdSale.receiptNumber}`, {
-      body: `Cobrado: ${formatCurrency(createdSale.total)} • ${createdSale.items.length} artículos por ${currentUser.name}`
-    });
   };
 
   const handleCancelSale = async (saleId: string, restoreStock: boolean, reason?: string) => {
@@ -1952,15 +1897,15 @@ export default function App() {
   const handleRestoreBackup = (backupData: AppBackupData, mode: 'replace' | 'merge') => {
     if (mode === 'replace') {
       setProducts(backupData.products);
-      saveProducts(backupData.products, activeTenantId);
+      saveProducts(backupData.products);
 
       if (backupData.categories && backupData.categories.length > 0) {
         setCategories(backupData.categories);
-        saveCategories(backupData.categories, activeTenantId);
+        saveCategories(backupData.categories);
       }
       if (backupData.company) {
         setCompany(backupData.company);
-        saveCompany(backupData.company, activeTenantId);
+        saveCompany(backupData.company);
       }
       if (backupData.users && backupData.users.length > 0) {
         setUsers(backupData.users);
@@ -1968,7 +1913,7 @@ export default function App() {
       }
       if (backupData.sales && backupData.sales.length > 0) {
         setSales(backupData.sales);
-        saveSales(backupData.sales, activeTenantId);
+        saveSales(backupData.sales);
       }
     } else {
       // Merge mode: preserve existing items and append new ones by id
@@ -1976,7 +1921,7 @@ export default function App() {
         const existingIds = new Set(prev.map(p => p.id));
         const newItems = backupData.products.filter(p => !existingIds.has(p.id));
         const merged = [...prev, ...newItems];
-        saveProducts(merged, activeTenantId);
+        saveProducts(merged);
         return merged;
       });
       if (backupData.categories && backupData.categories.length > 0) {
@@ -1984,21 +1929,21 @@ export default function App() {
           const existingCatIds = new Set(prev.map(c => c.id));
           const newCats = backupData.categories.filter(c => !existingCatIds.has(c.id));
           const merged = [...prev, ...newCats];
-          saveCategories(merged, activeTenantId);
+          saveCategories(merged);
           return merged;
         });
       }
     }
 
-    // Push restored products and categories to Firestore immediately so they are permanently in cloud for this tenant
-    seedProductsToFirestore(backupData.products, activeTenantId).catch(err => {
+    // Push restored products and categories to Firestore immediately so they are permanently in cloud
+    seedProductsToFirestore(backupData.products).catch(err => {
       console.warn('Sync restored products to Firestore:', err);
     });
     if (backupData.categories && backupData.categories.length > 0) {
-      seedCategoriesToFirestore(backupData.categories, activeTenantId).catch(() => {});
+      seedCategoriesToFirestore(backupData.categories).catch(() => {});
     }
     if (backupData.company) {
-      saveCompanyToFirestore(backupData.company, activeTenantId).catch(() => {});
+      saveCompanyToFirestore(backupData.company).catch(() => {});
     }
 
     addActivity(
@@ -2028,12 +1973,12 @@ export default function App() {
       prev.forEach(p => map.set(p.id, p));
       productsToRestore.forEach(p => map.set(p.id, p));
       const merged = Array.from(map.values());
-      saveProducts(merged, activeTenantId);
+      saveProducts(merged);
       return merged;
     });
 
-    // Upload to Firestore right away for the current tenant!
-    await seedProductsToFirestore(productsToRestore, activeTenantId);
+    // Upload to Firestore right away!
+    await seedProductsToFirestore(productsToRestore);
 
     addActivity(
       'product_created',
@@ -2367,7 +2312,6 @@ export default function App() {
             onOpenMasterPanel={() => setIsMasterPanelOpen(true)}
             onOpenSubscriptionModal={() => setIsSaaSSubscriptionModalOpen(true)}
             onOpenCustomDomain={() => setIsCustomDomainModalOpen(true)}
-            onOpenMultiSucursal={() => setIsMultiSucursalModalOpen(true)}
           />
 
           <TenantStatusBanner
@@ -2974,8 +2918,6 @@ export default function App() {
             cart={cart}
             company={company}
             currentUser={currentUser}
-            activeBranchName={activeBranchId === 'branch-norte' ? 'Sucursal Norte' : activeBranchId === 'branch-deposito' ? 'Depósito Central' : 'Sucursal Central'}
-            onOpenMultiSucursal={() => setIsMultiSucursalModalOpen(true)}
             onAddToCart={handleAddToCart}
             onUpdateCartQty={handleUpdateCartQty}
             onRemoveCartItem={handleRemoveCartItem}
@@ -3180,9 +3122,6 @@ export default function App() {
             onClose={() => setIsUsersModalOpen(false)}
             onSaveUser={handleSaveUser}
             onSwitchUser={handleSwitchUser}
-            planId={activeTenant.planId}
-            onOpenUpgradeModal={() => setIsSaaSSubscriptionModalOpen(true)}
-            isDefaultStore={activeTenant.id === 'titufaris' || activeTenant.isDefaultStore}
           />
         )}
       </Suspense>
@@ -3232,7 +3171,6 @@ export default function App() {
             currentProducts={products}
             onRecoverProducts={handleRecoverProducts}
             onOpenBackupModal={() => setIsBackupModalOpen(true)}
-            tenantId={activeTenantId}
           />
         )}
       </Suspense>
@@ -3374,29 +3312,6 @@ export default function App() {
             onUpdateTenants={setSaaSTenants}
             onSelectTenantDomain={(domain) => {
               handleSelectTenant(activeTenant.id);
-            }}
-          />
-        </Suspense>
-      )}
-
-      {/* 19. Multi-Sucursal & Unified Real-Time Inventory Modal (Plan Empresa) */}
-      {isMultiSucursalModalOpen && (
-        <Suspense fallback={null}>
-          <MultiSucursalModal
-            isOpen={isMultiSucursalModalOpen}
-            onClose={() => setIsMultiSucursalModalOpen(false)}
-            products={products}
-            onUpdateProducts={(updated) => {
-              setProducts(updated);
-              saveProducts(updated, activeTenantId);
-            }}
-            currentTenant={activeTenant}
-            currentUserName={currentUser.name}
-            activeBranchId={activeBranchId}
-            onSelectActiveBranch={setActiveBranchId}
-            onOpenUpgradeModal={() => {
-              setIsMultiSucursalModalOpen(false);
-              setIsSaaSSubscriptionModalOpen(true);
             }}
           />
         </Suspense>

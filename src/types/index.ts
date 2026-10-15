@@ -48,7 +48,6 @@ export interface Product {
   wholesaleMinQty?: number;
   retailPrice: number;
   stock: number;
-  branchStock?: Record<string, number>;
   minStock?: number;
   minStockAlert?: number;
   unit: string; // e.g., 'unidad', 'metro', 'm2', 'juego'
@@ -180,8 +179,6 @@ export interface Sale {
   transferProofName?: string;
   cashierId: string;
   cashierName: string;
-  branchId?: string;
-  branchName?: string;
   createdAt: string;
   notes?: string;
 }
@@ -265,5 +262,4 @@ export interface CustomerRemarketingProfile {
   salesReceipts: string[];
 }
 
-export * from './branch';
 export * from './saas';
