@@ -52,7 +52,6 @@ interface NavbarProps {
   onOpenMasterPanel?: () => void;
   onOpenSubscriptionModal?: () => void;
   onOpenCustomDomain?: () => void;
-  onOpenMultiSucursal?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -78,7 +77,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenMasterPanel,
   onOpenSubscriptionModal,
   onOpenCustomDomain,
-  onOpenMultiSucursal,
 }) => {
   const [isAdminDropdownOpen, setIsAdminDropdownOpen] = useState(false);
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
@@ -495,27 +493,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                             </div>
                           </button>
                         )}
-
-                        {onOpenMultiSucursal && (
-                          <button
-                            onClick={() => {
-                              setIsAdminDropdownOpen(false);
-                              onOpenMultiSucursal();
-                            }}
-                            className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-indigo-900 bg-indigo-50/50 hover:bg-indigo-100/70 transition-colors cursor-pointer text-left font-bold"
-                          >
-                            <Store className="w-4 h-4 text-indigo-600 shrink-0" />
-                            <div className="flex-1">
-                              <div className="flex items-center gap-1.5">
-                                <span>Multi-Sucursal & Stock</span>
-                                <span className="text-[9px] font-extrabold uppercase bg-indigo-200/80 text-indigo-800 px-1.5 py-0.2 rounded">
-                                  Sync
-                                </span>
-                              </div>
-                              <div className="text-[10px] font-normal text-slate-500">Locales, depósitos y transferencias en vivo</div>
-                            </div>
-                          </button>
-                        )}
                       </div>
                     </div>
                   </div>
@@ -799,19 +776,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                 >
                   <Globe className="w-4 h-4 text-indigo-600" />
                   <span>Dominio Propio & DNS</span>
-                </button>
-              )}
-
-              {onOpenMultiSucursal && (
-                <button
-                  onClick={() => {
-                    setIsMobileDrawerOpen(false);
-                    onOpenMultiSucursal();
-                  }}
-                  className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-indigo-900 bg-indigo-100/60 hover:bg-indigo-100 text-xs font-bold"
-                >
-                  <Store className="w-4 h-4 text-indigo-600" />
-                  <span>Multi-Sucursal & Depósitos</span>
                 </button>
               )}
 

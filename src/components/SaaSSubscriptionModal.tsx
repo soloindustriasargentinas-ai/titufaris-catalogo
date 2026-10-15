@@ -39,60 +39,48 @@ interface PlanDefinition {
 const PLANS: PlanDefinition[] = [
   {
     id: 'basic',
-    name: 'Plan Emprendedor',
-    monthlyPriceARS: 8990,
-    yearlyPriceARS: 86280, // $7.190 / mes (20% OFF)
-    description: 'Ideal para negocios y locales que inician. Mucho más económico que Tienda Nube y con 0% de comisiones.',
+    name: 'Plan Básico Emprendedor',
+    monthlyPriceARS: 25000,
+    yearlyPriceARS: 250000,
+    description: 'Ideal para negocios y locales que comienzan con su catálogo digital.',
     features: [
-      'Hasta 250 productos activos',
-      '0% Comisiones por venta (Tienda Nube cobra hasta 2.5%)',
-      '3 Meses 100% Bonificados ($0 por 90 días)',
-      '1 Usuario Administrador',
-      'Subdominio propio .titufaris.online con SSL',
+      'Hasta 150 productos activos',
       'Catálogo online para celulares y PC',
       'Pedidos directos por WhatsApp con resumen',
-      'Punto de Venta (POS) para mostrador con tickets',
-      'Cobros con QR y Mercado Pago integrados',
-      'Soporte técnico por WhatsApp'
+      'Punto de Venta (POS) para mostrador',
+      'Cobros con QR y Mercado Pago por producto',
+      'Soporte técnico por email (48hs)'
     ]
   },
   {
     id: 'pro',
-    name: 'Plan Negocio Pro',
-    monthlyPriceARS: 16990,
-    yearlyPriceARS: 163080, // $13.590 / mes (20% OFF)
+    name: 'Plan Profesional Pro',
+    monthlyPriceARS: 45000,
+    yearlyPriceARS: 450000,
     popular: true,
-    description: 'El más elegido. Potencia total para escalar tus ventas sin pagar comisión alguna por cada pedido.',
+    description: 'Potencia total para tiendas en crecimiento con sincronización multi-caja.',
     features: [
-      'Productos y categorías ILIMITADOS',
-      '0% Comisiones por venta (Ahorro de $40.000+/mes)',
-      '3 Meses 100% Bonificados ($0 por 90 días)',
-      'Hasta 5 Usuarios con roles (Cajeros, Vendedores, Admin)',
-      'Dominio web propio personalizado (.com / .com.ar) con SSL',
+      'Productos y categorías ilimitados',
+      'Sincronización en la nube con Firestore Cloud',
+      'Múltiples empleados con control de roles (Cajero/Admin)',
       'Control de Stock en tiempo real y alertas de reposición',
-      'Notificaciones Push en tiempo real en celular y PC',
-      'Exportación de Catálogo a PDF de alta resolución y Excel/CSV',
-      'Informes contables y Libro IVA Ventas para contadores',
-      'Feed XML Google Merchant Center & Google Shopping',
+      'Exportación de Catálogo a PDF de alta resolución',
+      'Remarketing de Clientes y métricas de facturación',
       'Soporte prioritario por WhatsApp'
     ]
   },
   {
     id: 'enterprise',
-    name: 'Plan Empresa & Multi-Sucursal',
-    monthlyPriceARS: 29990,
-    yearlyPriceARS: 287880, // $23.990 / mes (20% OFF)
-    description: 'Para cadenas, depósitos y franquicias. La mitad de precio que las soluciones corporativas de Tienda Nube.',
+    name: 'Plan Enterprise & Franquicias',
+    monthlyPriceARS: 85000,
+    yearlyPriceARS: 850000,
+    description: 'Solución a medida para cadenas, distribuidores y marcas consolidadas.',
     features: [
-      'Todo lo incluido en el Plan Negocio Pro',
-      '0% Comisiones por venta siempre',
-      '3 Meses 100% Bonificados ($0 por 90 días)',
-      'Multi-Sucursal & Depósitos unificados con sync en tiempo real',
-      'Transferencias de mercadería entre sucursales con trazabilidad',
-      'Usuarios, cajeros y administradores ILIMITADOS',
-      'Dominio propio con CDN dedicada de ultra-velocidad',
-      'Integración avanzada con Google Merchant Center',
-      'Auditoría y copia de seguridad en Google Firestore Cloud A+',
+      'Todo lo incluido en el Plan Pro',
+      'Dominio web propio personalizado (ej: mitienda.com.ar)',
+      'Múltiples sucursales y depósitos unificados',
+      'Integración con Google Merchant & feeds XML',
+      'Copia de seguridad y auditoría en la nube A+',
       'Gerente de cuenta dedicado y SLA 99.9%'
     ]
   }
@@ -483,83 +471,6 @@ export const SaaSSubscriptionModal: React.FC<SaaSSubscriptionModalProps> = ({
                 </div>
               );
             })}
-          </div>
-
-          {/* Comparativa Directa vs Tienda Nube */}
-          <div className="bg-gradient-to-br from-slate-50 to-blue-50/40 rounded-2xl p-5 border border-blue-200/80 shadow-xs space-y-3">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-b border-blue-200 pb-3">
-              <div>
-                <h4 className="font-bold text-slate-900 text-sm flex items-center gap-2">
-                  <Zap className="w-4 h-4 text-orange-500" />
-                  Comparativa: Titufaris SaaS vs Tienda Nube Argentina
-                </h4>
-                <p className="text-xs text-slate-600">
-                  Por qué Titufaris es la opción más conveniente y rentable para tu negocio:
-                </p>
-              </div>
-              <span className="text-[11px] font-black uppercase px-2.5 py-1 bg-emerald-100 text-emerald-800 rounded-full border border-emerald-300">
-                Ahorro comprobado de hasta $180.000+/año
-              </span>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead>
-                  <tr className="border-b border-blue-200/60 text-slate-600 font-bold">
-                    <th className="py-2 pr-3">Característica</th>
-                    <th className="py-2 px-3 bg-blue-100/70 text-blue-900 font-black rounded-t-lg text-center">Titufaris SaaS</th>
-                    <th className="py-2 pl-3 text-slate-500 text-center">Tienda Nube</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-blue-100 text-slate-700">
-                  <tr>
-                    <td className="py-2.5 pr-3 font-semibold">Comisión por venta realizada</td>
-                    <td className="py-2.5 px-3 bg-blue-50/50 font-black text-emerald-700 text-center">
-                      0% (¡Sin comisión!)
-                    </td>
-                    <td className="py-2.5 pl-3 text-rose-600 font-medium text-center">
-                      0.5% a 2.5% en cada venta
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="py-2.5 pr-3 font-semibold">Período de prueba bonificado</td>
-                    <td className="py-2.5 px-3 bg-blue-50/50 font-black text-emerald-700 text-center">
-                      3 Meses 100% Gratis (90 días)
-                    </td>
-                    <td className="py-2.5 pl-3 text-slate-500 text-center">
-                      Solo 14 o 30 días
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="py-2.5 pr-3 font-semibold">Precio Plan Inicial / Emprendedor</td>
-                    <td className="py-2.5 px-3 bg-blue-50/50 font-black text-blue-900 text-center">
-                      $8.990 ARS / mes
-                    </td>
-                    <td className="py-2.5 pl-3 text-slate-500 text-center">
-                      $14.999 ARS / mes + comisiones
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="py-2.5 pr-3 font-semibold">Punto de Venta (POS) en mostrador integrado</td>
-                    <td className="py-2.5 px-3 bg-blue-50/50 font-black text-emerald-700 text-center">
-                      ✓ Incluido sin costo extra
-                    </td>
-                    <td className="py-2.5 pl-3 text-rose-600 text-center">
-                      Requiere apps de terceros con pago extra
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="py-2.5 pr-3 font-semibold">Multi-Sucursal & Inventario Unificado</td>
-                    <td className="py-2.5 px-3 bg-blue-50/50 font-black text-emerald-700 text-center">
-                      ✓ Incluido con transferencias en vivo
-                    </td>
-                    <td className="py-2.5 pl-3 text-slate-500 text-center">
-                      Solo en Planes Enterprise ($80.000+)
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
           </div>
 
           {/* Mercado Pago Checkout Action Card */}

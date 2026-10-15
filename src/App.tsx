@@ -137,8 +137,6 @@ const MasterAdminPanelModal = lazy(() => import('./components/MasterAdminPanelMo
 const SaaSSubscriptionModal = lazy(() => import('./components/SaaSSubscriptionModal').then(m => ({ default: m.SaaSSubscriptionModal })));
 const CreateTenantModal = lazy(() => import('./components/CreateTenantModal').then(m => ({ default: m.CreateTenantModal })));
 const CustomDomainModal = lazy(() => import('./components/CustomDomainModal').then(m => ({ default: m.CustomDomainModal })));
-const MultiSucursalModal = lazy(() => import('./components/MultiSucursalModal').then(m => ({ default: m.MultiSucursalModal })));
-import { sendBrowserPushNotification } from './utils/webNotifications';
 
 import { CookieConsentBanner } from './components/CookieConsentBanner';
 import { TenantStatusBanner } from './components/TenantStatusBanner';
@@ -270,8 +268,6 @@ export default function App() {
   const [isLegalModalOpen, setIsLegalModalOpen] = useState(false);
   const [legalModalTab, setLegalModalTab] = useState<LegalTab>('terms');
   const [isSitemapModalOpen, setIsSitemapModalOpen] = useState(false);
-  const [isMultiSucursalModalOpen, setIsMultiSucursalModalOpen] = useState(false);
-  const [activeBranchId, setActiveBranchId] = useState<string>('branch-central');
 
   const handleOpenLegalModal = (tab: LegalTab = 'terms') => {
     setLegalModalTab(tab);
@@ -1311,16 +1307,16 @@ export default function App() {
         }).catch(err => console.warn('Error en auto-sync Meta:', err));
       }
     } else {
-      // Create new product - Enforce trial and Emprendedor (250 products) limits
+      // Create new product - Enforce trial (50 products) and basic (150 products) limits
       const isTrial = activeTenant.id !== 'titufaris' && (activeTenant.planId === 'trial' || activeTenant.subscriptionStatus === 'trial');
       const isBasic = activeTenant.id !== 'titufaris' && activeTenant.planId === 'basic';
-      if (isTrial && products.length >= 250) {
-        alert('Has alcanzado el límite de 250 productos de tu prueba gratuita bonificada de 3 meses. Todas las funciones permanecen activas, pero para incorporar más artículos por favor escala al Plan Negocio Pro con productos ilimitados.');
+      if (isTrial && products.length >= 50) {
+        alert('Has alcanzado el límite de 50 productos de tu prueba gratuita de 3 meses. Todas las funciones permanecen activas, pero para incorporar más artículos por favor escala tu tienda a un plan comercial.');
         setIsSaaSSubscriptionModalOpen(true);
         return;
       }
-      if (isBasic && products.length >= 250) {
-        alert('Has alcanzado el límite de 250 productos del Plan Emprendedor. Para contar con productos ilimitados y multi-caja, por favor escala al Plan Negocio Pro.');
+      if (isBasic && products.length >= 150) {
+        alert('Has alcanzado el límite de 150 productos del Plan Básico. Para contar con productos ilimitados, por favor escala al Plan Profesional Pro.');
         setIsSaaSSubscriptionModalOpen(true);
         return;
       }
@@ -1389,13 +1385,13 @@ export default function App() {
   const handleOpenNewProduct = () => {
     const isTrial = activeTenant.id !== 'titufaris' && (activeTenant.planId === 'trial' || activeTenant.subscriptionStatus === 'trial');
     const isBasic = activeTenant.id !== 'titufaris' && activeTenant.planId === 'basic';
-    if (isTrial && products.length >= 250) {
-      alert('Has alcanzado el límite de 250 productos de tu prueba gratuita bonificada de 3 meses. Todas las funciones permanecen activas, pero para incorporar más artículos por favor escala al Plan Negocio Pro.');
+    if (isTrial && products.length >= 50) {
+      alert('Has alcanzado el límite de 50 productos de tu prueba gratuita de 3 meses. Todas las funciones permanecen activas, pero para incorporar más artículos por favor escala tu tienda.');
       setIsSaaSSubscriptionModalOpen(true);
       return;
     }
-    if (isBasic && products.length >= 250) {
-      alert('Has alcanzado el límite de 250 productos del Plan Emprendedor. Para contar con productos ilimitados, por favor escala al Plan Negocio Pro.');
+    if (isBasic && products.length >= 150) {
+      alert('Has alcanzado el límite de 150 productos del Plan Básico. Para contar con productos ilimitados, por favor escala al Plan Profesional Pro.');
       setIsSaaSSubscriptionModalOpen(true);
       return;
     }
@@ -1474,13 +1470,13 @@ export default function App() {
   const handleDuplicateProduct = (product: Product) => {
     const isTrial = activeTenant.id !== 'titufaris' && (activeTenant.planId === 'trial' || activeTenant.subscriptionStatus === 'trial');
     const isBasic = activeTenant.id !== 'titufaris' && activeTenant.planId === 'basic';
-    if (isTrial && products.length >= 250) {
-      alert('Has alcanzado el límite de 250 productos de tu prueba gratuita bonificada de 3 meses. Para duplicar y agregar más productos, por favor escala al Plan Negocio Pro.');
+    if (isTrial && products.length >= 50) {
+      alert('Has alcanzado el límite de 50 productos de tu prueba gratuita de 3 meses. Para duplicar y agregar más productos, por favor escala tu tienda a un plan comercial.');
       setIsSaaSSubscriptionModalOpen(true);
       return;
     }
-    if (isBasic && products.length >= 250) {
-      alert('Has alcanzado el límite de 250 productos del Plan Emprendedor. Por favor escala al Plan Negocio Pro para productos ilimitados.');
+    if (isBasic && products.length >= 150) {
+      alert('Has alcanzado el límite de 150 productos del Plan Básico. Por favor escala al Plan Profesional Pro para productos ilimitados.');
       setIsSaaSSubscriptionModalOpen(true);
       return;
     }
@@ -1651,13 +1647,11 @@ export default function App() {
     const saleId = 'sale-' + Date.now();
     const createdSale: Sale = {
       id: saleId,
-      branchId: activeBranchId,
-      branchName: activeBranchId === 'branch-norte' ? 'Sucursal Norte' : activeBranchId === 'branch-deposito' ? 'Depósito Central' : 'Sucursal Central',
       createdAt: new Date().toISOString(),
       ...saleData,
     };
 
-    // 1. Optimistic Local Stock Deduction (including multi-branch stock)
+    // 1. Optimistic Local Stock Deduction
     setProducts(prev => {
       const updated = [...prev];
       saleData.items.forEach(item => {
@@ -1665,11 +1659,7 @@ export default function App() {
         if (idx !== -1) {
           const currentProd = updated[idx];
           const nextStock = Math.max(0, currentProd.stock - item.quantity);
-          const nextBranchStock = { ...(currentProd.branchStock || {}) };
-          if (activeBranchId) {
-            nextBranchStock[activeBranchId] = Math.max(0, (nextBranchStock[activeBranchId] ?? currentProd.stock) - item.quantity);
-          }
-          updated[idx] = { ...currentProd, stock: nextStock, branchStock: nextBranchStock };
+          updated[idx] = { ...currentProd, stock: nextStock };
 
           // Trigger warning if reached low threshold
           if (nextStock <= currentProd.minStock) {
@@ -1683,9 +1673,6 @@ export default function App() {
               productId: item.productId,
             };
             setNotifications(n => [notif, ...n]);
-            sendBrowserPushNotification(`⚠️ Stock Crítico: ${item.name}`, {
-              body: `Nivel de inventario bajo: solo restan ${nextStock} unidades.`
-            });
           }
         }
       });
@@ -1738,7 +1725,7 @@ export default function App() {
       saleData.total
     );
 
-    // 5. Add In-App Notification & Native Browser Push
+    // 5. Add Notification
     const saleNotif: PushNotification = {
       id: 'notif-' + Date.now(),
       title: `Venta Registrada ${saleData.receiptNumber}`,
@@ -1748,11 +1735,6 @@ export default function App() {
       timestamp: 'Recién',
     };
     setNotifications(prev => [saleNotif, ...prev]);
-
-    // Trigger Native Web Push Notification (Plan Pro & Empresa)
-    sendBrowserPushNotification(`🛒 Venta Cobrada: ${createdSale.receiptNumber}`, {
-      body: `Cobrado: ${formatCurrency(createdSale.total)} • ${createdSale.items.length} artículos por ${currentUser.name}`
-    });
   };
 
   const handleCancelSale = async (saleId: string, restoreStock: boolean, reason?: string) => {
@@ -2391,7 +2373,6 @@ export default function App() {
             onOpenMasterPanel={() => setIsMasterPanelOpen(true)}
             onOpenSubscriptionModal={() => setIsSaaSSubscriptionModalOpen(true)}
             onOpenCustomDomain={() => setIsCustomDomainModalOpen(true)}
-            onOpenMultiSucursal={() => setIsMultiSucursalModalOpen(true)}
           />
 
           <TenantStatusBanner
@@ -2998,8 +2979,6 @@ export default function App() {
             cart={cart}
             company={company}
             currentUser={currentUser}
-            activeBranchName={activeBranchId === 'branch-norte' ? 'Sucursal Norte' : activeBranchId === 'branch-deposito' ? 'Depósito Central' : 'Sucursal Central'}
-            onOpenMultiSucursal={() => setIsMultiSucursalModalOpen(true)}
             onAddToCart={handleAddToCart}
             onUpdateCartQty={handleUpdateCartQty}
             onRemoveCartItem={handleRemoveCartItem}
@@ -3204,9 +3183,6 @@ export default function App() {
             onClose={() => setIsUsersModalOpen(false)}
             onSaveUser={handleSaveUser}
             onSwitchUser={handleSwitchUser}
-            planId={activeTenant.planId}
-            onOpenUpgradeModal={() => setIsSaaSSubscriptionModalOpen(true)}
-            isDefaultStore={activeTenant.id === 'titufaris' || activeTenant.isDefaultStore}
           />
         )}
       </Suspense>
@@ -3397,29 +3373,6 @@ export default function App() {
             onUpdateTenants={setSaaSTenants}
             onSelectTenantDomain={(domain) => {
               handleSelectTenant(activeTenant.id);
-            }}
-          />
-        </Suspense>
-      )}
-
-      {/* 19. Multi-Sucursal & Unified Real-Time Inventory Modal (Plan Empresa) */}
-      {isMultiSucursalModalOpen && (
-        <Suspense fallback={null}>
-          <MultiSucursalModal
-            isOpen={isMultiSucursalModalOpen}
-            onClose={() => setIsMultiSucursalModalOpen(false)}
-            products={products}
-            onUpdateProducts={(updated) => {
-              setProducts(updated);
-              saveProducts(updated, activeTenantId);
-            }}
-            currentTenant={activeTenant}
-            currentUserName={currentUser.name}
-            activeBranchId={activeBranchId}
-            onSelectActiveBranch={setActiveBranchId}
-            onOpenUpgradeModal={() => {
-              setIsMultiSucursalModalOpen(false);
-              setIsSaaSSubscriptionModalOpen(true);
             }}
           />
         </Suspense>

@@ -1,12 +1,7 @@
 import React from 'react';
-import { X, Bell, AlertTriangle, ShoppingCart, RefreshCw, Info, CheckCircle2, Volume2, VolumeX, Smartphone } from 'lucide-react';
+import { X, Bell, AlertTriangle, ShoppingCart, RefreshCw, Info, CheckCircle2, Volume2, VolumeX } from 'lucide-react';
 import { PushNotification } from '../types';
 import { isSoundEnabled, toggleSound } from '../utils/audio';
-import {
-  isPushNotificationEnabledByUser,
-  requestPushNotificationPermission,
-  sendBrowserPushNotification
-} from '../utils/webNotifications';
 
 interface NotificationsDrawerProps {
   isOpen: boolean;
@@ -26,27 +21,10 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
   onSelectNotification,
 }) => {
   const [soundOn, setSoundOn] = React.useState(isSoundEnabled());
-  const [pushEnabled, setPushEnabled] = React.useState(isPushNotificationEnabledByUser());
 
   const handleToggleAudio = () => {
     const newState = toggleSound();
     setSoundOn(newState);
-  };
-
-  const handleEnablePush = async () => {
-    const granted = await requestPushNotificationPermission();
-    setPushEnabled(granted);
-    if (granted) {
-      sendBrowserPushNotification('¡Notificaciones Push Activadas!', {
-        body: 'Titufaris te avisará cada vez que ingreses una venta o tu inventario requiera reposición.'
-      });
-    }
-  };
-
-  const handleTestPush = () => {
-    sendBrowserPushNotification('🔔 Alerta de Prueba Titufaris', {
-      body: 'El sistema de notificaciones Push en tu dispositivo funciona al 100%.'
-    });
   };
 
   if (!isOpen) return null;
@@ -110,41 +88,8 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
             </div>
           </div>
 
-          {/* Web Push Notification status & permission */}
-          <div className="p-3 bg-gradient-to-r from-orange-50 to-amber-50 border-b border-orange-200">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <span className={`w-2.5 h-2.5 rounded-full ${pushEnabled ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
-                <div>
-                  <p className="text-xs font-bold text-slate-800">
-                    Notificaciones en Pantalla (Push)
-                  </p>
-                  <p className="text-[11px] text-slate-500">
-                    {pushEnabled ? 'Activas: Recibirás avisos ante cada venta o stock bajo' : 'Recibe avisos incluso con la app minimizada'}
-                  </p>
-                </div>
-              </div>
-
-              {!pushEnabled ? (
-                <button
-                  onClick={handleEnablePush}
-                  className="px-2.5 py-1 text-xs font-bold text-white bg-orange-600 hover:bg-orange-700 rounded-lg transition shadow-xs cursor-pointer shrink-0"
-                >
-                  Activar
-                </button>
-              ) : (
-                <button
-                  onClick={handleTestPush}
-                  className="px-2 py-0.5 text-[11px] font-semibold text-orange-700 bg-orange-100 hover:bg-orange-200 rounded-md transition cursor-pointer shrink-0"
-                >
-                  Probar
-                </button>
-              )}
-            </div>
-          </div>
-
           {/* Action Bar */}
-          <div className="px-4 py-2 bg-slate-50 border-b border-slate-200 flex items-center justify-between text-xs">
+          <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between text-xs">
             <span className="text-slate-600 font-medium">
               {unreadCount} sin leer • {notifications.length} total
             </span>

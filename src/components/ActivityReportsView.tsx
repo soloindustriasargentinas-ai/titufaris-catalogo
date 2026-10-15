@@ -24,7 +24,6 @@ import {
 import { ActivityLog, ActivityAction, Product, Sale, User, PaymentMethod, CompanyProfile } from '../types';
 import { formatCurrency, formatDate } from '../utils/storage';
 import { extractCustomersFromSales } from '../utils/customers';
-import { exportLibroIvaVentasCSV } from '../utils/accountingExport';
 import { CustomersRemarketingView } from './CustomersRemarketingView';
 
 interface ActivityReportsViewProps {
@@ -354,16 +353,6 @@ export const ActivityReportsView: React.FC<ActivityReportsViewProps> = ({
                 <option value="completed">Solo Cobradas</option>
                 <option value="cancelled">Solo Anuladas / Canceladas</option>
               </select>
-
-              {/* Libro IVA Ventas Export */}
-              <button
-                onClick={() => exportLibroIvaVentasCSV(sales, company)}
-                title="Descargar planilla Excel / CSV con Libro IVA Ventas y Facturación Oficial"
-                className="px-3 py-1.5 text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 shadow-xs"
-              >
-                <FileText className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Libro IVA Ventas (Excel/CSV)</span>
-              </button>
 
               {onClearAllSales && sales.length > 0 && (
                 <button

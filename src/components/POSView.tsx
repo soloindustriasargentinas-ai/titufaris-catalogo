@@ -10,8 +10,6 @@ interface POSViewProps {
   cart: CartItem[];
   company: CompanyProfile;
   currentUser: User;
-  activeBranchName?: string;
-  onOpenMultiSucursal?: () => void;
   onAddToCart: (product: Product, priceType?: 'retail' | 'wholesale') => void;
   onUpdateCartQty: (productId: string, qty: number) => void;
   onRemoveCartItem: (productId: string) => void;
@@ -25,8 +23,6 @@ export const POSView: React.FC<POSViewProps> = ({
   cart,
   company,
   currentUser,
-  activeBranchName = 'Sucursal Central',
-  onOpenMultiSucursal,
   onAddToCart,
   onUpdateCartQty,
   onRemoveCartItem,
@@ -118,17 +114,6 @@ export const POSView: React.FC<POSViewProps> = ({
                 <Barcode className="w-4 h-4 text-orange-400" />
                 <span className="hidden sm:inline">Escanear</span>
               </button>
-
-              {onOpenMultiSucursal && (
-                <button
-                  onClick={onOpenMultiSucursal}
-                  title="Punto de venta y sucursal de facturación"
-                  className="flex items-center gap-1.5 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-200 rounded-xl text-xs font-bold transition-colors cursor-pointer shrink-0"
-                >
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                  <span className="truncate max-w-[120px] sm:max-w-none">{activeBranchName}</span>
-                </button>
-              )}
             </div>
           </div>
 
