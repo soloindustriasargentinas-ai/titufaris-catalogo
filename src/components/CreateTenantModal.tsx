@@ -90,9 +90,9 @@ export const CreateTenantModal: React.FC<CreateTenantModalProps> = ({
 
       const priceMap: Record<SaaSPlanId, number> = {
         trial: 0,
-        basic: 25000,
-        pro: 45000,
-        enterprise: 85000
+        basic: 8990,
+        pro: 16990,
+        enterprise: 29990
       };
 
       const newTenant: SaaSTenantStore = {
@@ -342,10 +342,11 @@ export const CreateTenantModal: React.FC<CreateTenantModalProps> = ({
                 >
                   <div>
                     <span className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Inicial</span>
-                    <h4 className="font-bold text-slate-900 text-sm mt-0.5">Plan Básico</h4>
-                    <p className="text-xl font-black text-slate-900 my-2">$25.000 <span className="text-xs font-normal text-slate-500">ARS/mes</span></p>
+                    <h4 className="font-bold text-slate-900 text-sm mt-0.5">Plan Emprendedor</h4>
+                    <p className="text-xl font-black text-slate-900 my-2">$8.990 <span className="text-xs font-normal text-slate-500">ARS/mes</span></p>
                     <ul className="text-[11px] text-slate-600 space-y-1">
-                      <li>&bull; <strong>Hasta 150 productos activos</strong></li>
+                      <li>&bull; <strong>Hasta 250 productos activos</strong></li>
+                      <li>&bull; <strong>0% comisiones por venta</strong></li>
                       <li>&bull; Subdominio .titufaris.online con SSL</li>
                       <li>&bull; Catálogo & Pedidos a WhatsApp</li>
                       <li>&bull; Punto de Venta (POS) mostrador</li>
@@ -367,15 +368,15 @@ export const CreateTenantModal: React.FC<CreateTenantModalProps> = ({
                   </span>
                   <div>
                     <span className="text-[10px] font-black uppercase text-indigo-700 tracking-wider">En Expansión</span>
-                    <h4 className="font-bold text-slate-900 text-sm mt-0.5">Plan Profesional Pro</h4>
-                    <p className="text-xl font-black text-slate-900 my-2">$45.000 <span className="text-xs font-normal text-slate-500">ARS/mes</span></p>
+                    <h4 className="font-bold text-slate-900 text-sm mt-0.5">Plan Negocio Pro</h4>
+                    <p className="text-xl font-black text-slate-900 my-2">$16.990 <span className="text-xs font-normal text-slate-500">ARS/mes</span></p>
                     <ul className="text-[11px] text-slate-600 space-y-1">
                       <li>&bull; <strong>Productos Ilimitados</strong></li>
-                      <li>&bull; Control de stock multi-caja en vivo</li>
-                      <li>&bull; Cuentas para empleados y roles</li>
-                      <li>&bull; Catálogo PDF con códigos QR</li>
-                      <li>&bull; Pasarela de cobros en vivo</li>
-                      <li>&bull; Respaldo continuo en Firebase</li>
+                      <li>&bull; <strong>0% comisiones por venta</strong></li>
+                      <li>&bull; Dominio propio (.com / .com.ar) con SSL</li>
+                      <li>&bull; Hasta 5 empleados y roles</li>
+                      <li>&bull; Notificaciones Push en tiempo real</li>
+                      <li>&bull; Reportes contables y Libro IVA Ventas</li>
                     </ul>
                   </div>
                 </div>
@@ -390,15 +391,15 @@ export const CreateTenantModal: React.FC<CreateTenantModalProps> = ({
                 >
                   <div>
                     <span className="text-[10px] font-black uppercase text-purple-700 tracking-wider">Cadenas & Marcas</span>
-                    <h4 className="font-bold text-slate-900 text-sm mt-0.5">Plan Enterprise</h4>
-                    <p className="text-xl font-black text-slate-900 my-2">$85.000 <span className="text-xs font-normal text-slate-500">ARS/mes</span></p>
+                    <h4 className="font-bold text-slate-900 text-sm mt-0.5">Plan Empresa & Multi-Sucursal</h4>
+                    <p className="text-xl font-black text-slate-900 my-2">$29.990 <span className="text-xs font-normal text-slate-500">ARS/mes</span></p>
                     <ul className="text-[11px] text-slate-600 space-y-1">
                       <li>&bull; Todo lo del Plan Pro</li>
-                      <li>&bull; <strong>Dominio Propio (ej: mitienda.com)</strong></li>
-                      <li>&bull; Multi-sucursal y depósitos</li>
+                      <li>&bull; <strong>Multi-sucursal & depósitos unificados</strong></li>
+                      <li>&bull; Transferencias de stock en tiempo real</li>
+                      <li>&bull; Usuarios y cajeros ilimitados</li>
                       <li>&bull; Google Shopping Feed XML</li>
-                      <li>&bull; Respaldo de nivel empresarial</li>
-                      <li>&bull; Soporte prioritario 24/7</li>
+                      <li>&bull; Respaldo y auditoría en la nube A+</li>
                     </ul>
                   </div>
                 </div>
@@ -407,10 +408,10 @@ export const CreateTenantModal: React.FC<CreateTenantModalProps> = ({
               {/* Free Trial & Subscription info */}
               <div className="bg-gradient-to-r from-emerald-950 via-slate-900 to-indigo-950 text-white p-4 rounded-xl space-y-2 text-xs border border-emerald-500/30">
                 <div className="flex items-center gap-2 text-emerald-400 font-bold">
-                  <ShieldCheck className="w-4 h-4 text-emerald-400" /> 3 Meses 100% Bonificados para 50 Productos &middot; Sin Tarjeta Requerida
+                  <ShieldCheck className="w-4 h-4 text-emerald-400" /> 3 Meses 100% Bonificados &middot; Sin Comisiones por Venta &middot; Sin Tarjeta Requerida
                 </div>
                 <p className="text-slate-300">
-                  Tu tienda quedará creada de inmediato en Firestore y activa por <strong>90 días sin costo alguno para hasta 50 productos con acceso total a todas las funciones</strong>. Durante este período de prueba <strong>no se te solicitará tarjeta de crédito ni de débito</strong>. Al completar los 50 productos o finalizar los 3 meses podrás activar el plan elegido mediante Mercado Pago para continuar escalando.
+                  Tu tienda quedará creada de inmediato en Firestore y activa por <strong>90 días sin costo alguno para hasta 250 productos con acceso total a todas las funciones</strong>. Durante este período de prueba <strong>no se te solicitará tarjeta de crédito ni de débito</strong>. Al completar los productos o finalizar los 3 meses podrás activar el plan elegido mediante Mercado Pago para continuar escalando.
                 </p>
                 <div className="pt-1 text-[11px] text-emerald-300 font-medium border-t border-white/10 flex items-center gap-1.5">
                   <span>🔒 Respaldo en Firebase Firestore: toda la información de productos, inventario, ventas y configuración está resguardada en la nube y nunca se perderá.</span>

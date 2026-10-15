@@ -30,6 +30,7 @@ interface RecoveryModalProps {
   currentProducts: Product[];
   onRecoverProducts: (productsToRestore: Product[]) => void;
   onOpenBackupModal?: () => void;
+  tenantId?: string;
 }
 
 export const RecoveryModal: React.FC<RecoveryModalProps> = ({
@@ -38,6 +39,7 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
   currentProducts,
   onRecoverProducts,
   onOpenBackupModal,
+  tenantId,
 }) => {
   const [activeTab, setActiveTab] = useState<'auto_scan' | 'quick_paste' | 'file_upload'>('auto_scan');
   const [scannedItems, setScannedItems] = useState<RecoveredItemSource[]>([]);
@@ -53,12 +55,12 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
     if (isOpen) {
       handleRunScan();
     }
-  }, [isOpen, currentProducts]);
+  }, [isOpen, currentProducts, tenantId]);
 
   const handleRunScan = () => {
     setIsScanning(true);
     setTimeout(() => {
-      const found = scanBrowserForLostProducts(currentProducts);
+      const found = scanBrowserForLostProducts(currentProducts, tenantId);
       setScannedItems(found);
       setSelectedIds(new Set(found.map(f => f.product.id)));
       setIsScanning(false);
