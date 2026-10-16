@@ -41,7 +41,11 @@ import {
   HardDrive,
   Globe,
   Link2,
-  Trash2
+  Trash2,
+  Upload,
+  CloudDownload,
+  CloudUpload,
+  Loader2
 } from 'lucide-react';
 import {
   SaaSTenantStore,
@@ -75,13 +79,23 @@ import {
   validateDomainFormat
 } from '../utils/saasStorage';
 import {
-  saveSaaSTenantToFirestore,
-  saveSaaSSubscriptionRecord,
   auditFirestoreCapacity,
   seedSaaSTenantsToFirestore,
-  runFirestoreCanaryTest
+  runFirestoreCanaryTest,
+  fetchDailySnapshotFromFirestore,
+  saveDailySnapshotToFirestore,
+  fetchProductsFromFirestore,
+  fetchCategoriesFromFirestore,
+  fetchCompanyFromFirestore,
+  seedProductsToFirestore,
+  seedCategoriesToFirestore,
+  saveCompanyToFirestore,
+  saveSaaSTenantToFirestore,
+  saveSaaSSubscriptionRecord,
+  StoreDailySnapshot
 } from '../lib/firebase';
-import { formatCurrency } from '../utils/storage';
+import { formatCurrency, loadProducts, loadCategories, loadCompany, saveProducts, saveCategories, saveCompany } from '../utils/storage';
+import { triggerStoreDailyBackup, loadLocalDailyBackup, downloadStoreSnapshotFile } from '../utils/dailyBackup';
 
 interface MasterAdminPanelModalProps {
   isOpen: boolean;
@@ -91,9 +105,10 @@ interface MasterAdminPanelModalProps {
   activeTenantId: string;
   onSelectTenant: (tenantId: string) => void;
   onOpenCreateTenant?: () => void;
+  onRestoreTenantSnapshot?: (tenantId: string, snapshot: StoreDailySnapshot) => void;
 }
 
-type TabType = 'overview' | 'stores' | 'churn' | 'emails' | 'domains' | 'mercadopago' | 'audit';
+type TabType = 'overview' | 'stores' | 'snapshots' | 'churn' | 'emails' | 'domains' | 'mercadopago' | 'audit';
 
 export const MasterAdminPanelModal: React.FC<MasterAdminPanelModalProps> = ({
   isOpen,
@@ -102,6 +117,8 @@ export const MasterAdminPanelModal: React.FC<MasterAdminPanelModalProps> = ({
   onUpdateTenants,
   activeTenantId,
   onSelectTenant,
+  onOpenCreateTenant,
+  onRestoreTenantSnapshot,
 }) => {
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [searchQuery, setSearchQuery] = useState('');
@@ -111,6 +128,11 @@ export const MasterAdminPanelModal: React.FC<MasterAdminPanelModalProps> = ({
   const [repairLogs, setRepairLogs] = useState<string[]>([]);
   const [isRepairing, setIsRepairing] = useState(false);
   const [customMaintenanceMsg, setCustomMaintenanceMsg] = useState('');
+
+  // Daily Snapshots Management State
+  const [snapshotsMap, setSnapshotsMap] = useState<Record<string, StoreDailySnapshot | null>>({});
+  const [isLoadingSnapshots, setIsLoadingSnapshots] = useState(false);
+  const [actionInProgressTenantId, setActionInProgressTenantId] = useState<string | null>(null);
   const [recontactNoteText, setRecontactNoteText] = useState('');
   const [recontactingTenantId, setRecontactingTenantId] = useState<string | null>(null);
   const [isNewStoreModalOpen, setIsNewStoreModalOpen] = useState(false);
@@ -289,7 +311,171 @@ export const MasterAdminPanelModal: React.FC<MasterAdminPanelModalProps> = ({
     if (activeTab === 'audit' && !auditResult) {
       handleRunCapacityAudit();
     }
+    if (activeTab === 'snapshots') {
+      loadAllTenantSnapshots();
+    }
   }, [activeTab]);
+
+  const loadAllTenantSnapshots = async () => {
+    setIsLoadingSnapshots(true);
+    const results: Record<string, StoreDailySnapshot | null> = {};
+    for (const t of tenants) {
+      try {
+        let snap = await fetchDailySnapshotFromFirestore(t.id);
+        if (!snap) {
+          snap = loadLocalDailyBackup(t.id);
+        }
+        results[t.id] = snap;
+      } catch {
+        results[t.id] = loadLocalDailyBackup(t.id);
+      }
+    }
+    setSnapshotsMap(results);
+    setIsLoadingSnapshots(false);
+  };
+
+  const handleCreateSnapshotForTenant = async (tenant: SaaSTenantStore) => {
+    setActionInProgressTenantId(tenant.id);
+    try {
+      const prods = loadProducts(tenant.id);
+      const cats = loadCategories(tenant.id);
+      const comp = loadCompany(tenant.id);
+
+      const res = await triggerStoreDailyBackup(tenant.id, tenant.name, prods, cats, comp, { force: true });
+
+      if (res.success && res.snapshot) {
+        showToast(`Backup diario guardado y blindado en Firestore para "${tenant.name}" (${prods.length} productos con fotos y descripciones)`);
+        setSnapshotsMap(prev => ({
+          ...prev,
+          [tenant.id]: res.snapshot!
+        }));
+      } else {
+        showToast(`Error al guardar backup: ${res.error}`);
+      }
+    } catch {
+      showToast('Error al crear backup en Firestore');
+    } finally {
+      setActionInProgressTenantId(null);
+    }
+  };
+
+  const handleBatchBackupAllTenants = async () => {
+    setIsLoadingSnapshots(true);
+    showToast('Iniciando backup diario automático de todas las tiendas...');
+    let successCount = 0;
+    const updatedMap = { ...snapshotsMap };
+
+    for (const t of tenants) {
+      try {
+        const prods = loadProducts(t.id);
+        const cats = loadCategories(t.id);
+        const comp = loadCompany(t.id);
+        const res = await triggerStoreDailyBackup(t.id, t.name, prods, cats, comp, { force: true });
+        if (res.success && res.snapshot) {
+          updatedMap[t.id] = res.snapshot;
+          successCount++;
+        }
+      } catch (err) {
+        console.warn(`Error backing up tenant ${t.id}:`, err);
+      }
+    }
+
+    setSnapshotsMap(updatedMap);
+    setIsLoadingSnapshots(false);
+    showToast(`¡Respaldo diario finalizado! ${successCount} de ${tenants.length} tiendas respaldadas con éxito.`);
+  };
+
+  const handleRestoreTenantFromSnapshot = async (tenant: SaaSTenantStore) => {
+    const snap = snapshotsMap[tenant.id] || loadLocalDailyBackup(tenant.id);
+    if (!snap) {
+      showToast('No hay backup diario disponible para esta tienda');
+      return;
+    }
+
+    if (!confirm(`¿Restaurar la tienda "${tenant.name}" al backup diario del ${new Date(snap.createdAt).toLocaleString()}? Esto recuperará los ${snap.products.length} productos con fotos, descripciones, categorías y datos de la empresa.`)) {
+      return;
+    }
+
+    setActionInProgressTenantId(tenant.id);
+    try {
+      // 1. Save to local storage
+      saveProducts(snap.products, tenant.id);
+      saveCategories(snap.categories, tenant.id);
+      saveCompany(snap.company, tenant.id);
+
+      // 2. Push to Firestore collections
+      await seedProductsToFirestore(snap.products, tenant.id);
+      await seedCategoriesToFirestore(snap.categories, tenant.id);
+      await saveCompanyToFirestore(snap.company, tenant.id);
+
+      // 3. Notify app state if this tenant is currently active
+      if (onRestoreTenantSnapshot) {
+        onRestoreTenantSnapshot(tenant.id, snap);
+      }
+
+      showToast(`¡Tienda "${tenant.name}" restaurada con éxito! Se restablecieron ${snap.products.length} productos con fotos y descripciones.`);
+    } catch {
+      showToast('Error al restaurar tienda desde el backup');
+    } finally {
+      setActionInProgressTenantId(null);
+    }
+  };
+
+  const handleUploadSnapshotJSON = async (tenant: SaaSTenantStore, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      if (!parsed || !Array.isArray(parsed.products)) {
+        showToast('El archivo JSON no tiene un formato válido con lista de productos');
+        return;
+      }
+      const restoredSnap: StoreDailySnapshot = {
+        tenantId: tenant.id,
+        storeName: tenant.name,
+        createdAt: new Date().toISOString(),
+        version: '1.0',
+        productsCount: parsed.products.length,
+        categoriesCount: parsed.categories?.length || 0,
+        products: parsed.products,
+        categories: parsed.categories || [],
+        company: parsed.company || loadCompany(tenant.id)
+      };
+
+      if (!confirm(`¿Restaurar "${tenant.name}" importando los ${restoredSnap.products.length} productos desde este archivo JSON?`)) {
+        return;
+      }
+
+      setActionInProgressTenantId(tenant.id);
+      saveProducts(restoredSnap.products, tenant.id);
+      saveCategories(restoredSnap.categories, tenant.id);
+      saveCompany(restoredSnap.company, tenant.id);
+
+      await seedProductsToFirestore(restoredSnap.products, tenant.id);
+      await seedCategoriesToFirestore(restoredSnap.categories, tenant.id);
+      await saveCompanyToFirestore(restoredSnap.company, tenant.id);
+      await saveDailySnapshotToFirestore(tenant.id, restoredSnap);
+
+      setSnapshotsMap(prev => ({ ...prev, [tenant.id]: restoredSnap }));
+      if (onRestoreTenantSnapshot) {
+        onRestoreTenantSnapshot(tenant.id, restoredSnap);
+      }
+      showToast(`¡Tienda "${tenant.name}" restaurada desde archivo JSON con ${restoredSnap.products.length} productos!`);
+    } catch {
+      showToast('Error al leer o procesar el archivo JSON de respaldo');
+    } finally {
+      setActionInProgressTenantId(null);
+      e.target.value = '';
+    }
+  };
+
+  const handleDownloadSnapshotJSON = (tenant: SaaSTenantStore) => {
+    const snap = snapshotsMap[tenant.id] || loadLocalDailyBackup(tenant.id);
+    if (!snap) return;
+    downloadStoreSnapshotFile(snap);
+    showToast(`Backup diario JSON de "${tenant.name}" descargado en tu equipo`);
+  };
 
   const handleRunCapacityAudit = async () => {
     setIsAuditing(true);
@@ -948,6 +1134,21 @@ export const MasterAdminPanelModal: React.FC<MasterAdminPanelModalProps> = ({
               <span>Dominios Propios & DNS</span>
               <span className="bg-indigo-100 text-indigo-900 font-extrabold px-1.5 py-0.2 rounded-full text-[10px]">
                 {tenants.filter(t => !!t.customDomain).length}
+              </span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('snapshots')}
+              className={`px-3 py-2 rounded-lg transition flex items-center gap-1.5 cursor-pointer ${
+                activeTab === 'snapshots'
+                  ? 'bg-indigo-600 text-white font-bold shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+              }`}
+            >
+              <Database className="w-4 h-4 text-amber-300" />
+              <span>Snapshots Diarios</span>
+              <span className="bg-amber-400 text-slate-950 font-black px-1.5 py-0.2 rounded-full text-[10px]">
+                Cloud A+
               </span>
             </button>
 
@@ -2494,14 +2695,14 @@ export const MasterAdminPanelModal: React.FC<MasterAdminPanelModalProps> = ({
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
                   <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex flex-col justify-between">
                     <div>
-                      <div className="font-bold text-slate-800">Plan Básico</div>
-                      <div className="text-slate-500 text-[11px]">$25.000 ARS / mes</div>
+                      <div className="font-bold text-slate-800">Plan Emprendedor</div>
+                      <div className="text-slate-500 text-[11px]">$8.990 ARS / mes</div>
                     </div>
                     <button
                       onClick={() => {
                         const url = `https://www.mercadopago.com.ar/subscriptions/checkout?preapproval_plan_id=${mpSettings.plans.basicPlanId || '2c9380848f0001'}`;
                         navigator.clipboard.writeText(url);
-                        showToast('Link de suscripción Plan Básico copiado');
+                        showToast('Link de suscripción Plan Emprendedor copiado');
                       }}
                       className="mt-2 py-1 px-2 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center gap-1 transition cursor-pointer"
                     >
@@ -2512,14 +2713,14 @@ export const MasterAdminPanelModal: React.FC<MasterAdminPanelModalProps> = ({
 
                   <div className="p-3 bg-indigo-50/40 rounded-xl border border-indigo-200 flex flex-col justify-between">
                     <div>
-                      <div className="font-bold text-indigo-900">Plan Profesional</div>
-                      <div className="text-indigo-600 text-[11px]">$45.000 ARS / mes</div>
+                      <div className="font-bold text-indigo-900">Plan Negocio Pro</div>
+                      <div className="text-indigo-600 text-[11px]">$16.990 ARS / mes</div>
                     </div>
                     <button
                       onClick={() => {
                         const url = `https://www.mercadopago.com.ar/subscriptions/checkout?preapproval_plan_id=${mpSettings.plans.proPlanId || '2c9380848f0002'}`;
                         navigator.clipboard.writeText(url);
-                        showToast('Link de suscripción Plan Profesional copiado');
+                        showToast('Link de suscripción Plan Negocio Pro copiado');
                       }}
                       className="mt-2 py-1 px-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold flex items-center justify-center gap-1 transition cursor-pointer"
                     >
@@ -2530,14 +2731,14 @@ export const MasterAdminPanelModal: React.FC<MasterAdminPanelModalProps> = ({
 
                   <div className="p-3 bg-amber-50/40 rounded-xl border border-amber-200 flex flex-col justify-between">
                     <div>
-                      <div className="font-bold text-amber-900">Plan Enterprise</div>
-                      <div className="text-amber-600 text-[11px]">$85.000 ARS / mes</div>
+                      <div className="font-bold text-amber-900">Plan Empresa</div>
+                      <div className="text-amber-600 text-[11px]">$29.990 ARS / mes</div>
                     </div>
                     <button
                       onClick={() => {
                         const url = `https://www.mercadopago.com.ar/subscriptions/checkout?preapproval_plan_id=${mpSettings.plans.enterprisePlanId || '2c9380848f0003'}`;
                         navigator.clipboard.writeText(url);
-                        showToast('Link de suscripción Plan Enterprise copiado');
+                        showToast('Link de suscripción Plan Empresa copiado');
                       }}
                       className="mt-2 py-1 px-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-bold flex items-center justify-center gap-1 transition cursor-pointer"
                     >
@@ -2737,6 +2938,178 @@ export const MasterAdminPanelModal: React.FC<MasterAdminPanelModalProps> = ({
             </div>
           )}
 
+          {/* TAB: DAILY SNAPSHOTS & DISASTER RECOVERY (CENTRAL MASTER CONTROL) */}
+          {activeTab === 'snapshots' && (
+            <div className="space-y-5">
+              <div className="p-4 bg-gradient-to-r from-indigo-950 via-slate-900 to-indigo-950 rounded-2xl text-white flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-lg border border-indigo-800/40">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-amber-400 text-slate-950 flex items-center justify-center font-black shadow-md">
+                    <Database className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-base text-white flex items-center gap-2">
+                      <span>Respaldo Maestro Diario en Google Firestore</span>
+                      <span className="bg-emerald-500/30 text-emerald-300 text-[10px] font-black uppercase px-2 py-0.5 rounded-full border border-emerald-400/30">
+                        1 Snapshot Sobrescribible por Tienda
+                      </span>
+                    </h3>
+                    <p className="text-xs text-indigo-200 mt-0.5 max-w-2xl">
+                      Garantiza la recuperación total de cada tienda (fotos, especificaciones, precios y datos comerciales) sin saturar almacenamiento. Si Coolify o un redeploy reinicia el contenedor, puedes restaurar cualquier tienda con 1 clic.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleBatchBackupAllTenants}
+                    disabled={isLoadingSnapshots}
+                    className="px-3.5 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs transition flex items-center gap-1.5 cursor-pointer shadow-md shrink-0"
+                    title="Crea o actualiza el backup diario de todas las tiendas de forma automática"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-slate-950" />
+                    <span>Respaldar TODAS las Tiendas</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={loadAllTenantSnapshots}
+                    disabled={isLoadingSnapshots}
+                    className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs transition flex items-center gap-1.5 cursor-pointer shrink-0"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isLoadingSnapshots ? 'animate-spin' : ''}`} />
+                    <span>Refrescar</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Table of Tenants and their Snapshot Status */}
+              <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
+                <div className="p-4 border-b border-slate-200 flex items-center justify-between">
+                  <div>
+                    <h4 className="font-bold text-xs text-slate-900 uppercase tracking-wider">
+                      Estado de Snapshots por Tienda ({tenants.length})
+                    </h4>
+                    <p className="text-[11px] text-slate-500">
+                      Ubicación de almacenamiento: Firestore Cloud <code>/snapshots/snapshot_{'{tenantId}'}</code> y caché local
+                    </p>
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase text-[10px]">
+                        <th className="py-2.5 px-4">Tienda</th>
+                        <th className="py-2.5 px-4">Subdominio / Slug</th>
+                        <th className="py-2.5 px-4">Último Snapshot Cloud</th>
+                        <th className="py-2.5 px-4">Contenido Guardado</th>
+                        <th className="py-2.5 px-4 text-right">Acciones de Rescate</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {tenants.map(t => {
+                        const snap = snapshotsMap[t.id];
+                        const isBusy = actionInProgressTenantId === t.id;
+                        return (
+                          <tr key={t.id} className="hover:bg-slate-50/70 transition">
+                            <td className="py-3 px-4">
+                              <div className="font-bold text-slate-900">{t.name}</div>
+                              <div className="text-[10px] text-slate-500">{t.ownerEmail}</div>
+                            </td>
+                            <td className="py-3 px-4">
+                              <span className="font-mono text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded text-[11px]">
+                                {t.slug}.titufaris.online
+                              </span>
+                            </td>
+                            <td className="py-3 px-4">
+                              {snap ? (
+                                <div>
+                                  <span className="font-bold text-slate-800 text-xs">
+                                    {new Date(snap.createdAt).toLocaleDateString()}
+                                  </span>
+                                  <span className="text-[10px] text-slate-500 block">
+                                    {new Date(snap.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                  </span>
+                                </div>
+                              ) : (
+                                <span className="text-amber-700 bg-amber-50 px-2 py-0.5 rounded font-bold text-[10px]">
+                                  Sin Snapshot Aún
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-3 px-4">
+                              {snap ? (
+                                <div className="text-[11px] text-slate-700">
+                                  <strong className="text-emerald-700">{snap.productsCount} productos</strong> con fotos &middot; {snap.categoriesCount} categorías
+                                </div>
+                              ) : (
+                                <span className="text-slate-400 text-[11px]">&mdash;</span>
+                              )}
+                            </td>
+                            <td className="py-3 px-4 text-right space-x-1.5">
+                              {/* Create / Overwrite snapshot */}
+                              <button
+                                type="button"
+                                onClick={() => handleCreateSnapshotForTenant(t)}
+                                disabled={isBusy}
+                                className="px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-800 font-bold text-xs transition cursor-pointer inline-flex items-center gap-1"
+                                title="Sobrescribe o guarda el snapshot maestro con el estado actual de la tienda"
+                              >
+                                {isBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CloudUpload className="w-3.5 h-3.5 text-indigo-600" />}
+                                <span>{snap ? 'Sobrescribir' : 'Crear Snapshot'}</span>
+                              </button>
+
+                              {/* Restore from snapshot */}
+                              {snap && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleRestoreTenantFromSnapshot(t)}
+                                  disabled={isBusy}
+                                  className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition cursor-pointer inline-flex items-center gap-1 shadow-xs"
+                                  title="Restaura esta tienda al estado del snapshot diario (recupera fotos y descripciones)"
+                                >
+                                  {isBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />}
+                                  <span>Restaurar Tienda</span>
+                                </button>
+                              )}
+
+                              {/* Download JSON */}
+                              {snap && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleDownloadSnapshotJSON(t)}
+                                  className="px-2 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-xs transition cursor-pointer inline-flex items-center gap-1"
+                                  title="Descargar archivo JSON de este snapshot a tu computadora"
+                                >
+                                  <Download className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+
+                              {/* Upload / Restore JSON */}
+                              <label
+                                className="px-2 py-1.5 rounded-lg bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 text-slate-600 font-medium text-xs transition cursor-pointer inline-flex items-center gap-1"
+                                title="Subir un archivo JSON de respaldo para restaurar esta tienda"
+                              >
+                                <Upload className="w-3.5 h-3.5" />
+                                <input
+                                  type="file"
+                                  accept=".json"
+                                  className="hidden"
+                                  disabled={isBusy}
+                                  onChange={(e) => handleUploadSnapshotJSON(t, e)}
+                                />
+                              </label>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
         </div>
 
         {/* Modal Footer Bar */}
@@ -2838,9 +3211,9 @@ export const MasterAdminPanelModal: React.FC<MasterAdminPanelModalProps> = ({
                   onChange={e => setNewStorePlan(e.target.value as SaaSPlanId)}
                   className="w-full p-2 border border-slate-300 rounded-lg bg-white"
                 >
-                  <option value="basic">Plan Básico ($25.000 ARS / mes)</option>
-                  <option value="pro">Plan Profesional ($45.000 ARS / mes)</option>
-                  <option value="enterprise">Plan Enterprise ($85.000 ARS / mes)</option>
+                  <option value="basic">Plan Emprendedor ($8.990 ARS / mes)</option>
+                  <option value="pro">Plan Negocio Pro ($16.990 ARS / mes)</option>
+                  <option value="enterprise">Plan Empresa ($29.990 ARS / mes)</option>
                 </select>
               </div>
 

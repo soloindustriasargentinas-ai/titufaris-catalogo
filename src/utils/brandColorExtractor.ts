@@ -8,6 +8,26 @@ export interface ExtractedPalette {
   primary: string;
   secondary: string;
   accent: string;
+  topBarBg?: string;
+  headerBg?: string;
+  heroBg?: string;
+}
+
+export function isColorDark(hexColor?: string): boolean {
+  if (!hexColor) return false;
+  const hex = hexColor.replace('#', '').trim();
+  if (hex.length < 3) return false;
+  let r = 0, g = 0, b = 0;
+  if (hex.length === 3) {
+    r = parseInt(hex[0] + hex[0], 16);
+    g = parseInt(hex[1] + hex[1], 16);
+    b = parseInt(hex[2] + hex[2], 16);
+  } else {
+    r = parseInt(hex.substring(0, 2), 16) || 0;
+    g = parseInt(hex.substring(2, 4), 16) || 0;
+    b = parseInt(hex.substring(4, 6), 16) || 0;
+  }
+  return (r * 299 + g * 587 + b * 114) / 1000 < 140;
 }
 
 export interface BrandPalettePreset {
@@ -17,6 +37,9 @@ export interface BrandPalettePreset {
   primary: string;
   secondary: string;
   accent: string;
+  topBarBg?: string;
+  headerBg?: string;
+  heroBg?: string;
 }
 
 export interface BrandFontOption {
@@ -265,7 +288,10 @@ export async function extractPaletteFromImage(imageSrc: string): Promise<Extract
           resolve({
             primary: primaryHex,
             secondary: secondaryHex,
-            accent: accentHex
+            accent: accentHex,
+            topBarBg: secondaryHex,
+            heroBg: secondaryHex,
+            headerBg: '#ffffff',
           });
         } catch {
           resolve(null);

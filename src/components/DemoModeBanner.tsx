@@ -58,7 +58,7 @@ ${demoUrl}
 • 📄 Generador de presupuestos en PDF con membrete oficial y códigos QR.
 • 🌐 Dominio web oficial y sincronización 24/7 en la nube.
 
-Luego de los 3 meses gratis, podés continuar con planes accesibles desde $25.000 ARS/mes con débito automático en Mercado Pago.`;
+Luego de los 3 meses gratis, podés continuar con planes accesibles desde $8.990 ARS/mes con débito automático en Mercado Pago y 0% de comisiones por venta.`;
 
   const handleCopyLink = () => {
     if (navigator.clipboard) {
@@ -169,56 +169,56 @@ Luego de los 3 meses gratis, podés continuar con planes accesibles desde $25.00
 
               {/* Plans Comparison */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-                {/* Básico */}
+                {/* Emprendedor */}
                 <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50 flex flex-col justify-between">
                   <div>
                     <span className="text-[10px] font-black uppercase text-slate-500">Comercios Iniciales</span>
-                    <h4 className="font-bold text-slate-900 text-sm mt-0.5">Plan Básico</h4>
-                    <p className="text-lg font-black text-slate-900 my-2">$25.000 <span className="text-[11px] font-normal text-slate-500">ARS/mes</span></p>
+                    <h4 className="font-bold text-slate-900 text-sm mt-0.5">Plan Emprendedor</h4>
+                    <p className="text-lg font-black text-slate-900 my-2">$8.990 <span className="text-[11px] font-normal text-slate-500">ARS/mes</span></p>
                     <ul className="space-y-1.5 text-slate-600 text-[11px]">
-                      <li>&bull; <strong>Hasta 150 productos</strong></li>
+                      <li>&bull; <strong>Hasta 250 productos</strong></li>
+                      <li>&bull; <strong>0% comisiones por venta</strong></li>
                       <li>&bull; Subdominio .titufaris.online</li>
-                      <li>&bull; Catálogo digital & Carrito</li>
-                      <li>&bull; Pedidos directos a WhatsApp</li>
-                      <li>&bull; Cobros en mostrador (POS)</li>
-                      <li>&bull; Respaldo diario en Firestore</li>
+                      <li>&bull; Catálogo digital & Carrito WhatsApp</li>
+                      <li>&bull; Punto de Venta (POS) con tickets</li>
+                      <li>&bull; Respaldo diario en Google Firestore</li>
                     </ul>
                   </div>
                 </div>
 
-                {/* Pro */}
+                {/* Negocio Pro */}
                 <div className="p-4 rounded-2xl border-2 border-indigo-600 bg-indigo-50/50 flex flex-col justify-between relative shadow-sm">
                   <span className="absolute -top-2.5 right-3 bg-indigo-600 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-full">
                     Más Elegido
                   </span>
                   <div>
                     <span className="text-[10px] font-black uppercase text-indigo-700">En Crecimiento</span>
-                    <h4 className="font-bold text-slate-900 text-sm mt-0.5">Plan Profesional Pro</h4>
-                    <p className="text-lg font-black text-slate-900 my-2">$45.000 <span className="text-[11px] font-normal text-slate-500">ARS/mes</span></p>
+                    <h4 className="font-bold text-slate-900 text-sm mt-0.5">Plan Negocio Pro</h4>
+                    <p className="text-lg font-black text-slate-900 my-2">$16.990 <span className="text-[11px] font-normal text-slate-500">ARS/mes</span></p>
                     <ul className="space-y-1.5 text-slate-600 text-[11px]">
                       <li>&bull; <strong>Productos Ilimitados</strong></li>
-                      <li>&bull; Control de stock multi-caja</li>
-                      <li>&bull; Múltiples roles de empleados</li>
+                      <li>&bull; <strong>0% comisiones por venta</strong></li>
+                      <li>&bull; Dominio web propio (.com / .com.ar)</li>
+                      <li>&bull; Hasta 5 empleados con roles</li>
                       <li>&bull; Presupuestos PDF con membrete</li>
-                      <li>&bull; Pasarela Mercado Pago en vivo</li>
-                      <li>&bull; Sincronización instantánea Cloud</li>
+                      <li>&bull; Feed Google Shopping XML</li>
                     </ul>
                   </div>
                 </div>
 
-                {/* Enterprise */}
+                {/* Empresa & Multi-Sucursal */}
                 <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50 flex flex-col justify-between">
                   <div>
                     <span className="text-[10px] font-black uppercase text-purple-700">Marcas & Cadenas</span>
-                    <h4 className="font-bold text-slate-900 text-sm mt-0.5">Plan Enterprise</h4>
-                    <p className="text-lg font-black text-slate-900 my-2">$85.000 <span className="text-[11px] font-normal text-slate-500">ARS/mes</span></p>
+                    <h4 className="font-bold text-slate-900 text-sm mt-0.5">Plan Empresa</h4>
+                    <p className="text-lg font-black text-slate-900 my-2">$29.990 <span className="text-[11px] font-normal text-slate-500">ARS/mes</span></p>
                     <ul className="space-y-1.5 text-slate-600 text-[11px]">
                       <li>&bull; Todo lo del Plan Pro</li>
-                      <li>&bull; <strong>Dominio Propio (ej: mitienda.com)</strong></li>
-                      <li>&bull; Multi-sucursal y depósitos</li>
-                      <li>&bull; Google Shopping XML Feed</li>
-                      <li>&bull; Soporte 24/7 prioritario</li>
-                      <li>&bull; Auditoría de datos A+</li>
+                      <li>&bull; <strong>0% comisiones siempre</strong></li>
+                      <li>&bull; Multi-sucursal y depósitos en vivo</li>
+                      <li>&bull; Usuarios y cajeros ILIMITADOS</li>
+                      <li>&bull; Auditoría Google Firestore A+</li>
+                      <li>&bull; Soporte 24/7 prioritario WhatsApp</li>
                     </ul>
                   </div>
                 </div>
@@ -228,7 +228,7 @@ Luego de los 3 meses gratis, podés continuar con planes accesibles desde $25.00
               <div className="bg-gradient-to-r from-indigo-900 to-slate-900 text-white p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
                 <div>
                   <span className="font-black text-amber-300 text-sm block">¿Todavía no creaste tu tienda?</span>
-                  <span className="text-slate-300 text-[11px]">Comenzá gratis por 90 días con hasta 50 productos y probá todo el potencial sin compromiso.</span>
+                  <span className="text-slate-300 text-[11px]">Comenzá gratis por 90 días con hasta 250 productos y probá todo el potencial sin compromiso.</span>
                 </div>
                 {onOpenCreateStore && (
                   <button

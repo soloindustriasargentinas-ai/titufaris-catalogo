@@ -39,7 +39,24 @@ export function loadSaaSTenants(): SaaSTenantStore[] {
       if (!hasTitufaris) {
         parsed.unshift(initialSaaSTenants[0]);
       }
-      return parsed;
+
+      // Normalize legacy prices to match the official realistic SaaS pricing
+      const normalized = parsed.map((t: SaaSTenantStore) => {
+        if (t.id === 'titufaris') {
+          return { ...t, pricePerMonthARS: 0 };
+        }
+        if (t.planId === 'basic' && (t.pricePerMonthARS === 14990 || !t.pricePerMonthARS)) {
+          return { ...t, pricePerMonthARS: 8990 };
+        }
+        if (t.planId === 'pro' && (t.pricePerMonthARS === 29990 || t.pricePerMonthARS === 45000 || !t.pricePerMonthARS)) {
+          return { ...t, pricePerMonthARS: 16990 };
+        }
+        if (t.planId === 'enterprise' && (t.pricePerMonthARS === 59990 || !t.pricePerMonthARS)) {
+          return { ...t, pricePerMonthARS: 29990 };
+        }
+        return t;
+      });
+      return normalized;
     }
     return initialSaaSTenants;
   } catch {

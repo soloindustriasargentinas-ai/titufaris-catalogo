@@ -57,6 +57,14 @@ service cloud.firestore {
       allow write: if true;
     }
 
+    // Daily snapshots backup (supports document and chunks subcollection)
+    match /snapshots/{snapshotId} {
+      allow read, write: if true;
+    }
+    match /snapshots/{snapshotId}/{document=**} {
+      allow read, write: if true;
+    }
+
     // Authorized staff users
     match /users/{userId} {
       allow read: if true;

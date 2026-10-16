@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   X,
   ShieldCheck,
@@ -18,8 +18,18 @@ import {
   Clock,
   ArrowRight,
   RotateCcw,
+  CloudUpload,
+  CloudDownload,
+  Database,
+  Sparkles,
+  Loader2
 } from 'lucide-react';
 import { Product, Category, CompanyProfile, User, Sale, ActivityLog, AppBackupData } from '../types';
+import {
+  saveDailySnapshotToFirestore,
+  fetchDailySnapshotFromFirestore,
+  StoreDailySnapshot
+} from '../lib/firebase';
 import {
   generateBackupData,
   downloadBackupJSONFile,
@@ -39,6 +49,7 @@ interface BackupRestoreModalProps {
   onRestore: (backup: AppBackupData, mode: 'replace' | 'merge') => void;
   onLoggedActivity?: (title: string, details: string) => void;
   onOpenRecoveryModal?: () => void;
+  activeTenantId?: string;
 }
 
 export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
@@ -53,8 +64,9 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
   onRestore,
   onLoggedActivity,
   onOpenRecoveryModal,
+  activeTenantId = 'titufaris',
 }) => {
-  const [activeTab, setActiveTab] = useState<'download' | 'restore' | 'code'>('download');
+  const [activeTab, setActiveTab] = useState<'cloud_snapshot' | 'download' | 'restore' | 'code'>('cloud_snapshot');
   const [copiedCode, setCopiedCode] = useState(false);
   const [copiedJson, setCopiedJson] = useState(false);
 
@@ -67,6 +79,22 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
   const [fileName, setFileName] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Cloud Snapshot State (Single overwritable daily point in Firestore)
+  const [cloudSnapshot, setCloudSnapshot] = useState<StoreDailySnapshot | null>(null);
+  const [isLoadingSnapshot, setIsLoadingSnapshot] = useState(false);
+  const [isSavingSnapshot, setIsSavingSnapshot] = useState(false);
+  const [snapshotFeedback, setSnapshotFeedback] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      setIsLoadingSnapshot(true);
+      fetchDailySnapshotFromFirestore(activeTenantId).then(snap => {
+        setCloudSnapshot(snap);
+        setIsLoadingSnapshot(false);
+      }).catch(() => setIsLoadingSnapshot(false));
+    }
+  }, [isOpen, activeTenantId]);
+
   if (!isOpen) return null;
 
   const currentBackup = generateBackupData(
@@ -77,6 +105,73 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
     sales,
     activityLogs
   );
+
+  const handleCreateCloudSnapshot = async () => {
+    setIsSavingSnapshot(true);
+    setSnapshotFeedback(null);
+    try {
+      const res = await saveDailySnapshotToFirestore(activeTenantId, {
+        tenantId: activeTenantId,
+        storeName: company.name || activeTenantId,
+        productsCount: products.length,
+        categoriesCount: categories.length,
+        products,
+        categories,
+        company
+      });
+      if (res.success) {
+        setSnapshotFeedback('¡Respaldo diario guardado y sobrescrito en Firestore con éxito!');
+        setCloudSnapshot({
+          tenantId: activeTenantId,
+          storeName: company.name || activeTenantId,
+          createdAt: res.timestamp || new Date().toISOString(),
+          version: '1.0',
+          productsCount: products.length,
+          categoriesCount: categories.length,
+          products,
+          categories,
+          company
+        });
+        onLoggedActivity?.(
+          'Respaldo diario guardado en Firestore',
+          `Snapshot guardado para tienda ${activeTenantId} con ${products.length} productos y fotos.`
+        );
+      } else {
+        setSnapshotFeedback(`Error al guardar respaldo: ${res.error || 'revisar conexión'}`);
+      }
+    } catch (err: unknown) {
+      setSnapshotFeedback('Error al comunicar con Firestore Cloud.');
+    } finally {
+      setIsSavingSnapshot(false);
+      setTimeout(() => setSnapshotFeedback(null), 4000);
+    }
+  };
+
+  const handleRestoreFromCloudSnapshot = () => {
+    if (!cloudSnapshot) return;
+    const backupData: AppBackupData = {
+      app: 'titufaris_pos',
+      version: '2.0.0',
+      exportedAt: cloudSnapshot.createdAt,
+      totalProducts: cloudSnapshot.products.length,
+      products: cloudSnapshot.products,
+      categories: cloudSnapshot.categories,
+      company: cloudSnapshot.company,
+      users,
+      sales,
+      activityLogs
+    };
+    onRestore(backupData, 'replace');
+    setIsSuccessRestored(true);
+    onLoggedActivity?.(
+      'Tienda restaurada desde Snapshot Diario de Firestore',
+      `Se recuperaron ${cloudSnapshot.products.length} productos con fotos y descripciones desde el snapshot del ${new Date(cloudSnapshot.createdAt).toLocaleString()}.`
+    );
+    setTimeout(() => {
+      onClose();
+      setIsSuccessRestored(false);
+    }, 1800);
+  };
 
   const handleDownload = () => {
     downloadBackupJSONFile(currentBackup);
@@ -191,6 +286,21 @@ export const initialProducts = ${JSON.stringify(products, null, 2)};
         <div className="flex border-b border-slate-200 bg-slate-50 px-6 shrink-0">
           <button
             type="button"
+            onClick={() => setActiveTab('cloud_snapshot')}
+            className={`py-3 px-4 font-bold text-xs border-b-2 flex items-center gap-2 transition-all cursor-pointer ${
+              activeTab === 'cloud_snapshot'
+                ? 'border-indigo-600 text-indigo-700 bg-white shadow-xs'
+                : 'border-transparent text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Database className="w-4 h-4 text-indigo-600" />
+            <span>Respaldo Cloud Diario</span>
+            <span className="bg-indigo-100 text-indigo-700 text-[10px] px-1.5 py-0.2 rounded-full font-black">
+              100% Cloud
+            </span>
+          </button>
+          <button
+            type="button"
             onClick={() => setActiveTab('download')}
             className={`py-3 px-4 font-bold text-xs border-b-2 flex items-center gap-2 transition-all cursor-pointer ${
               activeTab === 'download'
@@ -199,7 +309,7 @@ export const initialProducts = ${JSON.stringify(products, null, 2)};
             }`}
           >
             <Download className="w-4 h-4" />
-            <span>1. Descargar Copia</span>
+            <span>Descargar JSON</span>
           </button>
           <button
             type="button"
@@ -211,7 +321,7 @@ export const initialProducts = ${JSON.stringify(products, null, 2)};
             }`}
           >
             <Upload className="w-4 h-4" />
-            <span>2. Restaurar en el Servidor</span>
+            <span>Restaurar Archivo</span>
           </button>
           <button
             type="button"
@@ -223,7 +333,7 @@ export const initialProducts = ${JSON.stringify(products, null, 2)};
             }`}
           >
             <Code2 className="w-4 h-4" />
-            <span>3. Fijar en Código</span>
+            <span>Código</span>
           </button>
           {onOpenRecoveryModal && (
             <button
@@ -243,6 +353,129 @@ export const initialProducts = ${JSON.stringify(products, null, 2)};
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto p-6 space-y-5">
+          {/* TAB: RESPALDO CLOUD DIARIO (UNICO Y SOBRESCRIBIBLE) */}
+          {activeTab === 'cloud_snapshot' && (
+            <div className="space-y-5">
+              <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-4 text-xs text-indigo-900 flex items-start gap-3">
+                <Database className="w-5 h-5 text-indigo-600 shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="font-bold text-sm text-indigo-950 mb-1">
+                    Snapshot Diario en Google Firestore (Tienda: {activeTenantId})
+                  </h4>
+                  <p className="leading-relaxed text-indigo-800">
+                    Este sistema guarda un <strong>punto de restauración maestro único y sobrescribible</strong> en la nube para esta tienda. Incluye todas tus fotos, descripciones de productos, categorías y datos comerciales. No ocupa espacio extra porque cada nuevo guardado sobrescribe el anterior limpiamente.
+                  </p>
+                </div>
+              </div>
+
+              {snapshotFeedback && (
+                <div className="p-3 bg-emerald-50 border border-emerald-300 rounded-xl text-emerald-900 font-bold text-xs flex items-center gap-2 animate-in fade-in">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>{snapshotFeedback}</span>
+                </div>
+              )}
+
+              {/* Status of Cloud Snapshot */}
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-xs font-bold uppercase text-slate-700">Estado del Punto de Retorno en la Nube</span>
+                  {cloudSnapshot ? (
+                    <span className="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-black flex items-center gap-1">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      Respaldo Activo
+                    </span>
+                  ) : (
+                    <span className="px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 text-[11px] font-bold">
+                      Aún no generado hoy
+                    </span>
+                  )}
+                </div>
+
+                {isLoadingSnapshot ? (
+                  <div className="py-6 text-center text-slate-500 text-xs flex items-center justify-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin text-indigo-600" />
+                    <span>Consultando Google Firestore...</span>
+                  </div>
+                ) : cloudSnapshot ? (
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
+                      <div className="bg-white p-2.5 rounded-xl border border-slate-200">
+                        <div className="text-slate-500 text-[10px]">Fecha de Snapshot</div>
+                        <div className="font-bold text-slate-800 text-xs mt-0.5">
+                          {new Date(cloudSnapshot.createdAt).toLocaleDateString()} {new Date(cloudSnapshot.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                      </div>
+                      <div className="bg-white p-2.5 rounded-xl border border-slate-200">
+                        <div className="text-slate-500 text-[10px]">Productos & Fotos</div>
+                        <div className="font-bold text-emerald-700 text-sm mt-0.5">{cloudSnapshot.productsCount}</div>
+                      </div>
+                      <div className="bg-white p-2.5 rounded-xl border border-slate-200">
+                        <div className="text-slate-500 text-[10px]">Categorías</div>
+                        <div className="font-bold text-slate-800 text-sm mt-0.5">{cloudSnapshot.categoriesCount}</div>
+                      </div>
+                      <div className="bg-white p-2.5 rounded-xl border border-slate-200">
+                        <div className="text-slate-500 text-[10px]">Tienda</div>
+                        <div className="font-bold text-slate-800 text-xs truncate mt-0.5">{cloudSnapshot.storeName}</div>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 flex flex-col sm:flex-row gap-2">
+                      <button
+                        type="button"
+                        onClick={handleRestoreFromCloudSnapshot}
+                        className="flex-1 py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md transition cursor-pointer"
+                      >
+                        <RotateCcw className="w-4 h-4" />
+                        <span>Restaurar Tienda Completa desde este Snapshot</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleCreateCloudSnapshot}
+                        disabled={isSavingSnapshot}
+                        className="py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer"
+                      >
+                        {isSavingSnapshot ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <CloudUpload className="w-4 h-4 text-indigo-300" />
+                        )}
+                        <span>Sobrescribir Snapshot con Estado Actual</span>
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-4 space-y-3">
+                    <p className="text-xs text-slate-600">
+                      Crea ahora el primer snapshot maestro de <strong>{company.name}</strong> para blindar tus {products.length} productos y fotos en la nube.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleCreateCloudSnapshot}
+                      disabled={isSavingSnapshot}
+                      className="py-3 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs flex items-center justify-center gap-2 mx-auto shadow-md transition cursor-pointer"
+                    >
+                      {isSavingSnapshot ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <CloudUpload className="w-4 h-4" />
+                      )}
+                      <span>Crear Snapshot Maestro Diario Ahora</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Information */}
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-[11px] text-slate-600 space-y-1">
+                <span className="font-bold text-slate-800 block">¿Por qué este método garantiza que no se pierda nada?</span>
+                <p>1. Las fotos, descripciones completas y fichas técnicas se guardan directamente en Google Cloud Firestore.</p>
+                <p>2. Si haces deploy en Coolify o recargas la página en una máquina nueva, puedes venir a esta pestaña y restaurar todo en 2 segundos.</p>
+                <p>3. No se satura el almacenamiento porque se mantiene un único punto de retorno diario por tienda.</p>
+              </div>
+            </div>
+          )}
+
           {/* TAB 1: DESCARGAR COPIA */}
           {activeTab === 'download' && (
             <div className="space-y-5">

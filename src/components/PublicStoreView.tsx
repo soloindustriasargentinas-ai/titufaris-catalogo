@@ -32,13 +32,36 @@ import {
   Facebook,
   Linkedin,
 } from 'lucide-react';
-import { Product, Category, CompanyProfile } from '../types';
+import { Product, Category, CompanyProfile, PolicyBadge, getDefaultPolicyBadges } from '../types';
 import { formatCurrency } from '../utils/storage';
 import { getWhatsAppBusinessCatalogUrl } from '../utils/whatsAppCatalog';
 import { copyOrShareProduct } from '../utils/productShare';
 import { buildProductUrl, slugify } from '../utils/seoAndRouting';
 import { Breadcrumbs } from './Breadcrumbs';
 import { TitufarisLogo } from './TitufarisLogo';
+
+function renderBadgeIcon(iconName?: string, primaryColor = '#F97316') {
+  const iconProps = { className: 'w-5 h-5 shrink-0', style: { color: primaryColor } };
+  switch (iconName) {
+    case 'truck':
+      return <Truck {...iconProps} />;
+    case 'shield':
+      return <ShieldCheck {...iconProps} />;
+    case 'card':
+      return <CreditCard {...iconProps} />;
+    case 'message':
+      return <MessageCircle {...iconProps} />;
+    case 'check':
+      return <CheckCircle2 {...iconProps} />;
+    case 'package':
+      return <Package {...iconProps} />;
+    case 'star':
+      return <Star {...iconProps} />;
+    case 'store':
+    default:
+      return <Store {...iconProps} />;
+  }
+}
 
 export type PublicStoreSortOption =
   | 'featured_first'
@@ -101,6 +124,21 @@ export const PublicStoreView: React.FC<PublicStoreViewProps> = ({
   const isCustomStore = !isTitufaris && !isGenericDemo;
   const brandPrimary = company.brandColors?.primary || '#EA580C';
   const brandFont = company.fontFamily || 'inherit';
+
+  // Dynamic header background and top bar color based on logo or admin selection
+  const headerBgColor = company.headerBgColor || (
+    company.headerBgStyle === 'brand'
+      ? (company.brandColors?.secondary || '#0b0f19')
+      : '#020617'
+  );
+
+  // 4 Policy Badges editable according to company policies
+  const policyBadges = useMemo(() => {
+    if (company.heroBadges && Array.isArray(company.heroBadges) && company.heroBadges.length === 4) {
+      return company.heroBadges;
+    }
+    return getDefaultPolicyBadges(company.name, isTitufaris);
+  }, [company.heroBadges, company.name, isTitufaris]);
 
   // Dynamic Hero Configuration with customizable title, subtitle, image and CTA
   const displayHeroTitle = company.heroTitle?.trim() || (
@@ -207,12 +245,27 @@ export const PublicStoreView: React.FC<PublicStoreViewProps> = ({
       className="flex-1 pb-24 md:pb-16 w-full max-w-full overflow-x-hidden"
       style={{ fontFamily: brandFont }}
     >
-      {/* Hero Banner Comercial */}
-      <section className="bg-slate-950 text-white pt-10 pb-12 px-4 sm:px-6 relative overflow-hidden border-b border-slate-800">
-        {/* Ambient atmospheric gradients & structural grid pattern */}
-        <div className="absolute inset-0 opacity-20 pointer-events-none bg-[radial-gradient(#F97316_1px,transparent_1px)] [background-size:24px_24px]" />
-        <div className="absolute -top-40 -right-40 w-96 h-96 bg-orange-600/15 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-sky-600/10 rounded-full blur-3xl pointer-events-none" />
+      {/* Hero Banner Comercial con Fondo Dinámico de Marca o Personalizado */}
+      <section
+        className="text-white pt-10 pb-12 px-4 sm:px-6 relative overflow-hidden border-b border-white/10 transition-colors"
+        style={{ backgroundColor: headerBgColor }}
+      >
+        {/* Ambient atmospheric gradients & structural grid pattern adaptados a la paleta */}
+        <div
+          className="absolute inset-0 opacity-20 pointer-events-none"
+          style={{
+            backgroundImage: `radial-gradient(${brandPrimary} 1px, transparent 1px)`,
+            backgroundSize: '24px 24px',
+          }}
+        />
+        <div
+          className="absolute -top-40 -right-40 w-96 h-96 rounded-full blur-3xl pointer-events-none opacity-20"
+          style={{ backgroundColor: brandPrimary }}
+        />
+        <div
+          className="absolute -bottom-40 -left-40 w-96 h-96 rounded-full blur-3xl pointer-events-none opacity-15"
+          style={{ backgroundColor: company.brandColors?.secondary || '#0284c7' }}
+        />
 
         <div className="max-w-7xl mx-auto relative z-10 space-y-10">
           {/* Main 2-column Grid */}
@@ -307,8 +360,9 @@ export const PublicStoreView: React.FC<PublicStoreViewProps> = ({
                 </div>
               </div>
 
-              {/* Call to Action Buttons */}
-              <div className="flex flex-wrap items-center gap-3 pt-2">
+              {/* Call to Action Buttons: Los 3 botones coinciden en un mismo renglón y son de tamaño responsivo para todos los dispositivos */}
+              <div className={`grid ${company.showWhatsAppCatalogButton !== false ? 'grid-cols-3' : 'grid-cols-2'} gap-2 sm:gap-3 pt-2 w-full max-w-full items-stretch`}>
+                {/* 1. Asesoramiento por WhatsApp */}
                 <a
                   href={`https://wa.me/${company.phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(
                     isDemoMode
@@ -318,33 +372,46 @@ export const PublicStoreView: React.FC<PublicStoreViewProps> = ({
                   target="_blank"
                   rel="noreferrer"
                   aria-label={`Contactar por WhatsApp a ${company.name}`}
-                  className="inline-flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm shadow-lg shadow-emerald-600/30 transition-all cursor-pointer hover:-translate-y-0.5"
+                  className="flex items-center justify-center gap-1.5 sm:gap-2 px-1.5 sm:px-3 md:px-5 py-2.5 sm:py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[10.5px] sm:text-xs md:text-sm shadow-md shadow-emerald-600/25 transition-all cursor-pointer hover:-translate-y-0.5 text-center min-w-0"
+                  title="Asesoramiento por WhatsApp"
                 >
-                  <MessageCircle className="w-4 h-4 fill-white" />
-                  <span>{heroCtaLabel}</span>
+                  <MessageCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 fill-white" />
+                  <span className="truncate">
+                    <span className="hidden md:inline">{heroCtaLabel}</span>
+                    <span className="md:hidden">Asesoramiento WA</span>
+                  </span>
                 </a>
 
+                {/* 2. Ver Catálogo en WhatsApp */}
                 {company.showWhatsAppCatalogButton !== false && (
                   <a
                     href={getWhatsAppBusinessCatalogUrl(company)}
                     target="_blank"
                     rel="noreferrer"
                     aria-label={`Explorar el catálogo interactivo de ${company.name} en WhatsApp Business`}
-                    className="inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-500/50 text-emerald-300 font-bold text-xs sm:text-sm transition-all cursor-pointer hover:-translate-y-0.5 shadow-sm"
+                    className="flex items-center justify-center gap-1.5 sm:gap-2 px-1.5 sm:px-3 md:px-5 py-2.5 sm:py-3.5 rounded-xl bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-500/50 text-emerald-300 font-bold text-[10.5px] sm:text-xs md:text-sm transition-all cursor-pointer hover:-translate-y-0.5 shadow-xs text-center min-w-0"
                     title={`Explorar el catálogo interactivo de ${company.name} directamente en WhatsApp Business`}
                   >
-                    <MessageCircle className="w-4 h-4 fill-emerald-400 text-emerald-400" />
-                    <span>Ver Catálogo en WhatsApp</span>
+                    <MessageCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 fill-emerald-400 text-emerald-400" />
+                    <span className="truncate">
+                      <span className="hidden md:inline">Ver Catálogo en WhatsApp</span>
+                      <span className="md:hidden">Catálogo WA</span>
+                    </span>
                   </a>
                 )}
 
+                {/* 3. Catálogo PDF con códigos QR */}
                 <button
+                  type="button"
                   onClick={onOpenCatalogPDF}
                   title="Descargar catálogo imprimible con códigos QR directos para cada artículo"
-                  className="inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 border border-slate-700 text-white font-bold text-xs sm:text-sm transition-all cursor-pointer hover:-translate-y-0.5 shadow-sm"
+                  className="flex items-center justify-center gap-1.5 sm:gap-2 px-1.5 sm:px-3 md:px-5 py-2.5 sm:py-3.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 border border-slate-700 text-white font-bold text-[10.5px] sm:text-xs md:text-sm transition-all cursor-pointer hover:-translate-y-0.5 shadow-xs text-center min-w-0"
                 >
-                  <QrCode className="w-4 h-4 text-orange-400" />
-                  <span>Catálogo PDF con Códigos QR</span>
+                  <QrCode className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 text-orange-400" />
+                  <span className="truncate">
+                    <span className="hidden md:inline">Catálogo PDF con Códigos QR</span>
+                    <span className="md:hidden">Catálogo PDF QR</span>
+                  </span>
                 </button>
               </div>
             </div>
@@ -395,63 +462,42 @@ export const PublicStoreView: React.FC<PublicStoreViewProps> = ({
             </div>
           </div>
 
-          {/* Value Badges Bottom Bar */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 pt-8 border-t border-slate-800">
-            <div className="bg-slate-900/60 border border-slate-800 p-3.5 rounded-2xl flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center shrink-0">
-                {isCustomStore ? <Store className="w-5 h-5 text-indigo-400" /> : isDemoMode ? <ShoppingBag className="w-5 h-5 text-orange-400" /> : <Building2 className="w-5 h-5 text-orange-400" />}
-              </div>
-              <div>
-                <div className="text-xs font-bold text-white">
-                  {isCustomStore ? 'Catálogo Oficial' : isDemoMode ? 'Catálogo Digital' : 'Directo de Fábrica'}
+          {/* Value Badges Bottom Bar: Los 4 botones de la imagen editables según las políticas de cada empresa */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 pt-8 border-t border-white/10">
+            {policyBadges.map((badge, idx) => (
+              <div
+                key={badge.id || `badge-${idx}`}
+                onClick={() => {
+                  if (badge.linkTab && onOpenLegalModal) {
+                    onOpenLegalModal(badge.linkTab === 'shipping' || badge.linkTab === 'wholesale' ? 'terms' : badge.linkTab);
+                  }
+                }}
+                className={`bg-slate-900/60 border border-slate-800 p-3.5 rounded-2xl flex items-center gap-3 transition-all ${
+                  badge.linkTab && onOpenLegalModal
+                    ? 'hover:border-slate-600 hover:bg-slate-900/80 cursor-pointer hover:-translate-y-0.5'
+                    : ''
+                }`}
+                title={badge.subtitle ? `${badge.title}: ${badge.subtitle}` : badge.title}
+              >
+                <div
+                  className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border"
+                  style={{
+                    backgroundColor: `${brandPrimary}15`,
+                    borderColor: `${brandPrimary}30`,
+                  }}
+                >
+                  {renderBadgeIcon(badge.icon, brandPrimary)}
                 </div>
-                <div className="text-[11px] text-slate-400">
-                  {isCustomStore ? `${company.name} online` : isDemoMode ? 'Celulares, tablets y PC' : 'Sin intermediarios'}
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-slate-900/60 border border-slate-800 p-3.5 rounded-2xl flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center shrink-0">
-                {isCustomStore ? <MessageCircle className="w-5 h-5 text-emerald-400" /> : isDemoMode ? <MessageCircle className="w-5 h-5 text-emerald-400" /> : <ShieldCheck className="w-5 h-5 text-orange-400" />}
-              </div>
-              <div>
-                <div className="text-xs font-bold text-white">
-                  {isCustomStore ? 'Ventas Directas' : isDemoMode ? 'Ventas por WhatsApp' : 'Garantía 12 Meses'}
-                </div>
-                <div className="text-[11px] text-slate-400">
-                  {isCustomStore ? 'Atención personalizada' : isDemoMode ? 'Sin comisiones por venta' : 'Estructuras reforzadas'}
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-slate-900/60 border border-slate-800 p-3.5 rounded-2xl flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center shrink-0">
-                <Truck className="w-5 h-5 text-orange-400" />
-              </div>
-              <div>
-                <div className="text-xs font-bold text-white">
-                  {isCustomStore ? 'Envíos y Retiro' : isDemoMode ? 'Envíos y Retiro' : 'Envíos a Todo el País'}
-                </div>
-                <div className="text-[11px] text-slate-400">
-                  {isCustomStore ? 'Logística y entregas' : isDemoMode ? 'Mostrador y logística' : 'Embalaje de fábrica'}
+                <div className="min-w-0">
+                  <div className="text-xs font-bold text-white truncate">
+                    {badge.title}
+                  </div>
+                  <div className="text-[11px] text-slate-400 truncate">
+                    {badge.subtitle}
+                  </div>
                 </div>
               </div>
-            </div>
-
-            <div className="bg-slate-900/60 border border-slate-800 p-3.5 rounded-2xl flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center shrink-0">
-                {isCustomStore ? <CreditCard className="w-5 h-5 text-sky-400" /> : isDemoMode ? <Lock className="w-5 h-5 text-amber-400" /> : <CheckCircle2 className="w-5 h-5 text-orange-400" />}
-              </div>
-              <div>
-                <div className="text-xs font-bold text-white">
-                  {isCustomStore ? 'Medios de Pago' : isDemoMode ? 'Punto de Venta POS' : 'Calidad Certificada'}
-                </div>
-                <div className="text-[11px] text-slate-400">
-                  {isCustomStore ? 'Efectivo, tarjetas y MP' : isDemoMode ? 'Control de caja integrado' : 'Pintura epoxi horneada'}
-                </div>
-              </div>
-            </div>
+            ))}
           </div>
         </div>
       </section>

@@ -25,9 +25,16 @@ import {
   Eye,
   Rocket,
   CreditCard,
-  FileText
+  FileText,
+  Store,
+  Truck,
+  Package,
+  Star,
+  RotateCcw,
+  SlidersHorizontal,
+  ShoppingBag,
 } from 'lucide-react';
-import { CompanyProfile } from '../types';
+import { CompanyProfile, PolicyBadge, getDefaultPolicyBadges } from '../types';
 import { normalizeMercadoPagoUrl, getPublicStoreBaseUrl } from '../utils/qrCode';
 import { compressImageFile } from '../utils/imageCompression';
 import {
@@ -137,7 +144,10 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
         primary: extractedPalette.primary,
         secondary: extractedPalette.secondary,
         accent: extractedPalette.accent,
-      }
+      },
+      headerBgStyle: 'brand',
+      headerBgColor: extractedPalette.secondary || '#0B0F19',
+      topBarBgColor: extractedPalette.secondary || '#020617',
     }));
   };
 
@@ -184,7 +194,27 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
         primary: preset.primary,
         secondary: preset.secondary,
         accent: preset.accent,
-      }
+      },
+      headerBgStyle: 'brand',
+      headerBgColor: preset.secondary || '#0B0F19',
+      topBarBgColor: preset.secondary || '#020617',
+    }));
+  };
+
+  const currentBadges: PolicyBadge[] = (formData.heroBadges && Array.isArray(formData.heroBadges) && formData.heroBadges.length === 4)
+    ? formData.heroBadges
+    : getDefaultPolicyBadges(formData.name, formData.name.toLowerCase().includes('titufaris'));
+
+  const handleUpdateBadge = (index: number, field: keyof PolicyBadge, val: string) => {
+    const updated = [...currentBadges];
+    updated[index] = { ...updated[index], [field]: val };
+    setFormData(prev => ({ ...prev, heroBadges: updated }));
+  };
+
+  const handleResetBadges = () => {
+    setFormData(prev => ({
+      ...prev,
+      heroBadges: getDefaultPolicyBadges(prev.name, prev.name.toLowerCase().includes('titufaris')),
     }));
   };
 
@@ -608,6 +638,200 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
                 </div>
               </div>
 
+              {/* SECCIÓN: FONDO DEL ENCABEZADO (HERO) & RENGLÓN SUPERIOR (TOP BAR) */}
+              <div className="p-4 sm:p-5 bg-slate-50 border border-slate-200 rounded-2xl space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 rounded-lg bg-orange-100 text-orange-700">
+                      <SlidersHorizontal className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h3 className="text-xs font-black uppercase tracking-wider text-slate-900">
+                        Fondo del Encabezado (Hero) & Renglón Superior
+                      </h3>
+                      <p className="text-[11px] text-slate-500">
+                        Personalizá el color de fondo de la portada y de la barra superior según el logo o la paleta elegida
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] bg-slate-200 text-slate-800 font-extrabold px-2 py-0.5 rounded-full uppercase">
+                    Personalización
+                  </span>
+                </div>
+
+                {/* Modo de Fondo */}
+                <div className="space-y-2">
+                  <label className="text-[11px] font-bold text-slate-700 block">
+                    Modo de Estilo de Fondo:
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleChange('headerBgStyle', 'brand');
+                        handleChange('headerBgColor', formData.brandColors?.secondary || '#0F172A');
+                        handleChange('topBarBgColor', formData.brandColors?.secondary || '#020617');
+                      }}
+                      className={`p-2.5 rounded-xl border text-left text-xs transition cursor-pointer flex flex-col gap-1 ${
+                        formData.headerBgStyle === 'brand' || !formData.headerBgStyle
+                          ? 'border-orange-500 bg-orange-50/60 font-bold text-orange-950 ring-1 ring-orange-500'
+                          : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      <span className="font-extrabold flex items-center gap-1.5">
+                        🎨 Paleta de Marca
+                      </span>
+                      <span className="text-[10.5px] text-slate-500 font-normal">
+                        Usa colores derivados de tu logo y paleta oficial
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleChange('headerBgStyle', 'dark');
+                        handleChange('headerBgColor', '#020617');
+                        handleChange('topBarBgColor', '#020617');
+                      }}
+                      className={`p-2.5 rounded-xl border text-left text-xs transition cursor-pointer flex flex-col gap-1 ${
+                        formData.headerBgStyle === 'dark'
+                          ? 'border-orange-500 bg-orange-50/60 font-bold text-orange-950 ring-1 ring-orange-500'
+                          : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      <span className="font-extrabold flex items-center gap-1.5">
+                        🌑 Modo Oscuro
+                      </span>
+                      <span className="text-[10.5px] text-slate-500 font-normal">
+                        Fondo Slate 950 sobrio con acentos sutiles
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleChange('headerBgStyle', 'custom')}
+                      className={`p-2.5 rounded-xl border text-left text-xs transition cursor-pointer flex flex-col gap-1 ${
+                        formData.headerBgStyle === 'custom'
+                          ? 'border-orange-500 bg-orange-50/60 font-bold text-orange-950 ring-1 ring-orange-500'
+                          : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      <span className="font-extrabold flex items-center gap-1.5">
+                        ✨ Personalizado
+                      </span>
+                      <span className="text-[10.5px] text-slate-500 font-normal">
+                        Elegí colores hexadecimales específicos
+                      </span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Selectores de color para Encabezado y Barra Superior */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                  {/* Color Fondo Encabezado (Hero) */}
+                  <div className="bg-white p-3.5 rounded-xl border border-slate-200 space-y-2">
+                    <label className="text-xs font-bold text-slate-800 flex items-center justify-between">
+                      <span>Fondo de la Portada / Encabezado (Hero)</span>
+                      <span className="font-mono text-[11px] text-slate-500 font-normal">
+                        {formData.headerBgColor || (formData.brandColors?.secondary || '#020617')}
+                      </span>
+                    </label>
+                    <div className="flex items-center gap-2.5">
+                      <input
+                        type="color"
+                        value={formData.headerBgColor || (formData.brandColors?.secondary || '#020617')}
+                        onChange={e => {
+                          handleChange('headerBgColor', e.target.value);
+                          if (formData.headerBgStyle !== 'custom') handleChange('headerBgStyle', 'custom');
+                        }}
+                        className="w-10 h-10 rounded-lg cursor-pointer border border-slate-300 p-0.5"
+                      />
+                      <input
+                        type="text"
+                        value={formData.headerBgColor || ''}
+                        onChange={e => {
+                          handleChange('headerBgColor', e.target.value);
+                          if (formData.headerBgStyle !== 'custom') handleChange('headerBgStyle', 'custom');
+                        }}
+                        placeholder={formData.brandColors?.secondary || '#020617'}
+                        className="flex-1 px-3 py-1.5 text-xs bg-slate-50 border border-slate-300 rounded-lg font-mono font-bold text-slate-800 uppercase"
+                      />
+                      <div
+                        className="px-3 py-1.5 rounded-lg text-white text-xs font-bold shadow-2xs border border-white/20"
+                        style={{ backgroundColor: formData.headerBgColor || (formData.brandColors?.secondary || '#020617') }}
+                      >
+                        Hero
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Color Renglón Superior (Top Bar) */}
+                  <div className="bg-white p-3.5 rounded-xl border border-slate-200 space-y-2">
+                    <label className="text-xs font-bold text-slate-800 flex items-center justify-between">
+                      <span>Renglón Superior (Barra de Anuncios)</span>
+                      <span className="font-mono text-[11px] text-slate-500 font-normal">
+                        {formData.topBarBgColor || (formData.brandColors?.secondary || '#020617')}
+                      </span>
+                    </label>
+                    <div className="flex items-center gap-2.5">
+                      <input
+                        type="color"
+                        value={formData.topBarBgColor || (formData.brandColors?.secondary || '#020617')}
+                        onChange={e => {
+                          handleChange('topBarBgColor', e.target.value);
+                          if (formData.headerBgStyle !== 'custom') handleChange('headerBgStyle', 'custom');
+                        }}
+                        className="w-10 h-10 rounded-lg cursor-pointer border border-slate-300 p-0.5"
+                      />
+                      <input
+                        type="text"
+                        value={formData.topBarBgColor || ''}
+                        onChange={e => {
+                          handleChange('topBarBgColor', e.target.value);
+                          if (formData.headerBgStyle !== 'custom') handleChange('headerBgStyle', 'custom');
+                        }}
+                        placeholder={formData.brandColors?.secondary || '#020617'}
+                        className="flex-1 px-3 py-1.5 text-xs bg-slate-50 border border-slate-300 rounded-lg font-mono font-bold text-slate-800 uppercase"
+                      />
+                      <div
+                        className="px-3 py-1.5 rounded-lg text-white text-xs font-bold shadow-2xs border border-white/20"
+                        style={{ backgroundColor: formData.topBarBgColor || (formData.brandColors?.secondary || '#020617') }}
+                      >
+                        Top Bar
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Previsualización en vivo combinada */}
+                <div className="rounded-xl overflow-hidden border border-slate-300 text-white text-xs shadow-inner">
+                  {/* Top bar preview */}
+                  <div
+                    className="py-1 px-3 flex items-center justify-between text-[10px] font-medium"
+                    style={{ backgroundColor: formData.topBarBgColor || (formData.brandColors?.secondary || '#020617') }}
+                  >
+                    <span>{formData.name} · Renglón Superior</span>
+                    <span className="opacity-75">{formData.phone || 'WhatsApp'}</span>
+                  </div>
+                  {/* Header preview */}
+                  <div
+                    className="p-3.5 flex items-center justify-between gap-3"
+                    style={{ backgroundColor: formData.headerBgColor || (formData.brandColors?.secondary || '#020617') }}
+                  >
+                    <div>
+                      <div className="font-bold text-xs">{formData.heroTitle || `${formData.name} · Catálogo Oficial`}</div>
+                      <div className="text-[10px] text-slate-300 truncate max-w-xs">{formData.tagline || 'Equipamiento y ventas directas'}</div>
+                    </div>
+                    <div
+                      className="px-2.5 py-1 rounded-lg text-[10px] font-bold text-white shrink-0 shadow-xs"
+                      style={{ backgroundColor: currentPrimaryColor }}
+                    >
+                      Botón de Acción
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* 3. SECCIÓN: TIPOGRAFÍA OFICIAL DE LA MARCA */}
               <div className="p-4 sm:p-5 bg-slate-50 border border-slate-200 rounded-2xl space-y-4">
                 <div className="flex items-center justify-between">
@@ -786,6 +1010,211 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
                     </div>
                   </div>
                 </div>
+              </div>
+
+              {/* 6. SECCIÓN: 4 BOTONES E INSIGNIAS DE LA PORTADA (POLÍTICAS COMERCIALES) */}
+              <div className="p-4 sm:p-5 bg-slate-50 border border-slate-200 rounded-2xl space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 rounded-lg bg-indigo-100 text-indigo-700">
+                      <ShieldCheck className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h3 className="text-xs font-black uppercase tracking-wider text-slate-900">
+                        4 Botones de Políticas al Pie de la Foto (Hero Badges)
+                      </h3>
+                      <p className="text-[11px] text-slate-500">
+                        Editá los 4 botones de confianza y políticas que se muestran debajo de la foto de portada
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleResetBadges}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 text-[10.5px] font-bold transition cursor-pointer"
+                    title="Restaurar las 4 insignias sugeridas por el sistema"
+                  >
+                    <RotateCcw className="w-3 h-3" />
+                    <span>Restaurar Sugeridos</span>
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  {currentBadges.map((badge, idx) => (
+                    <div
+                      key={badge.id || `badge-setting-${idx}`}
+                      className="p-3.5 bg-white rounded-xl border border-slate-200 space-y-2.5 shadow-2xs"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10.5px] font-extrabold uppercase tracking-wider text-slate-500">
+                          Botón #{idx + 1}
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <label className="text-[10px] text-slate-400 font-semibold">Ícono:</label>
+                          <select
+                            value={badge.icon || 'store'}
+                            onChange={e => handleUpdateBadge(idx, 'icon', e.target.value)}
+                            className="text-[11px] px-2 py-0.5 bg-slate-50 border border-slate-300 rounded-md font-medium text-slate-700 outline-none cursor-pointer"
+                          >
+                            <option value="store">🏪 Tienda / Fábrica</option>
+                            <option value="truck">🚚 Envíos / Despachos</option>
+                            <option value="shield">🛡️ Garantía Oficial</option>
+                            <option value="card">💳 Medios de Pago</option>
+                            <option value="message">💬 Atención WhatsApp</option>
+                            <option value="check">✅ Calidad Certificada</option>
+                            <option value="package">📦 Stock / Embalaje</option>
+                            <option value="star">⭐ Destacado / Calidad</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] text-slate-600 font-bold uppercase tracking-wider block">
+                          Título del Botón
+                        </label>
+                        <input
+                          type="text"
+                          value={badge.title}
+                          onChange={e => handleUpdateBadge(idx, 'title', e.target.value)}
+                          placeholder="Ej: Directo de Fábrica"
+                          className="w-full px-2.5 py-1 text-xs bg-slate-50 border border-slate-300 rounded-lg font-bold text-slate-900 outline-none focus:bg-white focus:border-orange-500"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] text-slate-600 font-bold uppercase tracking-wider block">
+                          Subtítulo / Bajada Descriptiva
+                        </label>
+                        <input
+                          type="text"
+                          value={badge.subtitle}
+                          onChange={e => handleUpdateBadge(idx, 'subtitle', e.target.value)}
+                          placeholder="Ej: Sin intermediarios"
+                          className="w-full px-2.5 py-1 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-700 outline-none focus:bg-white focus:border-orange-500"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] text-slate-500 font-medium block">
+                          Al hacer clic abre la política:
+                        </label>
+                        <select
+                          value={badge.linkTab || 'terms'}
+                          onChange={e => handleUpdateBadge(idx, 'linkTab', e.target.value)}
+                          className="w-full text-[11px] px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 outline-none cursor-pointer"
+                        >
+                          <option value="terms">Términos Comerciales & Legales</option>
+                          <option value="warranty">Garantía de Fábrica / Comercio</option>
+                          <option value="shipping">Envíos, Retiro & Despachos</option>
+                          <option value="payment">Medios de Pago & Transferencias</option>
+                          <option value="wholesale">Condiciones Venta Mayorista</option>
+                        </select>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* 7. SECCIÓN: CONFIGURACIÓN DE VENTA MAYORISTA Y VOLUMEN */}
+              <div className="p-4 sm:p-5 bg-gradient-to-br from-amber-50/70 to-orange-50/40 border border-amber-200 rounded-2xl space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 rounded-lg bg-amber-100 text-amber-700">
+                      <ShoppingBag className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h3 className="text-xs font-black uppercase tracking-wider text-slate-900">
+                        Venta Mayorista & Cantidad Mínima por Pedido
+                      </h3>
+                      <p className="text-[11px] text-slate-600">
+                        Define si tu negocio ofrece venta mayorista y a partir de cuántas unidades aplica en el carrito
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] bg-amber-200 text-amber-900 font-extrabold px-2.5 py-0.5 rounded-full uppercase">
+                    Comercial
+                  </span>
+                </div>
+
+                {/* Switch de activación de venta mayorista */}
+                <div className="flex items-center justify-between p-3.5 bg-white rounded-xl border border-amber-200/80 shadow-2xs">
+                  <div>
+                    <div className="text-xs font-bold text-slate-900">
+                      Habilitar Venta Mayorista en la Tienda
+                    </div>
+                    <div className="text-[11px] text-slate-500">
+                      {formData.wholesaleEnabled !== false
+                        ? 'Activa: los clientes acceden a precios mayoristas al superar el volumen mínimo'
+                        : 'Desactivada: la tienda opera 100% en modo minorista (oculta avisos y precios mayoristas)'}
+                    </div>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.wholesaleEnabled !== false}
+                      onChange={e => handleChange('wholesaleEnabled', e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-600"></div>
+                  </label>
+                </div>
+
+                {/* Campo de cantidad mínima si está habilitada */}
+                {formData.wholesaleEnabled !== false && (
+                  <div className="p-3.5 bg-white rounded-xl border border-amber-200/80 space-y-3 shadow-2xs">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div>
+                        <label className="text-xs font-bold text-slate-900 block">
+                          Cantidad mínima de unidades para considerar Venta Mayorista
+                        </label>
+                        <span className="text-[11px] text-slate-500">
+                          Al alcanzar esta cantidad total de unidades en el pedido, todos los artículos reciben precio mayorista
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <input
+                          type="number"
+                          min={2}
+                          max={500}
+                          value={formData.wholesaleMinUnits || 10}
+                          onChange={e => {
+                            const val = Math.max(2, parseInt(e.target.value) || 2);
+                            handleChange('wholesaleMinUnits', val);
+                          }}
+                          className="w-20 px-3 py-1.5 text-sm font-black text-center bg-amber-50 border border-amber-300 rounded-lg text-amber-900 outline-none focus:bg-white focus:border-amber-600"
+                        />
+                        <span className="text-xs font-bold text-slate-700">unidades</span>
+                      </div>
+                    </div>
+
+                    {/* Botones de sugerencias rápidas */}
+                    <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-amber-100">
+                      <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mr-1">
+                        Valores comunes por rubro:
+                      </span>
+                      {[
+                        { label: '3 u. (Boutique / Calzado)', qty: 3 },
+                        { label: '6 u. (Media Docena)', qty: 6 },
+                        { label: '10 u. (Estándar Fabril)', qty: 10 },
+                        { label: '12 u. (Docena Completa)', qty: 12 },
+                        { label: '20 u. (Distribuidora)', qty: 20 },
+                      ].map(preset => (
+                        <button
+                          key={preset.qty}
+                          type="button"
+                          onClick={() => handleChange('wholesaleMinUnits', preset.qty)}
+                          className={`px-2.5 py-1 rounded-lg text-[10.5px] font-bold transition cursor-pointer border ${
+                            (formData.wholesaleMinUnits || 10) === preset.qty
+                              ? 'bg-amber-600 text-white border-amber-600 shadow-2xs'
+                              : 'bg-white text-slate-700 border-slate-200 hover:border-amber-400 hover:bg-amber-50'
+                          }`}
+                        >
+                          {preset.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}

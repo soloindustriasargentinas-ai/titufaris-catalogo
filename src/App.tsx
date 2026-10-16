@@ -71,6 +71,7 @@ import {
   unmarkProductAsDeleted,
 } from './utils/storage';
 import { initialCategories } from './data/initialData';
+import { triggerStoreDailyBackup } from './utils/dailyBackup';
 
 import {
   validateFirestoreConnection,
@@ -220,7 +221,7 @@ export default function App() {
     cartSubtotal,
     cartDiscountAmount,
     cartTotal,
-  } = useCart();
+  } = useCart(company);
 
   const {
     viewLayout,
@@ -550,7 +551,7 @@ export default function App() {
         ownerPhone: '+54 9 11 5829-4310',
         planId: 'pro',
         subscriptionStatus: 'trial',
-        pricePerMonthARS: 45000,
+        pricePerMonthARS: 16990,
         billingCycle: 'monthly',
         createdAt: new Date().toISOString(),
         trialEndsAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
@@ -1078,6 +1079,20 @@ export default function App() {
   useEffect(() => {
     saveCompany(company, activeTenantId);
   }, [company, activeTenantId]);
+
+  // Automated Daily Snapshot: Overwrites single rolling daily backup per tenant in Firestore and local storage
+  useEffect(() => {
+    if (products.length > 0 && !isDemoModeRef.current) {
+      triggerStoreDailyBackup(
+        activeTenantId,
+        activeTenant?.name || activeTenantId,
+        products,
+        categories,
+        company,
+        { debounced: true }
+      );
+    }
+  }, [products, categories, company, activeTenantId, activeTenant?.name]);
 
   useEffect(() => {
     saveUsers(users);
@@ -3219,6 +3234,7 @@ export default function App() {
               addActivity('backup_downloaded', title, details);
             }}
             onOpenRecoveryModal={() => setIsRecoveryModalOpen(true)}
+            activeTenantId={activeTenantId}
           />
         )}
       </Suspense>
@@ -3327,6 +3343,13 @@ export default function App() {
             activeTenantId={activeTenantId}
             onSelectTenant={handleSelectTenant}
             onOpenCreateTenant={() => setIsCreateTenantModalOpen(true)}
+            onRestoreTenantSnapshot={(tenantId, snap) => {
+              if (tenantId === activeTenantId) {
+                setProducts(snap.products);
+                setCategories(snap.categories);
+                setCompany(snap.company);
+              }
+            }}
           />
         </Suspense>
       )}

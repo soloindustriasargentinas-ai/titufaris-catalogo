@@ -1,11 +1,11 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
-import { CartItem, Product } from '../types';
+import { CartItem, Product, CompanyProfile } from '../types';
 import { CartToastData } from '../components/CartConfirmationToast';
 import { playBeep } from '../utils/audio';
 
 const CART_STORAGE_KEY = 'titufaris_customer_cart_v1';
 
-export function useCart() {
+export function useCart(company?: CompanyProfile) {
   const [cart, setCart] = useState<CartItem[]>(() => {
     try {
       const saved = localStorage.getItem(CART_STORAGE_KEY);
@@ -20,6 +20,11 @@ export function useCart() {
   });
   const [posDiscount, setPosDiscount] = useState<number>(0);
   const [cartToast, setCartToast] = useState<CartToastData | null>(null);
+
+  const wholesaleEnabled = company?.wholesaleEnabled !== false;
+  const wholesaleMinUnits = typeof company?.wholesaleMinUnits === 'number' && company.wholesaleMinUnits > 0
+    ? company.wholesaleMinUnits
+    : 10;
 
   // Guardar en almacenamiento local cada vez que cambia el carrito
   useEffect(() => {
@@ -39,21 +44,40 @@ export function useCart() {
   }, []);
 
   const applyWholesaleRule = useCallback((items: CartItem[]): CartItem[] => {
+    if (!wholesaleEnabled) {
+      return items.map(it => ({
+        ...it,
+        unitPrice: it.product.retailPrice,
+        priceType: 'retail' as const,
+      }));
+    }
+
     const totalQty = items.reduce((acc, it) => acc + it.quantity, 0);
-    // Regla: Si agregan al carro más de 10 productos (cualquiera que sea), el precio cambia a x mayor en el carro para todos los productos seleccionados
-    const isWholesaleActive = totalQty > 10;
+    // Regla configurable: al alcanzar la cantidad mínima requerida por la empresa se activa precio mayorista
+    const isWholesaleActive = totalQty >= wholesaleMinUnits;
 
     return items.map(it => {
       const wholesalePrice = it.product.wholesalePrice;
       const retailPrice = it.product.retailPrice;
-      const unitPrice = isWholesaleActive && wholesalePrice !== undefined ? wholesalePrice : retailPrice;
+      const unitPrice = isWholesaleActive && wholesalePrice !== undefined && wholesalePrice > 0
+        ? wholesalePrice
+        : retailPrice;
       return {
         ...it,
         unitPrice,
-        priceType: isWholesaleActive ? 'wholesale' : 'retail',
+        priceType: isWholesaleActive && wholesalePrice !== undefined && wholesalePrice > 0 ? ('wholesale' as const) : ('retail' as const),
       };
     });
-  }, []);
+  }, [wholesaleEnabled, wholesaleMinUnits]);
+
+  // Recalcular cuando cambie la configuración de mayorista de la empresa
+  useEffect(() => {
+    setCart(prev => {
+      const recalculated = applyWholesaleRule(prev);
+      const isChanged = recalculated.some((item, idx) => item.unitPrice !== prev[idx]?.unitPrice || item.priceType !== prev[idx]?.priceType);
+      return isChanged ? recalculated : prev;
+    });
+  }, [applyWholesaleRule]);
 
   const handleAddToCart = useCallback(
     (product: Product, _unusedPriceType: 'retail' | 'wholesale' = 'retail', quantityToAdd: number = 1) => {

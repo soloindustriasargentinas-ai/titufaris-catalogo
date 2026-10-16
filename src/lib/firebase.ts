@@ -822,3 +822,190 @@ export async function runFirestoreCanaryTest(): Promise<{
     };
   }
 }
+
+// ============================================================================
+// DAILY SNAPSHOT & DISASTER RECOVERY (SINGLE OVERWRITABLE SNAPSHOT PER TENANT)
+// ============================================================================
+
+export interface StoreDailySnapshot {
+  tenantId: string;
+  storeName: string;
+  createdAt: string;
+  version: string;
+  productsCount: number;
+  categoriesCount: number;
+  products: Product[];
+  categories: Category[];
+  company: CompanyProfile;
+}
+
+export function getSnapshotDocRef(tenantId?: string) {
+  const resolved = tenantId && tenantId !== 'titufaris' ? tenantId : 'titufaris';
+  return doc(db, 'snapshots', `snapshot_${resolved}`);
+}
+
+/**
+ * Splits an array of products into chunks where each chunk's JSON size is under 450 KB.
+ * This guarantees no single Firestore document ever exceeds the 1,048,576 bytes (1 MB) limit.
+ */
+export function chunkProductsBySize(products: Product[], maxChunkBytes = 450 * 1024): Product[][] {
+  if (!products || products.length === 0) return [];
+  const chunks: Product[][] = [];
+  let currentChunk: Product[] = [];
+  let currentChunkBytes = 0;
+
+  for (const product of products) {
+    let productBytes = 0;
+    try {
+      productBytes = new TextEncoder().encode(JSON.stringify(product)).length;
+    } catch {
+      productBytes = JSON.stringify(product).length * 2;
+    }
+
+    if (currentChunk.length > 0 && currentChunkBytes + productBytes > maxChunkBytes) {
+      chunks.push(currentChunk);
+      currentChunk = [product];
+      currentChunkBytes = productBytes;
+    } else {
+      currentChunk.push(product);
+      currentChunkBytes += productBytes;
+    }
+  }
+
+  if (currentChunk.length > 0) {
+    chunks.push(currentChunk);
+  }
+
+  return chunks;
+}
+
+/**
+ * Saves or overwrites the daily master snapshot for this tenant in Firestore.
+ * Automatically chunks large product catalogs with photos so that no single document
+ * exceeds Firestore's 1,048,576 bytes (1 MB) document limit.
+ */
+export async function saveDailySnapshotToFirestore(
+  tenantId: string,
+  snapshot: Omit<StoreDailySnapshot, 'createdAt' | 'version'>
+): Promise<{ success: boolean; error?: string; timestamp?: string }> {
+  try {
+    const timestamp = new Date().toISOString();
+    const resolvedTenant = tenantId && tenantId !== 'titufaris' ? tenantId : 'titufaris';
+    const snapshotDocId = `snapshot_${resolvedTenant}`;
+    const docRef = doc(db, 'snapshots', snapshotDocId);
+    const chunksColRef = collection(db, 'snapshots', snapshotDocId, 'chunks');
+
+    // 1. Chunk products safely under 450 KB per document (Firestore 1MB limit protection)
+    const productChunks = chunkProductsBySize(snapshot.products || [], 450 * 1024);
+
+    // 2. Fetch existing chunk docs to clean up any obsolete chunks from older snapshots
+    let existingChunksSnap;
+    try {
+      existingChunksSnap = await getDocs(chunksColRef);
+    } catch {
+      // Ignore if collection didn't exist yet
+    }
+
+    const batch = writeBatch(db);
+
+    // Root metadata document (without heavy products array, keeping it ~10-30 KB)
+    const rootPayload = {
+      tenantId: resolvedTenant,
+      storeName: snapshot.storeName,
+      createdAt: timestamp,
+      version: '2.0',
+      productsCount: (snapshot.products || []).length,
+      categoriesCount: (snapshot.categories || []).length,
+      categories: snapshot.categories || [],
+      company: snapshot.company,
+      chunkCount: productChunks.length,
+    };
+    batch.set(docRef, rootPayload);
+
+    // Delete obsolete chunks if any
+    if (existingChunksSnap && !existingChunksSnap.empty) {
+      existingChunksSnap.forEach((cDoc) => {
+        batch.delete(cDoc.ref);
+      });
+    }
+
+    // Write new chunk documents
+    productChunks.forEach((chunk, index) => {
+      const chunkDocRef = doc(chunksColRef, `chunk_${index}`);
+      batch.set(chunkDocRef, {
+        index,
+        tenantId: resolvedTenant,
+        products: chunk,
+        count: chunk.length,
+        updatedAt: timestamp,
+      });
+    });
+
+    await batch.commit();
+    return { success: true, timestamp };
+  } catch (err: unknown) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    console.error(`Error saving daily snapshot for ${tenantId}:`, errorMsg);
+    return { success: false, error: errorMsg };
+  }
+}
+
+/**
+ * Retrieves the current daily master snapshot for a given tenant,
+ * assembling chunked products if saved with chunked storage (v2.0)
+ * or returning legacy single-document data (v1.0).
+ */
+export async function fetchDailySnapshotFromFirestore(tenantId: string): Promise<StoreDailySnapshot | null> {
+  try {
+    const resolvedTenant = tenantId && tenantId !== 'titufaris' ? tenantId : 'titufaris';
+    const snapshotDocId = `snapshot_${resolvedTenant}`;
+    const docRef = doc(db, 'snapshots', snapshotDocId);
+    const snap = await getDoc(docRef);
+    if (!snap.exists()) {
+      return null;
+    }
+
+    const data = snap.data();
+    let products: Product[] = [];
+
+    // Case 1: Chunked snapshot (v2.0)
+    if (typeof data.chunkCount === 'number' && data.chunkCount > 0) {
+      const chunksColRef = collection(db, 'snapshots', snapshotDocId, 'chunks');
+      const chunksSnap = await getDocs(chunksColRef);
+      const chunkDocs: { index: number; products: Product[] }[] = [];
+      chunksSnap.forEach((cDoc) => {
+        const cData = cDoc.data();
+        if (Array.isArray(cData.products)) {
+          chunkDocs.push({
+            index: typeof cData.index === 'number' ? cData.index : 0,
+            products: cData.products,
+          });
+        }
+      });
+      chunkDocs.sort((a, b) => a.index - b.index);
+      for (const c of chunkDocs) {
+        products.push(...c.products);
+      }
+    } else if (Array.isArray(data.products)) {
+      // Case 2: Legacy single-document snapshot (v1.0)
+      products = data.products;
+    }
+
+    const fullSnapshot: StoreDailySnapshot = {
+      tenantId: data.tenantId || resolvedTenant,
+      storeName: data.storeName || resolvedTenant,
+      createdAt: data.createdAt || new Date().toISOString(),
+      version: data.version || '2.0',
+      productsCount: products.length || data.productsCount || 0,
+      categoriesCount: (data.categories || []).length,
+      products,
+      categories: data.categories || [],
+      company: data.company || {},
+    };
+
+    return fullSnapshot;
+  } catch (err) {
+    console.warn(`Error fetching daily snapshot for ${tenantId}:`, err);
+    return null;
+  }
+}

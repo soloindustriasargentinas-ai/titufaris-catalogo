@@ -73,6 +73,36 @@ export interface BrandColors {
   primary: string; // Hex color e.g. '#ea580c'
   secondary?: string; // Hex color e.g. '#0f172a'
   accent?: string; // Hex color e.g. '#f97316'
+  headerBg?: string; // Hex color for the main header (e.g. '#ffffff' or custom)
+  topBarBg?: string; // Hex color for the top announcement bar (e.g. '#020617')
+  heroBg?: string; // Hex color for the hero banner section (e.g. '#020617')
+}
+
+export interface CompanyValueBadge {
+  id?: string;
+  icon?: string; // 'building' | 'shield' | 'truck' | 'creditCard' | 'store' | 'shoppingBag' | 'messageCircle' | 'check' | 'sparkles' | 'award' | 'clock' | 'heartHandshake';
+  title: string;
+  subtitle: string;
+  linkTab?: string;
+}
+
+export type PolicyBadge = CompanyValueBadge;
+
+export function getDefaultPolicyBadges(companyName: string = '', isTitufaris: boolean = false): PolicyBadge[] {
+  if (isTitufaris) {
+    return [
+      { id: 'badge-1', icon: 'store', title: 'Directo de Fábrica', subtitle: 'Sin intermediarios', linkTab: 'terms' },
+      { id: 'badge-2', icon: 'shield', title: 'Garantía 12 Meses', subtitle: 'Estructuras reforzadas', linkTab: 'warranty' },
+      { id: 'badge-3', icon: 'truck', title: 'Envíos a Todo el País', subtitle: 'Embalaje de fábrica', linkTab: 'shipping' },
+      { id: 'badge-4', icon: 'card', title: 'Medios de Pago', subtitle: 'Transferencia, cuotas y MP', linkTab: 'payment' },
+    ];
+  }
+  return [
+    { id: 'badge-1', icon: 'store', title: 'Catálogo Oficial', subtitle: `${companyName || 'Tienda'} online`, linkTab: 'terms' },
+    { id: 'badge-2', icon: 'message', title: 'Ventas Directas', subtitle: 'Atención personalizada', linkTab: 'terms' },
+    { id: 'badge-3', icon: 'truck', title: 'Envíos y Retiro', subtitle: 'Logística y entregas', linkTab: 'shipping' },
+    { id: 'badge-4', icon: 'card', title: 'Medios de Pago', subtitle: 'Efectivo, tarjetas y MP', linkTab: 'payment' },
+  ];
 }
 
 export interface CompanyProfile {
@@ -114,6 +144,19 @@ export interface CompanyProfile {
   heroImageUrl?: string;
   heroCtaText?: string;
   metaDescription?: string;
+
+  // Venta Mayorista Configurable
+  wholesaleEnabled?: boolean; // True si la tienda ofrece venta mayorista (default: true)
+  wholesaleMinUnits?: number; // Cantidad mínima de unidades para considerar venta mayorista (default: 10)
+
+  // Políticas & Beneficios de Portada (Los 4 Botones / Badges de la Tienda)
+  valueBadges?: CompanyValueBadge[];
+  heroBadges?: CompanyValueBadge[];
+
+  // Personalización del Encabezado & Renglón Superior
+  headerBgStyle?: 'brand' | 'dark' | 'custom';
+  headerBgColor?: string;
+  topBarBgColor?: string;
 
   // Redes Sociales Oficiales
   socialLinks?: {

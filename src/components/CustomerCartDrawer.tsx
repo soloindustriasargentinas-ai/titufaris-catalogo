@@ -72,8 +72,10 @@ export const CustomerCartDrawer: React.FC<CustomerCartDrawerProps> = ({
     cart.forEach((item, index) => {
       const prod = item.product || (item as any);
       const name = prod.name || (item as any).name;
-      const sku = prod.sku || (item as any).sku;
-      const isWholesale = totalItems > 10;
+      const sku = prod.sku || (item as any).sku || prod.id || '';
+      const wholesaleEnabled = company.wholesaleEnabled !== false;
+      const wholesaleMin = company.wholesaleMinUnits || 10;
+      const isWholesale = wholesaleEnabled && totalItems >= wholesaleMin;
       const isMadeToOrder = prod.isMadeToOrder;
       const leadTime = prod.leadTimeDays || 15;
       const deliveryStatus = isMadeToOrder
@@ -81,7 +83,7 @@ export const CustomerCartDrawer: React.FC<CustomerCartDrawerProps> = ({
         : ' [Stock permanente entrega inmediata]';
       text += `${index + 1}. *${name}* (SKU: ${sku})\n`;
       text += `   • Cantidad: ${item.quantity} u. x ${formatCurrency(item.unitPrice)}${
-        isWholesale ? ' [Tarifa Mayorista (+10 u.)]' : ''
+        isWholesale ? ` [Tarifa Mayorista (+${wholesaleMin} u.)]` : ''
       }\n`;
       text += `   • Subtotal: *${formatCurrency(item.unitPrice * item.quantity)}*${deliveryStatus}\n`;
     });
@@ -190,29 +192,31 @@ export const CustomerCartDrawer: React.FC<CustomerCartDrawerProps> = ({
             </div>
           ) : (
             <>
-              {/* Wholesale notification banner */}
-              {totalItems > 10 ? (
-                <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-300 flex items-center gap-2.5 text-emerald-900 text-xs shadow-2xs">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                  <div>
-                    <span className="font-bold block">¡Tarifa Mayorista Activada en Todo el Pedido!</span>
-                    <span className="text-[11px] text-emerald-800">
-                      Al tener más de 10 productos en el carro ({totalItems} unidades), todos los artículos reciben precio por mayor.
+              {/* Wholesale notification banner (Optional & Configurable per business) */}
+              {company.wholesaleEnabled !== false && (
+                totalItems >= (company.wholesaleMinUnits || 10) ? (
+                  <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-300 flex items-center gap-2.5 text-emerald-900 text-xs shadow-2xs">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <div>
+                      <span className="font-bold block">¡Tarifa Mayorista Activada en Todo el Pedido!</span>
+                      <span className="text-[11px] text-emerald-800">
+                        Al alcanzar el mínimo de {company.wholesaleMinUnits || 10} unidades ({totalItems} productos en el carro), todos los artículos reciben precio mayorista.
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-3 rounded-xl bg-orange-50 border border-orange-200 flex items-center justify-between gap-2 text-orange-950 text-xs shadow-2xs">
+                    <div>
+                      <span className="font-bold block">Tarifa Mayorista a partir de {company.wholesaleMinUnits || 10} unidades</span>
+                      <span className="text-[11px] text-orange-800">
+                        Agrega {(company.wholesaleMinUnits || 10) - totalItems} {(company.wholesaleMinUnits || 10) - totalItems === 1 ? 'producto más' : 'productos más'} para activar precio por mayor en todo tu pedido.
+                      </span>
+                    </div>
+                    <span className="font-mono font-bold text-orange-700 bg-white px-2 py-0.5 rounded-md border border-orange-200 shrink-0">
+                      {totalItems}/{company.wholesaleMinUnits || 10}
                     </span>
                   </div>
-                </div>
-              ) : (
-                <div className="p-3 rounded-xl bg-orange-50 border border-orange-200 flex items-center justify-between gap-2 text-orange-950 text-xs shadow-2xs">
-                  <div>
-                    <span className="font-bold block">Tarifa Mayorista al superar 10 productos</span>
-                    <span className="text-[11px] text-orange-800">
-                      Agrega {11 - totalItems} {11 - totalItems === 1 ? 'producto más' : 'productos más'} para superar los 10 productos y activar precio por mayor en todo tu pedido.
-                    </span>
-                  </div>
-                  <span className="font-mono font-bold text-orange-700 bg-white px-2 py-0.5 rounded-md border border-orange-200 shrink-0">
-                    {totalItems}/11
-                  </span>
-                </div>
+                )
               )}
 
               {/* Product List */}
@@ -227,7 +231,9 @@ export const CustomerCartDrawer: React.FC<CustomerCartDrawerProps> = ({
                     ? rawImg
                     : 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=200&q=80';
                   const stock = prod.stock ?? (item as any).stock ?? 99;
-                  const isWholesale = totalItems > 10;
+                  const wholesaleEnabled = company.wholesaleEnabled !== false;
+                  const wholesaleMin = company.wholesaleMinUnits || 10;
+                  const isWholesale = wholesaleEnabled && totalItems >= wholesaleMin;
                   const wholesalePrice = prod.wholesalePrice;
                   const retailPrice = prod.retailPrice;
 
@@ -247,14 +253,16 @@ export const CustomerCartDrawer: React.FC<CustomerCartDrawerProps> = ({
                           <span className="text-[10px] font-mono text-slate-400 font-bold block truncate">
                             {sku}
                           </span>
-                          {isWholesale ? (
-                            <span className="text-[9px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.2 rounded-full">
-                              Mayorista (+10 u.)
-                            </span>
-                          ) : (
-                            <span className="text-[9px] font-medium text-slate-500 bg-slate-200/80 px-1.5 py-0.2 rounded-full">
-                              Minorista
-                            </span>
+                          {wholesaleEnabled && (
+                            isWholesale ? (
+                              <span className="text-[9px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.2 rounded-full">
+                                Mayorista (+{wholesaleMin} u.)
+                              </span>
+                            ) : (
+                              <span className="text-[9px] font-medium text-slate-500 bg-slate-200/80 px-1.5 py-0.2 rounded-full">
+                                Minorista
+                              </span>
+                            )
                           )}
                         </div>
                         <h4 className="text-xs font-bold text-slate-800 truncate">{name}</h4>
@@ -275,9 +283,9 @@ export const CustomerCartDrawer: React.FC<CustomerCartDrawerProps> = ({
                           <span className="text-xs font-black text-orange-600">
                             {formatCurrency(item.unitPrice)}
                           </span>
-                          {!isWholesale && wholesalePrice && wholesalePrice < retailPrice && (
+                          {wholesaleEnabled && !isWholesale && wholesalePrice && wholesalePrice < retailPrice && (
                             <span className="text-[9.5px] text-slate-400">
-                              (Mayorista: {formatCurrency(wholesalePrice)} con más de 10 u.)
+                              (Mayorista: {formatCurrency(wholesalePrice)} con {wholesaleMin}+ u.)
                             </span>
                           )}
                         </div>
