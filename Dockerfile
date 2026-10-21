@@ -1,5 +1,6 @@
 # Multi-stage build for Coolify / Docker
-FROM node:20-alpine AS builder
+# Uses AWS ECR Public official mirrors to prevent Docker Hub anonymous 429 Rate Limits
+FROM public.ecr.aws/docker/library/node:20-alpine AS builder
 
 WORKDIR /app
 
@@ -16,7 +17,7 @@ COPY . .
 RUN npm run build
 
 # Stage 2: High-performance Nginx production server
-FROM nginx:alpine
+FROM public.ecr.aws/docker/library/nginx:alpine
 
 # Copy custom Nginx configuration
 COPY nginx.conf /etc/nginx/conf.d/default.conf
