@@ -683,13 +683,28 @@ export const PublicStoreView: React.FC<PublicStoreViewProps> = ({
 
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
-            <h2 className="text-xl sm:text-2xl font-black text-slate-900">
-              {isDemoMode ? 'Catálogo General de Productos' : 'Catálogo de Equipamiento Comercial'}
-            </h2>
-            <p className="text-xs text-slate-500">
-              {isDemoMode
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="text-xl sm:text-2xl font-black text-slate-900">
+                {company.catalogTitle?.trim() || (isDemoMode ? 'Catálogo General de Productos' : (isTitufaris ? 'Catálogo de Equipamiento Comercial' : `${company.name} · Catálogo Oficial`))}
+              </h2>
+              {onOpenHeroSettings && (
+                <button
+                  type="button"
+                  onClick={onOpenHeroSettings}
+                  title="Editar título y descripción del catálogo"
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-slate-500 hover:text-orange-600 hover:bg-orange-50 border border-slate-200 text-xs font-semibold transition-colors cursor-pointer"
+                >
+                  <Edit3 className="w-3 h-3 text-orange-600" />
+                  <span className="hidden sm:inline">Editar catálogo</span>
+                </button>
+              )}
+            </div>
+            <p className="text-xs text-slate-500 mt-1 max-w-2xl leading-relaxed">
+              {company.catalogDescription?.trim() || (isDemoMode
                 ? 'Selecciona cualquier producto para ver fotos, especificaciones detalladas o agregar al carrito de compra.'
-                : 'Selecciona cualquier producto para ver especificaciones técnicas o solicitar presupuesto.'}
+                : (isTitufaris
+                  ? 'Fabricación directa de góndolas, estanterías, racks y lockers con garantía oficial.'
+                  : (company.tagline || 'Explorá todos nuestros artículos con stock en vivo y hacé tu pedido directo por WhatsApp.')))}
             </p>
           </div>
 
@@ -813,6 +828,26 @@ export const PublicStoreView: React.FC<PublicStoreViewProps> = ({
             </select>
           </div>
         </div>
+
+        {/* Banner descriptivo de la categoría seleccionada si tiene descripción */}
+        {selectedCategory !== 'all' && (() => {
+          const currentCat = categories.find(c => c.id === selectedCategory);
+          if (currentCat?.description) {
+            return (
+              <div className="p-3 sm:p-4 bg-white border border-slate-200 rounded-2xl flex items-center gap-3 text-xs text-slate-700 shadow-2xs">
+                <span
+                  className="w-2.5 h-2.5 rounded-full shrink-0 shadow-2xs"
+                  style={{ backgroundColor: currentCat.color || '#F97316' }}
+                />
+                <div className="flex-1">
+                  <span className="font-bold text-slate-900">{currentCat.name}: </span>
+                  <span className="text-slate-600">{currentCat.description}</span>
+                </div>
+              </div>
+            );
+          }
+          return null;
+        })()}
 
         {sortedProducts.length === 0 ? (
           <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center space-y-3">

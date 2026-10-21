@@ -266,6 +266,30 @@ export async function seedCategoriesToFirestore(categories: Category[], tenantId
   }
 }
 
+export function subscribeToCategoriesFirestore(
+  onUpdate: (categories: Category[]) => void,
+  onError?: (err: Error) => void,
+  tenantId?: string
+): () => void {
+  const colRef = getCategoriesCollectionRef(tenantId);
+  return onSnapshot(
+    colRef,
+    (snapshot) => {
+      const categories: Category[] = [];
+      snapshot.forEach((docSnap) => {
+        categories.push(docSnap.data() as Category);
+      });
+      if (categories.length > 0) {
+        onUpdate(categories);
+      }
+    },
+    (error) => {
+      console.info('Firestore categories listener status:', error.message);
+      onError?.(error);
+    }
+  );
+}
+
 // ============================================================================
 // COMPANY PROFILE SYNC (TENANT ISOLATED)
 // ============================================================================
@@ -291,6 +315,26 @@ export async function saveCompanyToFirestore(company: CompanyProfile, tenantId?:
   } catch (err) {
     console.error(`Error saving company profile to Firestore (${tenantId || 'titufaris'}):`, err);
   }
+}
+
+export function subscribeToCompanyFirestore(
+  onUpdate: (company: CompanyProfile) => void,
+  onError?: (err: Error) => void,
+  tenantId?: string
+): () => void {
+  const docRef = getCompanyDocRef(tenantId);
+  return onSnapshot(
+    docRef,
+    (snapshot) => {
+      if (snapshot.exists()) {
+        onUpdate(snapshot.data() as CompanyProfile);
+      }
+    },
+    (error) => {
+      console.info('Firestore company listener status:', error.message);
+      onError?.(error);
+    }
+  );
 }
 
 // ============================================================================

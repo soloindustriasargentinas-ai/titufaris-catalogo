@@ -64,6 +64,7 @@ export interface Product {
   sortOrder?: number;
   isMadeToOrder?: boolean; // True si el producto es fabricado a pedido
   leadTimeDays?: number; // Días estimados de fabricación y entrega (ej. 7, 10, 15 días)
+  minOrderQty?: number;
   active: boolean;
   updatedAt?: string;
   updatedBy?: string;
@@ -81,6 +82,7 @@ export interface BrandColors {
 export interface CompanyValueBadge {
   id?: string;
   icon?: string; // 'building' | 'shield' | 'truck' | 'creditCard' | 'store' | 'shoppingBag' | 'messageCircle' | 'check' | 'sparkles' | 'award' | 'clock' | 'heartHandshake';
+  iconName?: string;
   title: string;
   subtitle: string;
   linkTab?: string;
@@ -137,6 +139,10 @@ export interface CompanyProfile {
   whatsappCatalogUrl?: string;
   showWhatsAppCatalogButton?: boolean;
   metaCatalogConfig?: MetaCatalogConfig;
+
+  // Personalización del Catálogo de Productos
+  catalogTitle?: string; // Título encabezado de la sección del catálogo (ej: "Catálogo de Zapatillas & Sneakers")
+  catalogDescription?: string; // Párrafo descriptivo del catálogo visible para clientes
 
   // Personalización de Portada / Página de Inicio (Hero) y SEO
   heroTitle?: string;
@@ -234,6 +240,7 @@ export type ActivityAction =
   | 'product_updated'
   | 'product_deleted'
   | 'category_created'
+  | 'category_updated'
   | 'category_deleted'
   | 'stock_adjusted'
   | 'price_updated'

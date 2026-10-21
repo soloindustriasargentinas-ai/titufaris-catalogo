@@ -90,6 +90,11 @@ export function getActiveTenantId(): string {
     // 1. Check window.location.hostname FIRST for true Subdomain & Custom Domain routing
     const hostname = window.location.hostname.toLowerCase().trim();
     if (hostname && !hostname.endsWith('.run.app') && !hostname.includes('webcontainer')) {
+      // Dominio insignia principal: titufaris.online o www.titufaris.online SIEMPRE es Titufaris
+      if (hostname === 'titufaris.online' || hostname === 'www.titufaris.online') {
+        return 'titufaris';
+      }
+
       // Subdominio especial: tiendas.titufaris.online muestra la tienda genérica SaaS
       if (hostname === 'tiendas.titufaris.online' || hostname === 'www.tiendas.titufaris.online') {
         const genericMatch = tenants.find(t => t.id === 'demo-generica' || t.slug === 'generica' || t.slug === 'mitienda');
@@ -102,7 +107,7 @@ export function getActiveTenantId(): string {
         return 'titufaris';
       }
 
-      // Direct custom domain match
+      // Direct custom domain match (ej: bazargourmet.com.ar o www.bazargourmet.com.ar)
       const matchedDomain = tenants.find(t => {
         if (!t.customDomain) return false;
         const target = sanitizeDomainName(t.customDomain);
@@ -110,18 +115,19 @@ export function getActiveTenantId(): string {
       });
       if (matchedDomain) return matchedDomain.id;
 
-      // Subdomain check on titufaris.online (e.g. zapas.titufaris.online)
+      // Subdomain check on titufaris.online (ej: zapas.titufaris.online, claudia-soft.titufaris.online)
       if (hostname.endsWith('.titufaris.online')) {
         const sub = hostname.replace('.titufaris.online', '').trim();
         if (sub && sub !== 'www' && sub !== 'cname' && sub !== 'mail') {
           const matchedSub = tenants.find(t => t.slug.toLowerCase() === sub || t.id.toLowerCase() === sub);
           if (matchedSub) return matchedSub.id;
-          // Subdominio directo Cloudflare: retornar el slug del subdominio de forma autoritativa
+          // Subdominio directo Cloudflare/Coolify: retornar el slug del subdominio de forma 100% autoritativa
           return sub;
         }
+        return 'titufaris';
       }
 
-      // Subdominio local para desarrollo (ej: zapas.localhost)
+      // Subdominio local para desarrollo (ej: zapas.localhost o claudia-soft.localhost)
       if (hostname.includes('.localhost')) {
         const sub = hostname.split('.')[0].trim();
         if (sub && sub !== 'www' && sub !== 'admin' && sub !== 'tiendas') {
@@ -130,13 +136,9 @@ export function getActiveTenantId(): string {
           return sub;
         }
       }
-
-      if (hostname === 'titufaris.online' || hostname === 'www.titufaris.online') {
-        return 'titufaris';
-      }
     }
 
-    // 2. Check URL parameters as explicit query override
+    // 2. Check URL parameters as explicit query override (?tienda= o ?dominio=)
     const params = new URLSearchParams(window.location.search);
     const domainParam = params.get('dominio') || params.get('domain');
     if (domainParam) {
@@ -155,11 +157,32 @@ export function getActiveTenantId(): string {
       return cleanSlug;
     }
 
-    // 3. Saved localStorage preference
-    const saved = localStorage.getItem(SAAS_ACTIVE_TENANT_KEY);
-    if (saved && tenants.some(t => t.id === saved || t.slug.toLowerCase() === saved.toLowerCase())) {
-      const match = tenants.find(t => t.id === saved || t.slug.toLowerCase() === saved.toLowerCase());
-      return match ? match.id : saved;
+    // 3. Check URL pathname for direct tenant paths (e.g. titufaris.online/zapas o titufaris.online/claudia-soft)
+    const pathSegments = window.location.pathname.replace(/^\/+|\/+$/g, '').split('/');
+    if (pathSegments.length > 0 && pathSegments[0]) {
+      const firstSegment = pathSegments[0].toLowerCase().trim();
+      if (
+        firstSegment &&
+        firstSegment !== 'index.html' &&
+        firstSegment !== 'assets' &&
+        firstSegment !== 'api' &&
+        firstSegment !== 'pos' &&
+        firstSegment !== 'catalogo'
+      ) {
+        const matchPath = tenants.find(t => t.slug.toLowerCase() === firstSegment || t.id.toLowerCase() === firstSegment);
+        if (matchPath) return matchPath.id;
+      }
+    }
+
+    // 3. Saved localStorage preference SOLO para entornos de desarrollo y preview (.run.app / webcontainer)
+    // En dominios reales (.titufaris.online), el hostname o query manda siempre para evitar que abrir una tienda en un navegador contamine a otra.
+    const isDevOrPreview = !hostname || hostname.endsWith('.run.app') || hostname.includes('webcontainer') || hostname === 'localhost' || hostname === '127.0.0.1';
+    if (isDevOrPreview) {
+      const saved = localStorage.getItem(SAAS_ACTIVE_TENANT_KEY);
+      if (saved && tenants.some(t => t.id === saved || t.slug.toLowerCase() === saved.toLowerCase())) {
+        const match = tenants.find(t => t.id === saved || t.slug.toLowerCase() === saved.toLowerCase());
+        return match ? match.id : saved;
+      }
     }
   } catch {
     // Fallback safely

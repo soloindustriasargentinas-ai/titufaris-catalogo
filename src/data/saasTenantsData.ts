@@ -138,6 +138,50 @@ export const initialSaaSTenants: SaaSTenantStore[] = [
     }
   },
   {
+    id: 'claudia-soft',
+    name: 'Claudia Soft - Lencería & Moda Femenina',
+    slug: 'claudia-soft',
+    customDomain: 'claudia-soft.titufaris.online',
+    domainStatus: 'ssl_active',
+    domainConfig: {
+      domain: 'claudia-soft.titufaris.online',
+      status: 'ssl_active',
+      sslActive: true,
+      sslIssuer: "Cloudflare Inc ECC CA-3",
+      sslExpiresAt: '2026-12-31T23:59:59.000Z',
+      forceHttps: true,
+      verificationToken: 'claudia-verify=cf-subdomain-key',
+      dnsRecords: [
+        { type: 'CNAME', name: 'claudia-soft', target: 'cname.titufaris.online', status: 'resolved', ttl: 3600, description: 'Subdominio Cloudflare SSL claudia-soft.titufaris.online' }
+      ],
+      verifiedAt: '2025-01-10T12:00:00.000Z',
+      lastDnsCheckAt: new Date().toISOString()
+    },
+    ownerName: 'Claudia Soft',
+    ownerEmail: 'contacto@claudia-soft.titufaris.online',
+    ownerPhone: '+54 9 11 5829-4310',
+    planId: 'pro',
+    subscriptionStatus: 'trial',
+    pricePerMonthARS: 16990,
+    billingCycle: 'monthly',
+    mercadoPagoSubscriptionId: 'TRIAL-90D-FREE-CLAUDIASOFT',
+    createdAt: new Date().toISOString(),
+    trialEndsAt: new Date(Date.now() + 3600000 * 24 * 90).toISOString(),
+    nextBillingDate: new Date(Date.now() + 3600000 * 24 * 90).toISOString(),
+    notes: 'Tienda de lencería, pijamas y moda soft (claudia-soft.titufaris.online). Catálogo online y pedidos directos por WhatsApp.',
+    technicalHealth: {
+      status: 'healthy',
+      productsCount: 12,
+      categoriesCount: 3,
+      salesCount: 5,
+      lastSyncAt: new Date().toISOString(),
+      storageKB: 140,
+      maintenanceMode: false,
+      issuesDetected: [],
+      lastDiagnosticAt: new Date().toISOString()
+    }
+  },
+  {
     id: 'bazar-gourmet',
     name: 'Bazar Gourmet & Café',
     slug: 'bazargourmet',

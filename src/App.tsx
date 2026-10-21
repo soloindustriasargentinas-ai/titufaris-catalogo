@@ -80,6 +80,8 @@ import {
   deleteProductFromFirestore,
   seedProductsToFirestore,
   subscribeToProductsFirestore,
+  subscribeToCategoriesFirestore,
+  subscribeToCompanyFirestore,
   fetchCategoriesFromFirestore,
   saveCategoryToFirestore,
   deleteCategoryFromFirestore,
@@ -164,27 +166,17 @@ export default function App() {
   const [products, setProducts] = useState<Product[]>(() => {
     if (resolvedTenantId === 'titufaris') return loadProducts('titufaris');
     if (resolvedTenantId === 'demo-generica') return genericProducts;
-    return loadProducts(resolvedTenantId, saasProducts);
+    return loadProducts(resolvedTenantId);
   });
   const [categories, setCategories] = useState<Category[]>(() => {
     if (resolvedTenantId === 'titufaris') return loadCategories('titufaris');
     if (resolvedTenantId === 'demo-generica') return genericCategories;
-    return loadCategories(resolvedTenantId, saasCategories);
+    return loadCategories(resolvedTenantId);
   });
   const [company, setCompany] = useState<CompanyProfile>(() => {
     if (resolvedTenantId === 'titufaris') return loadCompany('titufaris');
     if (resolvedTenantId === 'demo-generica') return genericCompany;
-    const isZapasStore = resolvedTenantId.toLowerCase().includes('zapas');
-    const isolatedCompany: CompanyProfile = {
-      ...saasCompany,
-      name: isZapasStore ? 'Zapas - Calzado & Sneakers Oficial' : (resolvedTenantId.charAt(0).toUpperCase() + resolvedTenantId.slice(1)),
-      tagline: isZapasStore ? 'Calzado, Sneakers & Moda Urbana' : 'Catálogo Oficial & Ventas Directas',
-      email: `contacto@${resolvedTenantId.toLowerCase()}.titufaris.online`,
-      website: `https://${resolvedTenantId.toLowerCase()}.titufaris.online`,
-      brandColors: isZapasStore ? { primary: '#E11D48', secondary: '#09090B', accent: '#BE123C' } : { primary: '#EA580C', secondary: '#0F172A', accent: '#F97316' },
-      fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
-    };
-    return loadCompany(resolvedTenantId, isolatedCompany);
+    return loadCompany(resolvedTenantId);
   });
   const [users, setUsers] = useState<User[]>(loadUsers);
   const [sales, setSales] = useState<Sale[]>(() => loadSales(resolvedTenantId));
@@ -569,25 +561,14 @@ export default function App() {
         }
       };
 
-      const isZapasStore = tenantToUse.slug.toLowerCase().includes('zapas');
-      const isolatedCompany: CompanyProfile = {
-        ...saasCompany,
-        name: tenantToUse.name,
-        tagline: isZapasStore ? 'Calzado, Sneakers & Moda Urbana' : 'Catálogo Oficial & Ventas Directas',
-        email: tenantToUse.ownerEmail,
-        phone: tenantToUse.ownerPhone,
-        website: tenantToUse.customDomain ? `https://${tenantToUse.customDomain}` : `https://${tenantToUse.slug}.titufaris.online`,
-        brandColors: isZapasStore ? { primary: '#E11D48', secondary: '#09090B', accent: '#BE123C' } : { primary: '#EA580C', secondary: '#0F172A', accent: '#F97316' },
-        fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
-      };
-      const tenantComp = loadCompany(resolvedTenantId, isolatedCompany);
+      const tenantComp = loadCompany(resolvedTenantId);
       setCompany(tenantComp);
 
       // Synchronously load cached tenant data FIRST so user-saved changes are immediately active
-      const tenantProds = loadProducts(resolvedTenantId, saasProducts);
+      const tenantProds = loadProducts(resolvedTenantId);
       setProducts(tenantProds);
 
-      const tenantCats = loadCategories(resolvedTenantId, saasCategories);
+      const tenantCats = loadCategories(resolvedTenantId);
       setCategories(tenantCats);
 
       const tenantSales = loadSales(resolvedTenantId);
@@ -599,11 +580,13 @@ export default function App() {
       const tenantNotifs = loadNotifications(resolvedTenantId);
       setNotifications(tenantNotifs);
 
-      // Then check Firestore for any newer cloud updates
+      // Then check Firestore for any newer cloud updates or seed if empty
       fetchCompanyFromFirestore(resolvedTenantId).then(remoteCompany => {
         if (remoteCompany) {
           setCompany(remoteCompany);
           saveCompany(remoteCompany, resolvedTenantId);
+        } else {
+          saveCompanyToFirestore(tenantComp, resolvedTenantId).catch(() => {});
         }
       });
 
@@ -612,6 +595,8 @@ export default function App() {
           const cleaned = cleanProductList(res.data, resolvedTenantId);
           setProducts(cleaned);
           saveProducts(cleaned, resolvedTenantId);
+        } else if (tenantProds.length > 0) {
+          seedProductsToFirestore(tenantProds, resolvedTenantId).catch(() => {});
         }
       });
 
@@ -619,6 +604,8 @@ export default function App() {
         if (remoteCats && remoteCats.length > 0) {
           setCategories(remoteCats);
           saveCategories(remoteCats, resolvedTenantId);
+        } else if (tenantCats.length > 0) {
+          seedCategoriesToFirestore(tenantCats, resolvedTenantId).catch(() => {});
         }
       });
 
@@ -633,26 +620,6 @@ export default function App() {
       setSearchQuery('');
       setDetailProduct(null);
       document.title = `${tenantToUse.name} - Catálogo & POS Oficial`;
-
-      // Strictly isolated fetch from Firestore cloud under /tenants/{resolvedTenantId}
-      fetchProductsFromFirestore(resolvedTenantId).then(res => {
-        if (res.success && res.data && res.data.length > 0) {
-          setProducts(res.data);
-          saveProducts(res.data, resolvedTenantId);
-        }
-      });
-      fetchCategoriesFromFirestore(resolvedTenantId).then(remoteCats => {
-        if (remoteCats && remoteCats.length > 0) {
-          setCategories(remoteCats);
-          saveCategories(remoteCats, resolvedTenantId);
-        }
-      });
-      fetchSalesFromFirestore(resolvedTenantId).then(remoteSales => {
-        if (remoteSales && remoteSales.length > 0) {
-          setSales(remoteSales);
-          saveSales(remoteSales, resolvedTenantId);
-        }
-      });
     }
   };
 
@@ -909,161 +876,162 @@ export default function App() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, [products, categories]);
 
-  // Sync from high-capacity IndexedDB and Firebase Firestore on startup
+  // Sync from high-capacity IndexedDB and Firebase Firestore on startup & real-time listeners for all stores
   useEffect(() => {
-    if (isDemoModeRef.current || (activeTenantId && activeTenantId !== 'titufaris')) {
-      if (activeTenantId && activeTenantId !== 'titufaris' && activeTenantId !== 'demo-generica') {
-        validateFirestoreConnection().then(async () => {
-          try {
-            const prodRes = await fetchProductsFromFirestore(activeTenantId);
-            if (prodRes.success && Array.isArray(prodRes.data) && prodRes.data.length > 0) {
-              const cleaned = cleanProductList(prodRes.data, activeTenantId);
-              setProducts(cleaned);
-              saveProducts(cleaned, activeTenantId);
-            }
-            const catRes = await fetchCategoriesFromFirestore(activeTenantId);
-            if (catRes && Array.isArray(catRes) && catRes.length > 0) {
-              setCategories(catRes);
-              saveCategories(catRes, activeTenantId);
-            }
-            const compRes = await fetchCompanyFromFirestore(activeTenantId);
-            if (compRes) {
-              setCompany(compRes);
-              saveCompany(compRes, activeTenantId);
-            }
-            const salesRes = await fetchSalesFromFirestore(activeTenantId);
-            if (salesRes && Array.isArray(salesRes) && salesRes.length > 0) {
-              setSales(salesRes);
-              saveSales(salesRes, activeTenantId);
-            }
-            setSyncStatus('synced');
-          } catch (e) {
-            console.warn(`Error syncing tenant ${activeTenantId}:`, e);
-          }
-        });
-      }
-      return;
-    }
+    let isCancelled = false;
+    let unsubProducts: (() => void) | undefined;
+    let unsubCategories: (() => void) | undefined;
+    let unsubCompany: (() => void) | undefined;
 
-    // 1. First sync from IndexedDB
-    syncProductsFromIndexedDB('titufaris').then(idbProducts => {
-      if (isDemoModeRef.current || (activeTenantId && activeTenantId !== 'titufaris')) return;
+    const currentTenant = activeTenantId || 'titufaris';
+
+    // 1. Fast local load from IndexedDB
+    syncProductsFromIndexedDB(currentTenant).then(idbProducts => {
+      if (isCancelled) return;
       if (idbProducts && Array.isArray(idbProducts) && idbProducts.length > 0) {
         setProducts(idbProducts);
       }
     });
 
-    // 2. Validate Firestore connection & synchronize strictly with cloud database
-    validateFirestoreConnection().then(async () => {
-      if (isDemoModeRef.current || (activeTenantId && activeTenantId !== 'titufaris')) return;
+    // 2. Parallel cloud fetch from Firestore (Zero latency canary bypass)
+    const syncCloudData = async () => {
       try {
-        const response = await fetchProductsFromFirestore('titufaris');
-        if (response.success && Array.isArray(response.data) && response.data.length > 0) {
-          const cleaned = cleanProductList(response.data, 'titufaris');
+        const [prodRes, remoteCats, remoteCompany] = await Promise.all([
+          fetchProductsFromFirestore(currentTenant),
+          fetchCategoriesFromFirestore(currentTenant),
+          fetchCompanyFromFirestore(currentTenant)
+        ]);
+
+        if (isCancelled) return;
+
+        // Products sync & auto-seed if cloud collection is empty for this tenant
+        if (prodRes.success && Array.isArray(prodRes.data) && prodRes.data.length > 0) {
+          const cleaned = cleanProductList(prodRes.data, currentTenant);
           setProducts(cleaned);
-          saveProducts(cleaned, 'titufaris');
+          saveProducts(cleaned, currentTenant);
           setSyncStatus('synced');
+        } else {
+          const localProducts = loadProducts(currentTenant);
+          if (localProducts && localProducts.length > 0) {
+            setProducts(localProducts);
+            seedProductsToFirestore(localProducts, currentTenant).catch(() => {});
+          }
         }
 
-        // Sync categories from cloud preserving any user/admin created categories
-        const remoteCategories = await fetchCategoriesFromFirestore();
-        if (remoteCategories && Array.isArray(remoteCategories) && remoteCategories.length > 0) {
-          setCategories(remoteCategories);
-          saveCategories(remoteCategories);
+        // Categories sync & auto-seed
+        if (remoteCats && Array.isArray(remoteCats) && remoteCats.length > 0) {
+          setCategories(remoteCats);
+          saveCategories(remoteCats, currentTenant);
         } else {
-          const localCats = loadCategories();
+          const localCats = loadCategories(currentTenant);
           if (localCats && localCats.length > 0) {
             setCategories(localCats);
-            await seedCategoriesToFirestore(localCats);
+            seedCategoriesToFirestore(localCats, currentTenant).catch(() => {});
           }
         }
 
-        // Sync company profile
-        const remoteCompany = await fetchCompanyFromFirestore();
+        // Company profile sync & auto-seed
         if (remoteCompany) {
           setCompany(remoteCompany);
-          saveCompany(remoteCompany);
+          saveCompany(remoteCompany, currentTenant);
         } else {
-          const localCompany = loadCompany();
-          if (localCompany) {
-            await saveCompanyToFirestore(localCompany);
+          const localComp = loadCompany(currentTenant);
+          if (localComp) {
+            saveCompanyToFirestore(localComp, currentTenant).catch(() => {});
           }
         }
 
-        // Sync sales records with Firestore (only genuine sales, no demo reloads)
-        const remoteSales = await fetchSalesFromFirestore();
-        const validRemoteSales = (remoteSales || []).filter(
-          s => s && s.id && !s.id.startsWith('sale-init') && s.id !== 'sale-1789132222175'
-        );
-        const currentLocalSales = loadSales();
-        const salesMap = new Map<string, Sale>();
-        validRemoteSales.forEach(s => salesMap.set(s.id, s));
-        currentLocalSales.forEach(s => {
-          if (!salesMap.has(s.id)) salesMap.set(s.id, s);
+        // Sales records sync
+        fetchSalesFromFirestore(currentTenant).then(remoteSales => {
+          if (isCancelled) return;
+          const validRemoteSales = (remoteSales || []).filter(
+            s => s && s.id && !s.id.startsWith('sale-init') && s.id !== 'sale-1789132222175'
+          );
+          if (validRemoteSales.length > 0) {
+            const currentLocalSales = loadSales(currentTenant);
+            const salesMap = new Map<string, Sale>();
+            validRemoteSales.forEach(s => salesMap.set(s.id, s));
+            currentLocalSales.forEach(s => {
+              if (!salesMap.has(s.id)) salesMap.set(s.id, s);
+            });
+            const mergedSales = Array.from(salesMap.values()).sort(
+              (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+            );
+            setSales(mergedSales);
+            saveSales(mergedSales, currentTenant);
+          }
         });
 
-        const mergedSales = Array.from(salesMap.values()).sort(
-          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        );
-        setSales(mergedSales);
-        saveSales(mergedSales);
-
-        // Sync users with Firestore (credentials & security state)
-        const remoteUsers = await fetchUsersFromFirestore();
-        if (remoteUsers && remoteUsers.length > 0) {
-          const localUsers = loadUsers();
-          const userMap = new Map<string, User>();
-          localUsers.forEach(u => userMap.set(u.id, u));
-          remoteUsers.forEach(u => userMap.set(u.id, u));
-          const mergedUsers = Array.from(userMap.values());
-          setUsers(mergedUsers);
-          saveUsers(mergedUsers);
-        } else {
-          const localUsers = loadUsers();
-          if (localUsers && localUsers.length > 0) {
-            await seedUsersToFirestore(localUsers);
+        // Activity logs sync
+        fetchActivityLogsFromFirestore(currentTenant, 100).then(remoteLogs => {
+          if (isCancelled) return;
+          if (remoteLogs && remoteLogs.length > 0) {
+            const localLogs = loadLogs(currentTenant);
+            const logsMap = new Map<string, ActivityLog>();
+            remoteLogs.forEach(l => logsMap.set(l.id, l));
+            localLogs.forEach(l => {
+              if (!logsMap.has(l.id)) logsMap.set(l.id, l);
+            });
+            const mergedLogs = Array.from(logsMap.values()).sort(
+              (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+            ).slice(0, 200);
+            setLogs(mergedLogs);
+            saveLogs(mergedLogs, currentTenant);
           }
-        }
+        });
 
-        // Sync activity logs with Firestore (Audit Trail - Lote 3)
-        const remoteLogs = await fetchActivityLogsFromFirestore(activeTenantId, 100);
-        if (remoteLogs && remoteLogs.length > 0) {
-          const localLogs = loadLogs(activeTenantId);
-          const logsMap = new Map<string, ActivityLog>();
-          remoteLogs.forEach(l => logsMap.set(l.id, l));
-          localLogs.forEach(l => {
-            if (!logsMap.has(l.id)) {
-              logsMap.set(l.id, l);
-            }
-          });
-          const mergedLogs = Array.from(logsMap.values()).sort(
-            (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-          ).slice(0, 200);
-          setLogs(mergedLogs);
-          saveLogs(mergedLogs, activeTenantId);
-        } else {
-          const localLogs = loadLogs(activeTenantId);
-          if (localLogs && localLogs.length > 0) {
-            await seedActivityLogsToFirestore(localLogs, activeTenantId);
+        // Users sync (credentials)
+        fetchUsersFromFirestore().then(remoteUsers => {
+          if (isCancelled) return;
+          if (remoteUsers && remoteUsers.length > 0) {
+            const localUsers = loadUsers();
+            const userMap = new Map<string, User>();
+            localUsers.forEach(u => userMap.set(u.id, u));
+            remoteUsers.forEach(u => userMap.set(u.id, u));
+            const mergedUsers = Array.from(userMap.values());
+            setUsers(mergedUsers);
+            saveUsers(mergedUsers);
           }
-        }
+        });
       } catch (err) {
-        console.warn('Initial Firestore sync notification:', err);
+        console.warn('Firestore multi-tenant sync notification:', err);
       }
-    });
+    };
 
-    // 3. Subscribe to real-time changes across devices
-    const unsubscribeProducts = subscribeToProductsFirestore((remoteProducts) => {
+    syncCloudData();
+
+    // 3. Attach real-time subscriptions for ALL tenants so any modification in any browser broadcasts live!
+    unsubProducts = subscribeToProductsFirestore((remoteProducts) => {
+      if (isCancelled) return;
       if (remoteProducts && Array.isArray(remoteProducts) && remoteProducts.length > 0) {
-        const cleaned = cleanProductList(remoteProducts, activeTenantId);
+        const cleaned = cleanProductList(remoteProducts, currentTenant);
         setProducts(cleaned);
-        saveProducts(cleaned, activeTenantId);
+        saveProducts(cleaned, currentTenant);
         setSyncStatus('synced');
       }
-    }, undefined, activeTenantId);
+    }, undefined, currentTenant);
+
+    unsubCategories = subscribeToCategoriesFirestore((remoteCats) => {
+      if (isCancelled) return;
+      if (remoteCats && Array.isArray(remoteCats) && remoteCats.length > 0) {
+        setCategories(remoteCats);
+        saveCategories(remoteCats, currentTenant);
+      }
+    }, undefined, currentTenant);
+
+    unsubCompany = subscribeToCompanyFirestore((remoteComp) => {
+      if (isCancelled) return;
+      if (remoteComp) {
+        setCompany(remoteComp);
+        saveCompany(remoteComp, currentTenant);
+      }
+    }, undefined, currentTenant);
 
     return () => {
-      unsubscribeProducts();
+      isCancelled = true;
+      unsubProducts?.();
+      unsubCategories?.();
+      unsubCompany?.();
     };
   }, [activeTenantId]);
 
@@ -1574,6 +1542,30 @@ export default function App() {
       id: 'notif-' + Date.now(),
       title: 'Categoría Creada',
       message: `La categoría "${newCategory.name}" fue incorporada al catálogo.`,
+      type: 'system',
+      read: false,
+      timestamp: 'Recién',
+    };
+    setNotifications(prev => [notif, ...prev]);
+    playSuccessChime();
+  };
+
+  const handleUpdateCategory = (updatedCategory: Category) => {
+    setCategories(prev => {
+      const updated = prev.map(c => c.id === updatedCategory.id ? updatedCategory : c);
+      saveCategories(updated, activeTenantId);
+      return updated;
+    });
+    saveCategoryToFirestore(updatedCategory, activeTenantId);
+    addActivity(
+      'category_updated',
+      `Categoría modificada: ${updatedCategory.name}`,
+      `Descripción o color editado por ${currentUser.name}`
+    );
+    const notif: PushNotification = {
+      id: 'notif-' + Date.now(),
+      title: 'Categoría Actualizada',
+      message: `La categoría "${updatedCategory.name}" fue actualizada en el catálogo y la base de datos.`,
       type: 'system',
       read: false,
       timestamp: 'Recién',
@@ -2303,6 +2295,7 @@ export default function App() {
               onOpenLegalModal={handleOpenLegalModal}
               onOpenCart={() => setIsCustomerCartOpen(true)}
               onOpenSitemap={() => setIsSitemapModalOpen(true)}
+              onOpenHeroSettings={currentUser.role === 'admin' ? () => setIsCompanyModalOpen(true) : undefined}
               cartCount={cartItemCount}
               cartTotal={cartSubtotal}
               isDemoMode={isDemoMode}
@@ -3082,6 +3075,7 @@ export default function App() {
             products={products}
             currentUser={currentUser}
             onAddCategory={handleAddCategory}
+            onUpdateCategory={handleUpdateCategory}
             onRequestDeleteCategory={handleRequestDeleteCategory}
           />
         )}
@@ -3204,7 +3198,7 @@ export default function App() {
 
       {/* 7. Company Settings Modal - Exclusive for Admin in Staff Mode */}
       <Suspense fallback={null}>
-        {appMode === 'staff' && currentUser.role === 'admin' && isCompanyModalOpen && (
+        {currentUser.role === 'admin' && isCompanyModalOpen && (
           <CompanySettingsModal
             company={company}
             isOpen={isCompanyModalOpen}

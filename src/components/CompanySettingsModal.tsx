@@ -33,6 +33,7 @@ import {
   RotateCcw,
   SlidersHorizontal,
   ShoppingBag,
+  BookOpen,
 } from 'lucide-react';
 import { CompanyProfile, PolicyBadge, getDefaultPolicyBadges } from '../types';
 import { normalizeMercadoPagoUrl, getPublicStoreBaseUrl } from '../utils/qrCode';
@@ -913,6 +914,73 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
                 <span className="text-[10px] text-slate-500 block">
                   Se muestra en la franja superior de la cabecera. Si se deja vacía, se usa el eslogan de la empresa.
                 </span>
+              </div>
+
+              {/* SECCIÓN: TÍTULO Y DESCRIPCIÓN DEL CATÁLOGO DE PRODUCTOS */}
+              <div className="p-4 sm:p-5 bg-gradient-to-br from-blue-50/70 via-indigo-50/30 to-white border border-blue-200 rounded-2xl space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 rounded-lg bg-blue-100 text-blue-700">
+                      <BookOpen className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h3 className="text-xs font-black uppercase tracking-wider text-slate-900">
+                        Catálogo de Productos: Título & Descripción Pública
+                      </h3>
+                      <p className="text-[11px] text-slate-600">
+                        Editá el título y la descripción visible para clientes y buscadores sobre la grilla de artículos
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] bg-blue-200 text-blue-950 font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                    Catálogo
+                  </span>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-800">
+                    Título Principal del Catálogo (H2)
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.catalogTitle ?? ''}
+                    onChange={e => handleChange('catalogTitle', e.target.value)}
+                    placeholder={formData.name ? `Catálogo Oficial de ${formData.name}` : 'Catálogo General de Productos'}
+                    className="w-full px-3.5 py-2 text-xs bg-white border border-slate-300 rounded-xl focus:border-blue-500 outline-none font-bold text-slate-900"
+                  />
+                  <span className="text-[10px] text-slate-500 block">
+                    Se muestra como título principal sobre la lista de productos (ej: "Catálogo de Zapatillas & Sneakers", "Catálogo de Equipamiento Comercial").
+                  </span>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-800">
+                    Descripción / Bajada Explicativa del Catálogo
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={formData.catalogDescription ?? ''}
+                    onChange={e => handleChange('catalogDescription', e.target.value)}
+                    placeholder="Explorá todos nuestros artículos con stock en tiempo real, precios oficiales y pedidos directos por WhatsApp."
+                    className="w-full px-3.5 py-2 text-xs bg-white border border-slate-300 rounded-xl focus:border-blue-500 outline-none text-slate-800 text-xs"
+                  />
+                  <span className="text-[10px] text-slate-500 block">
+                    Texto descriptivo que orienta a los compradores sobre cómo consultar, comprar o pedir presupuesto.
+                  </span>
+                </div>
+
+                {/* Vista previa en tiempo real */}
+                <div className="p-3 bg-white border border-blue-200/80 rounded-xl space-y-1 shadow-2xs">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 block">
+                    Vista previa en vivo del encabezado del catálogo:
+                  </span>
+                  <div className="text-sm font-black text-slate-900">
+                    {formData.catalogTitle?.trim() || (formData.name ? `Catálogo Oficial de ${formData.name}` : 'Catálogo General de Productos')}
+                  </div>
+                  <div className="text-xs text-slate-500">
+                    {formData.catalogDescription?.trim() || formData.tagline || 'Explorá todos nuestros artículos y novedades con atención directa.'}
+                  </div>
+                </div>
               </div>
 
               {/* 5. SECCIÓN: PORTADA & VITRINA PRINCIPAL (HERO) */}

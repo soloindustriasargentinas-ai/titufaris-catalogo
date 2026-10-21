@@ -219,9 +219,13 @@ export async function syncProductsFromIndexedDB(tenantId?: string): Promise<Prod
   return null;
 }
 
+import { getTenantDefaultData } from '../data/tenantPresetsData';
+
 export function loadProducts(tenantId?: string, fallbackProducts?: Product[]): Product[] {
   const key = getTenantStorageKey(STORAGE_KEYS.PRODUCTS, tenantId);
-  const fallback = fallbackProducts !== undefined ? fallbackProducts : ((!tenantId || tenantId === 'titufaris') ? initialProducts : []);
+  const tenantDefault = tenantId ? getTenantDefaultData(tenantId) : null;
+  const defaultFallback = tenantDefault ? tenantDefault.products : ((!tenantId || tenantId === 'titufaris') ? initialProducts : []);
+  const fallback = fallbackProducts !== undefined ? fallbackProducts : defaultFallback;
   const raw = safeGet<Product[]>(key, fallback);
   const cleaned = cleanProductList(raw, tenantId);
   saveProducts(cleaned, tenantId);
@@ -252,7 +256,9 @@ export function saveProducts(products: Product[], tenantId?: string): void {
 
 export function loadCategories(tenantId?: string, fallbackCategories?: Category[]): Category[] {
   const key = getTenantStorageKey(STORAGE_KEYS.CATEGORIES, tenantId);
-  const fallback = fallbackCategories !== undefined ? fallbackCategories : initialCategories;
+  const tenantDefault = tenantId ? getTenantDefaultData(tenantId) : null;
+  const defaultFallback = tenantDefault ? tenantDefault.categories : initialCategories;
+  const fallback = fallbackCategories !== undefined ? fallbackCategories : defaultFallback;
   const loaded = safeGet<Category[]>(key, fallback);
   return Array.isArray(loaded) && loaded.length > 0 ? loaded : fallback;
 }
@@ -264,7 +270,9 @@ export function saveCategories(categories: Category[], tenantId?: string): void 
 
 export function loadCompany(tenantId?: string, fallbackCompany?: CompanyProfile): CompanyProfile {
   const key = getTenantStorageKey(STORAGE_KEYS.COMPANY, tenantId);
-  const fallback = fallbackCompany || initialCompany;
+  const tenantDefault = tenantId ? getTenantDefaultData(tenantId) : null;
+  const defaultFallback = tenantDefault ? tenantDefault.company : initialCompany;
+  const fallback = fallbackCompany || defaultFallback;
   return safeGet<CompanyProfile>(key, fallback);
 }
 

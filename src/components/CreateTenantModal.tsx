@@ -18,10 +18,16 @@ import {
 } from 'lucide-react';
 import { CompanyProfile } from '../types';
 import { SaaSTenantStore, SaaSPlanId } from '../types/saas';
-import { saveSaaSTenantToFirestore, saveCompanyToFirestore } from '../lib/firebase';
+import {
+  saveSaaSTenantToFirestore,
+  saveCompanyToFirestore,
+  seedCategoriesToFirestore,
+  seedProductsToFirestore,
+} from '../lib/firebase';
 import { saveSaaSTenants } from '../utils/saasStorage';
-import { saveCompany } from '../utils/storage';
+import { saveCompany, saveProducts, saveCategories } from '../utils/storage';
 import { saasCompany } from '../data/saasDemoData';
+import { getPresetDataForCategory, TenantCategoryPresetType } from '../data/tenantPresetsData';
 
 interface CreateTenantModalProps {
   isOpen: boolean;
@@ -95,6 +101,15 @@ export const CreateTenantModal: React.FC<CreateTenantModalProps> = ({
         enterprise: 29990
       };
 
+      // Generate tailored starter catalog, categories, branding and descriptions
+      const presetData = getPresetDataForCategory(
+        categoryPreset,
+        storeName,
+        storeSlug,
+        ownerEmail,
+        ownerPhone
+      );
+
       const newTenant: SaaSTenantStore = {
         id: storeSlug,
         name: storeName.trim(),
@@ -115,8 +130,8 @@ export const CreateTenantModal: React.FC<CreateTenantModalProps> = ({
         nextBillingDate: nextBilling.toISOString(),
         technicalHealth: {
           status: 'healthy',
-          productsCount: 12,
-          categoriesCount: 4,
+          productsCount: presetData.products.length,
+          categoriesCount: presetData.categories.length,
           salesCount: 0,
           lastSyncAt: now.toISOString(),
           storageKB: 45,
@@ -127,24 +142,22 @@ export const CreateTenantModal: React.FC<CreateTenantModalProps> = ({
         notes: `Tienda creada con 3 meses gratis sin tarjeta. Rubro: ${categoryPreset}. Plan posterior elegido: ${selectedPlan.toUpperCase()}.`
       };
 
-      // Guardar en Firestore y local
+      // 1. Guardar tenant en Firestore y local
       await saveSaaSTenantToFirestore(newTenant);
       const updatedList = [...tenants, newTenant];
       saveSaaSTenants(updatedList);
 
-      // Seed initial isolated branding and company profile in Firestore & local
-      const initialBrandCompany: CompanyProfile = {
-        ...saasCompany,
-        name: storeName.trim(),
-        tagline: 'Catálogo Oficial & Ventas Directas',
-        email: ownerEmail.trim(),
-        phone: ownerPhone.trim(),
-        website: `https://${storeSlug}.titufaris.online`,
-        brandColors: { primary: '#2563EB', secondary: '#0F172A', accent: '#3B82F6' },
-        fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
-      };
-      await saveCompanyToFirestore(initialBrandCompany, storeSlug).catch(() => {});
-      saveCompany(initialBrandCompany, storeSlug);
+      // 2. Guardar Company Profile (con descripción y título de catálogo editable)
+      await saveCompanyToFirestore(presetData.company, storeSlug).catch(() => {});
+      saveCompany(presetData.company, storeSlug);
+
+      // 3. Guardar Categorías iniciales del rubro
+      await seedCategoriesToFirestore(presetData.categories, storeSlug).catch(() => {});
+      saveCategories(presetData.categories, storeSlug);
+
+      // 4. Guardar Productos iniciales del rubro
+      await seedProductsToFirestore(presetData.products, storeSlug).catch(() => {});
+      saveProducts(presetData.products, storeSlug);
 
       setCreatedTenant(newTenant);
       onTenantCreated(newTenant);

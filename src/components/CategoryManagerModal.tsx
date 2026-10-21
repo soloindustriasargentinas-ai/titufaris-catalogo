@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Layers, Plus, Trash2, X, AlertTriangle, ArrowRight, CheckCircle2, FolderKanban } from 'lucide-react';
+import { Layers, Plus, Trash2, X, AlertTriangle, ArrowRight, CheckCircle2, FolderKanban, Edit2, Check } from 'lucide-react';
 import { Category, Product, User } from '../types';
 
 interface CategoryManagerModalProps {
@@ -10,6 +10,7 @@ interface CategoryManagerModalProps {
   currentUser: User;
   onAddCategory: (category: Category) => void;
   onRequestDeleteCategory: (category: Category) => void;
+  onUpdateCategory?: (category: Category) => void;
 }
 
 const PRESET_COLORS = [
@@ -31,15 +32,46 @@ export const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
   currentUser,
   onAddCategory,
   onRequestDeleteCategory,
+  onUpdateCategory,
 }) => {
   const [newCatName, setNewCatName] = useState('');
   const [newCatColor, setNewCatColor] = useState(PRESET_COLORS[0].hex);
   const [newCatDescription, setNewCatDescription] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
+  // Editing state for existing categories
+  const [editingCatId, setEditingCatId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState('');
+  const [editingColor, setEditingColor] = useState('');
+  const [editingDescription, setEditingDescription] = useState('');
+
   if (!isOpen) return null;
 
   const canManage = currentUser.role === 'admin' || currentUser.permissions.canManageInventory;
+
+  const handleStartEdit = (cat: Category) => {
+    setEditingCatId(cat.id);
+    setEditingName(cat.name);
+    setEditingColor(cat.color || PRESET_COLORS[0].hex);
+    setEditingDescription(cat.description || '');
+  };
+
+  const handleCancelEdit = () => {
+    setEditingCatId(null);
+  };
+
+  const handleSaveEdit = (cat: Category) => {
+    if (!editingName.trim()) return;
+    if (onUpdateCategory) {
+      onUpdateCategory({
+        ...cat,
+        name: editingName.trim(),
+        color: editingColor,
+        description: editingDescription.trim() || undefined,
+      });
+    }
+    setEditingCatId(null);
+  };
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
@@ -235,57 +267,149 @@ export const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
                 return (
                   <div
                     key={c.id}
-                    className="p-3.5 sm:p-4 flex items-center justify-between gap-3 hover:bg-slate-50/80 transition-colors"
+                    className="p-3.5 sm:p-4 hover:bg-slate-50/80 transition-colors"
                   >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div
-                        className="w-8 h-8 rounded-xl flex items-center justify-center text-white shrink-0 shadow-2xs"
-                        style={{ backgroundColor: c.color || '#F97316' }}
-                      >
-                        <FolderKanban className="w-4 h-4" />
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h4 className="font-bold text-slate-900 text-sm">{c.name}</h4>
-                          <span
-                            className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold font-mono uppercase shadow-2xs"
-                            style={{
-                              backgroundColor: `${c.color || '#F97316'}18`,
-                              color: c.color || '#ea580c',
-                              border: `1px solid ${c.color || '#F97316'}35`,
-                            }}
-                          >
-                            <span
-                              className="w-1.5 h-1.5 rounded-full shrink-0"
-                              style={{ backgroundColor: c.color || '#F97316' }}
-                            />
-                            {c.color || '#F97316'}
+                    {editingCatId === c.id ? (
+                      /* Modo de edición inline */
+                      <div className="space-y-3 bg-orange-50/40 p-3 rounded-xl border border-orange-200">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-bold text-orange-800 uppercase tracking-wider flex items-center gap-1.5">
+                            <Edit2 className="w-3.5 h-3.5 text-orange-600" />
+                            Editar Categoría
                           </span>
-                          <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-semibold">
-                            {productCount} {productCount === 1 ? 'artículo' : 'artículos'}
-                          </span>
+                          <span className="text-[10px] text-slate-500 font-mono">{c.id}</span>
                         </div>
-                        {c.description && (
-                          <p className="text-xs text-slate-500 truncate mt-0.5 max-w-md">
-                            {c.description}
-                          </p>
-                        )}
-                      </div>
-                    </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
-                      {canManage && (
-                        <button
-                          type="button"
-                          onClick={() => onRequestDeleteCategory(c)}
-                          title={`Eliminar categoría "${c.name}"`}
-                          className="flex items-center gap-1 px-3 py-1.5 rounded-xl border border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 text-xs font-bold transition-colors cursor-pointer"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                          <span className="hidden sm:inline">Eliminar</span>
-                        </button>
-                      )}
-                    </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-700 uppercase mb-1">
+                              Nombre de Categoría
+                            </label>
+                            <input
+                              type="text"
+                              value={editingName}
+                              onChange={e => setEditingName(e.target.value)}
+                              className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-lg font-bold text-slate-900 outline-none focus:border-orange-500"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-700 uppercase mb-1">
+                              Color Identificador
+                            </label>
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="color"
+                                value={editingColor}
+                                onChange={e => setEditingColor(e.target.value)}
+                                className="w-8 h-8 rounded-lg border border-slate-300 cursor-pointer p-0.5 bg-white"
+                              />
+                              <span className="font-mono text-xs font-bold text-slate-600 uppercase">{editingColor}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-700 uppercase mb-1">
+                            Descripción / Detalle para Clientes (Visible en el Catálogo)
+                          </label>
+                          <textarea
+                            rows={2}
+                            value={editingDescription}
+                            onChange={e => setEditingDescription(e.target.value)}
+                            placeholder="Ej: Calzado deportivo y sneakers con suela antideslizante..."
+                            className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-lg text-slate-800 outline-none focus:border-orange-500"
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-end gap-2 pt-1">
+                          <button
+                            type="button"
+                            onClick={handleCancelEdit}
+                            className="px-3 py-1 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-200 transition-colors cursor-pointer"
+                          >
+                            Cancelar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleSaveEdit(c)}
+                            className="inline-flex items-center gap-1 px-3.5 py-1 rounded-lg bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                            <span>Guardar Cambios</span>
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      /* Modo de visualización */
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div
+                            className="w-8 h-8 rounded-xl flex items-center justify-center text-white shrink-0 shadow-2xs"
+                            style={{ backgroundColor: c.color || '#F97316' }}
+                          >
+                            <FolderKanban className="w-4 h-4" />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h4 className="font-bold text-slate-900 text-sm">{c.name}</h4>
+                              <span
+                                className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold font-mono uppercase shadow-2xs"
+                                style={{
+                                  backgroundColor: `${c.color || '#F97316'}18`,
+                                  color: c.color || '#ea580c',
+                                  border: `1px solid ${c.color || '#F97316'}35`,
+                                }}
+                              >
+                                <span
+                                  className="w-1.5 h-1.5 rounded-full shrink-0"
+                                  style={{ backgroundColor: c.color || '#F97316' }}
+                                />
+                                {c.color || '#F97316'}
+                              </span>
+                              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-semibold">
+                                {productCount} {productCount === 1 ? 'artículo' : 'artículos'}
+                              </span>
+                            </div>
+                            {c.description ? (
+                              <p className="text-xs text-slate-600 mt-0.5 max-w-md">
+                                {c.description}
+                              </p>
+                            ) : (
+                              <p className="text-[11px] text-slate-400 italic mt-0.5">
+                                Sin descripción personalizada
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {canManage && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => handleStartEdit(c)}
+                                title={`Editar descripción y datos de "${c.name}"`}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-100 hover:border-slate-400 text-xs font-bold transition-colors cursor-pointer"
+                              >
+                                <Edit2 className="w-3.5 h-3.5 text-orange-600" />
+                                <span className="hidden sm:inline">Editar</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => onRequestDeleteCategory(c)}
+                                title={`Eliminar categoría "${c.name}"`}
+                                className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 text-xs font-bold transition-colors cursor-pointer"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                                <span className="hidden sm:inline">Eliminar</span>
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}
