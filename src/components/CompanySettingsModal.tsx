@@ -34,6 +34,7 @@ import {
   SlidersHorizontal,
   ShoppingBag,
   BookOpen,
+  Construction,
 } from 'lucide-react';
 import { CompanyProfile, PolicyBadge, getDefaultPolicyBadges } from '../types';
 import { normalizeMercadoPagoUrl, getPublicStoreBaseUrl } from '../utils/qrCode';
@@ -350,6 +351,114 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
           {/* ========================================================================= */}
           {activeTab === 'branding' && (
             <div className="space-y-6">
+              {/* 0. SECCIÓN: ESTADO DE PUBLICACIÓN DE LA TIENDA (EN CONSTRUCCIÓN VS PUBLICADA) */}
+              <div className={`p-4 sm:p-5 rounded-2xl border transition space-y-4 ${
+                formData.isPublished !== false
+                  ? 'bg-gradient-to-br from-emerald-50/60 via-teal-50/30 to-white border-emerald-300'
+                  : 'bg-gradient-to-br from-amber-50/70 via-orange-50/30 to-white border-amber-300'
+              }`}>
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <div className={`p-2 rounded-xl text-white shadow-xs ${
+                      formData.isPublished !== false ? 'bg-emerald-600' : 'bg-amber-600'
+                    }`}>
+                      {formData.isPublished !== false ? (
+                        <Globe className="w-5 h-5" />
+                      ) : (
+                        <Construction className="w-5 h-5" />
+                      )}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-xs font-black uppercase tracking-wider text-slate-900">
+                          Estado de Visibilidad de la Tienda
+                        </h3>
+                        <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
+                          formData.isPublished !== false
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : 'bg-amber-100 text-amber-800'
+                        }`}>
+                          {formData.isPublished !== false ? '🟢 Publicada' : '🟡 En Construcción'}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-600">
+                        Permite ocultar la tienda a tus clientes mientras cargas productos y ajustar precios
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* Opción 1: Publicada */}
+                  <div
+                    onClick={() => handleChange('isPublished', true)}
+                    className={`p-3.5 rounded-xl border-2 transition cursor-pointer flex items-start gap-3 ${
+                      formData.isPublished !== false
+                        ? 'border-emerald-600 bg-white ring-2 ring-emerald-500/20 shadow-xs'
+                        : 'border-slate-200 hover:border-slate-300 bg-white/70'
+                    }`}
+                  >
+                    <div className={`w-4 h-4 rounded-full border-2 mt-0.5 flex items-center justify-center shrink-0 ${
+                      formData.isPublished !== false ? 'border-emerald-600' : 'border-slate-300'
+                    }`}>
+                      {formData.isPublished !== false && <div className="w-2 h-2 rounded-full bg-emerald-600" />}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-black text-slate-900">Tienda Publicada (Online)</span>
+                        <span className="text-[9px] bg-emerald-100 text-emerald-800 font-extrabold px-1.5 py-0.2 rounded-full">Visible</span>
+                      </div>
+                      <p className="text-[11px] text-slate-600 mt-1 leading-relaxed">
+                        Tu catálogo y productos están 100% abiertos al público. Los visitantes pueden navegar, armar carritos y contactarte por WhatsApp.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Opción 2: En Construcción */}
+                  <div
+                    onClick={() => handleChange('isPublished', false)}
+                    className={`p-3.5 rounded-xl border-2 transition cursor-pointer flex items-start gap-3 ${
+                      formData.isPublished === false
+                        ? 'border-amber-500 bg-white ring-2 ring-amber-400/20 shadow-xs'
+                        : 'border-slate-200 hover:border-slate-300 bg-white/70'
+                    }`}
+                  >
+                    <div className={`w-4 h-4 rounded-full border-2 mt-0.5 flex items-center justify-center shrink-0 ${
+                      formData.isPublished === false ? 'border-amber-600' : 'border-slate-300'
+                    }`}>
+                      {formData.isPublished === false && <div className="w-2 h-2 rounded-full bg-amber-600" />}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-black text-slate-900">En Construcción (Oculta)</span>
+                        <span className="text-[9px] bg-amber-100 text-amber-800 font-extrabold px-1.5 py-0.2 rounded-full">Próximamente</span>
+                      </div>
+                      <p className="text-[11px] text-slate-600 mt-1 leading-relaxed">
+                        Los visitantes ven una pantalla elegante de "Próximamente" con tu WhatsApp. Vos como admin seguís teniendo acceso total para cargar productos.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {formData.isPublished === false && (
+                  <div className="pt-2 border-t border-amber-200/80 space-y-2 animate-fadeIn">
+                    <label className="block text-xs font-bold text-amber-950">
+                      Mensaje de Próximamente visible para visitantes:
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={formData.underConstructionMessage || ''}
+                      onChange={e => handleChange('underConstructionMessage', e.target.value)}
+                      placeholder={`Estamos preparando nuestro nuevo catálogo oficial de ${formData.name || 'la tienda'}. ¡Próximamente disponible! Podés contactarnos directamente por WhatsApp para consultas o pedidos.`}
+                      className="w-full text-xs px-3.5 py-2 rounded-xl border border-amber-300 bg-white text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    />
+                    <p className="text-[10px] text-amber-800 flex items-center gap-1">
+                      <span>💡 <strong>Tip:</strong> Puedes incluir información de contacto o promociones de apertura para que te consulten mientras terminas de cargar los productos.</span>
+                    </p>
+                  </div>
+                )}
+              </div>
+
               {/* 1. SECCIÓN: LOGO OFICIAL DE LA MARCA */}
               <div className="p-4 sm:p-5 bg-slate-50 border border-slate-200 rounded-2xl space-y-4">
                 <div className="flex items-center justify-between">

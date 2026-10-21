@@ -31,6 +31,9 @@ import {
   Instagram,
   Facebook,
   Linkedin,
+  Construction,
+  Globe,
+  Mail,
 } from 'lucide-react';
 import { Product, Category, CompanyProfile, PolicyBadge, getDefaultPolicyBadges } from '../types';
 import { formatCurrency } from '../utils/storage';
@@ -90,6 +93,8 @@ interface PublicStoreViewProps {
   cartCount?: number;
   cartTotal?: number;
   isDemoMode?: boolean;
+  isAdmin?: boolean;
+  onPublishStore?: () => void;
 }
 
 export const PublicStoreView: React.FC<PublicStoreViewProps> = ({
@@ -111,6 +116,8 @@ export const PublicStoreView: React.FC<PublicStoreViewProps> = ({
   cartCount = 0,
   cartTotal = 0,
   isDemoMode = false,
+  isAdmin = false,
+  onPublishStore,
 }) => {
   const [sortBy, setSortBy] = useState<PublicStoreSortOption>('featured_first');
   const [filterFeaturedOnly, setFilterFeaturedOnly] = useState(false);
@@ -240,11 +247,207 @@ export const PublicStoreView: React.FC<PublicStoreViewProps> = ({
       }
     });
   }, [products, sortBy, filterFeaturedOnly, deliveryFilter]);
+
+  const cleanPhone = (company.phone || '').replace(/[^0-9]/g, '');
+  const waContactUrl = company.whatsappCatalogUrl || `https://wa.me/${cleanPhone || '5491158294310'}?text=${encodeURIComponent(
+    `¡Hola ${company.name}! Estuve viendo la tienda online en preparación y quería hacer una consulta comercial.`
+  )}`;
+
+  // =========================================================================
+  // VISTA OFICIAL DE TIENDA EN CONSTRUCCIÓN / PRÓXIMAMENTE (PARA EL PÚBLICO)
+  // =========================================================================
+  if (company.isPublished === false && !isAdmin) {
+    return (
+      <div
+        className="min-h-screen flex flex-col justify-between text-slate-100 bg-slate-950 selection:bg-orange-500 selection:text-white"
+        style={{ fontFamily: brandFont }}
+      >
+        {/* Header Superior con Logo & Acceso Admin */}
+        <header className="border-b border-white/10 px-4 sm:px-8 py-3.5 bg-slate-950/90 backdrop-blur-md sticky top-0 z-50">
+          <div className="max-w-6xl mx-auto flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              {company.logoUrl ? (
+                <img
+                  src={company.logoUrl}
+                  alt={company.name}
+                  className="h-9 sm:h-10 w-auto max-w-[160px] object-contain rounded-lg bg-white/5 p-1 border border-white/10"
+                />
+              ) : (
+                <div
+                  className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center text-white font-black text-base shadow-md"
+                  style={{ backgroundColor: brandPrimary }}
+                >
+                  <Store className="w-5 h-5 text-white" />
+                </div>
+              )}
+              <div>
+                <h1 className="text-white font-black text-sm sm:text-base leading-tight">
+                  {company.name}
+                </h1>
+                {company.tagline && (
+                  <p className="text-[10px] sm:text-[11px] text-slate-400 font-medium line-clamp-1">
+                    {company.tagline}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={onSwitchToStaffMode}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-slate-200 hover:text-white text-xs font-semibold border border-white/10 transition cursor-pointer shrink-0"
+              title="Acceso exclusivo para el administrador de la tienda"
+            >
+              <Lock className="w-3.5 h-3.5 text-amber-400" />
+              <span>Acceso Administrador</span>
+            </button>
+          </div>
+        </header>
+
+        {/* Tarjeta Central: Tienda en Preparación / Próximamente */}
+        <main className="flex-1 flex items-center justify-center p-4 sm:p-8 relative overflow-hidden">
+          {/* Ambient decorative radial glow */}
+          <div
+            className="absolute -top-32 -right-32 w-96 h-96 rounded-full blur-3xl pointer-events-none opacity-20"
+            style={{ backgroundColor: brandPrimary }}
+          />
+          <div
+            className="absolute -bottom-32 -left-32 w-96 h-96 rounded-full blur-3xl pointer-events-none opacity-15"
+            style={{ backgroundColor: company.brandColors?.secondary || '#1e3a8a' }}
+          />
+
+          <div className="max-w-2xl w-full bg-slate-900/80 border border-white/10 rounded-3xl p-6 sm:p-10 shadow-2xl backdrop-blur-xl relative z-10 text-center space-y-6">
+            {/* Badge de Estado */}
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-bold tracking-wide">
+              <Construction className="w-4 h-4 animate-bounce" />
+              <span>TIENDA EN CONSTRUCCIÓN &middot; PRÓXIMAMENTE</span>
+            </div>
+
+            {/* Título Principal y Mensaje */}
+            <div className="space-y-3">
+              <h2 className="text-2xl sm:text-4xl font-black text-white tracking-tight leading-tight text-balance">
+                Estamos preparando el nuevo catálogo de{' '}
+                <span style={{ color: brandPrimary }}>{company.name}</span>
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed max-w-xl mx-auto">
+                {company.underConstructionMessage ||
+                  'Estamos cargando nuestros nuevos productos, actualizando precios y organizando las categorías para ofrecerte la mejor experiencia online. ¡Muy pronto vas a poder comprar directamente desde aquí!'}
+              </p>
+            </div>
+
+            {/* Botones de Contacto Directo */}
+            <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+              <a
+                href={waContactUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs sm:text-sm transition shadow-lg shadow-emerald-500/20 hover:scale-[1.02] cursor-pointer"
+              >
+                <MessageCircle className="w-4 h-4 fill-slate-950 text-emerald-500" />
+                <span>Contactar por WhatsApp</span>
+              </a>
+
+              {company.email && (
+                <a
+                  href={`mailto:${company.email}`}
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-white/10 hover:bg-white/15 text-white font-bold text-xs sm:text-sm transition border border-white/10 cursor-pointer"
+                >
+                  <Mail className="w-4 h-4 text-slate-300" />
+                  <span>Enviar Email</span>
+                </a>
+              )}
+            </div>
+
+            {/* Datos Comerciales */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-4 border-t border-white/10 text-left text-xs">
+              <div className="bg-white/5 rounded-xl p-3 border border-white/5">
+                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-1">
+                  Atención & Asesoramiento
+                </span>
+                <p className="text-white font-medium">{company.phone}</p>
+                <p className="text-slate-400 text-[11px] mt-0.5">{company.city || 'Envíos a todo el país'}</p>
+              </div>
+
+              <div className="bg-white/5 rounded-xl p-3 border border-white/5">
+                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-1">
+                  Ubicación & Envíos
+                </span>
+                <p className="text-white font-medium truncate">{company.address || 'Venta online directa'}</p>
+                <p className="text-emerald-400 text-[11px] mt-0.5 font-semibold">✓ Envíos y entregas activas</p>
+              </div>
+            </div>
+
+            {/* Aviso para el Dueño */}
+            <div className="pt-2 text-center">
+              <p className="text-[11px] text-slate-400">
+                ¿Sos el administrador o dueño de la tienda?{' '}
+                <button
+                  type="button"
+                  onClick={onSwitchToStaffMode}
+                  className="text-amber-400 hover:underline font-bold cursor-pointer"
+                >
+                  Ingresá al panel admin para cargar tus productos y publicar la tienda &rarr;
+                </button>
+              </p>
+            </div>
+          </div>
+        </main>
+
+        {/* Footer */}
+        <footer className="border-t border-white/10 px-4 py-3.5 text-center text-xs text-slate-500 bg-slate-950">
+          <p>&copy; {new Date().getFullYear()} {company.name}. Todos los derechos reservados.</p>
+        </footer>
+      </div>
+    );
+  }
+
   return (
     <div
       className="flex-1 pb-24 md:pb-16 w-full max-w-full overflow-x-hidden"
       style={{ fontFamily: brandFont }}
     >
+      {/* BANNER AVISO: MODO EN CONSTRUCCIÓN ACTIVO (SOLO VISIBLE CUANDO ADMIN ESTÁ PREVISUALIZANDO) */}
+      {company.isPublished === false && (
+        <div className="bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-slate-950 px-4 py-3 border-b border-amber-600 shadow-md sticky top-0 z-40">
+          <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2.5">
+              <div className="p-1.5 bg-slate-950 text-amber-400 rounded-lg shrink-0">
+                <Construction className="w-4 h-4" />
+              </div>
+              <div>
+                <span className="font-extrabold uppercase tracking-wider text-[11px] block">
+                  🚧 Modo En Construcción Activo (Tienda Oculta al Público)
+                </span>
+                <span className="text-slate-900 font-medium">
+                  Solo tú como administrador puedes ver y preparar este catálogo mientras cargas tus productos. Tus clientes ven la pantalla de "Próximamente".
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              {onPublishStore && (
+                <button
+                  type="button"
+                  onClick={onPublishStore}
+                  className="bg-slate-950 hover:bg-slate-900 text-white font-black text-xs px-4 py-2 rounded-xl transition cursor-pointer flex items-center gap-1.5 shadow-sm hover:scale-[1.02]"
+                >
+                  <Globe className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Publicar Tienda Ahora</span>
+                </button>
+              )}
+              {onOpenHeroSettings && (
+                <button
+                  type="button"
+                  onClick={onOpenHeroSettings}
+                  className="bg-white/90 hover:bg-white text-slate-900 font-bold text-xs px-3 py-2 rounded-xl transition cursor-pointer"
+                >
+                  Editar Portada
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Hero Banner Comercial con Fondo Dinámico de Marca o Personalizado */}
       <section
         className="text-white pt-10 pb-12 px-4 sm:px-6 relative overflow-hidden border-b border-white/10 transition-colors"

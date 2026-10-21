@@ -22,11 +22,11 @@ services:
       - "coolify.managed=true"
       - "traefik.enable=true"
       # Enrutamiento HTTP (Port 80)
-      - "traefik.http.routers.titufaris-http.rule=Host(`titufaris.online`) || Host(`www.titufaris.online`) || Host(`zapas.titufaris.online`) || Host(`claudia-soft.titufaris.online`) || Host(`tiendas.titufaris.online`) || HostRegexp(`^.+\\.titufaris\\.online$`)"
+      - "traefik.http.routers.titufaris-http.rule=Host(`titufaris.online`) || Host(`www.titufaris.online`) || Host(`zapas.titufaris.online`) || Host(`claudia-soft.titufaris.online`) || Host(`moncheestanterias.titufaris.online`) || Host(`tiendas.titufaris.online`) || HostRegexp(`^.+\\.titufaris\\.online$`)"
       - "traefik.http.routers.titufaris-http.entrypoints=http"
       - "traefik.http.routers.titufaris-http.service=titufaris-svc"
       # Enrutamiento HTTPS (Port 443)
-      - "traefik.http.routers.titufaris-https.rule=Host(`titufaris.online`) || Host(`www.titufaris.online`) || Host(`zapas.titufaris.online`) || Host(`claudia-soft.titufaris.online`) || Host(`tiendas.titufaris.online`) || HostRegexp(`^.+\\.titufaris\\.online$`)"
+      - "traefik.http.routers.titufaris-https.rule=Host(`titufaris.online`) || Host(`www.titufaris.online`) || Host(`zapas.titufaris.online`) || Host(`claudia-soft.titufaris.online`) || Host(`moncheestanterias.titufaris.online`) || Host(`tiendas.titufaris.online`) || HostRegexp(`^.+\\.titufaris\\.online$`)"
       - "traefik.http.routers.titufaris-https.entrypoints=https"
       - "traefik.http.routers.titufaris-https.service=titufaris-svc"
       - "traefik.http.routers.titufaris-https.tls=true"

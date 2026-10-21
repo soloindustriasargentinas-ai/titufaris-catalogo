@@ -140,6 +140,10 @@ export interface CompanyProfile {
   showWhatsAppCatalogButton?: boolean;
   metaCatalogConfig?: MetaCatalogConfig;
 
+  // Estado de Publicación de la Tienda (En Construcción vs Publicada)
+  isPublished?: boolean; // true = Publicada para clientes, false = En Construcción (solo admin)
+  underConstructionMessage?: string; // Mensaje personalizado para visitantes durante la carga de productos
+
   // Personalización del Catálogo de Productos
   catalogTitle?: string; // Título encabezado de la sección del catálogo (ej: "Catálogo de Zapatillas & Sneakers")
   catalogDescription?: string; // Párrafo descriptivo del catálogo visible para clientes

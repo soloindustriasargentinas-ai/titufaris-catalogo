@@ -29,6 +29,7 @@ import {
   Share2,
   ExternalLink,
   Globe,
+  Construction,
 } from 'lucide-react';
 
 import {
@@ -1933,12 +1934,21 @@ export default function App() {
     saveCompany(updatedCompany, activeTenantId);
     saveCompanyToFirestore(updatedCompany, activeTenantId);
 
-    // Keep tenant list in sync with custom store name & branding
+    // Keep tenant list in sync with custom store name, branding & publication status
     if (activeTenantId !== 'titufaris' && activeTenantId !== 'demo-generica') {
       setSaaSTenants(prev => {
         const updated = prev.map(t => {
           if (t.id === activeTenantId || t.slug.toLowerCase() === activeTenantId.toLowerCase()) {
-            const nextTenant = { ...t, name: updatedCompany.name };
+            const nextTenant: SaaSTenantStore = {
+              ...t,
+              name: updatedCompany.name,
+              isPublished: updatedCompany.isPublished !== false,
+              underConstructionMessage: updatedCompany.underConstructionMessage,
+              technicalHealth: {
+                ...t.technicalHealth,
+                maintenanceMode: updatedCompany.isPublished === false
+              }
+            };
             saveSaaSTenantToFirestore(nextTenant).catch(() => {});
             return nextTenant;
           }
@@ -1952,8 +1962,14 @@ export default function App() {
     addActivity(
       'company_updated',
       `Datos y Branding de ${updatedCompany.name} actualizados`,
-      `CUIT: ${updatedCompany.taxId} | Razón Social: ${updatedCompany.legalName}`
+      `Estado: ${updatedCompany.isPublished !== false ? 'Publicada' : 'En Construcción'} | CUIT: ${updatedCompany.taxId}`
     );
+  };
+
+  const handlePublishCurrentStore = () => {
+    const updatedCompany: CompanyProfile = { ...company, isPublished: true };
+    handleSaveCompany(updatedCompany);
+    alert(`🎉 ¡Excelente! La tienda "${updatedCompany.name}" ha sido publicada exitosamente y ahora es 100% visible para todos los clientes en Internet.`);
   };
 
   const handleRestoreBackup = (backupData: AppBackupData, mode: 'replace' | 'merge') => {
@@ -2299,6 +2315,8 @@ export default function App() {
               cartCount={cartItemCount}
               cartTotal={cartSubtotal}
               isDemoMode={isDemoMode}
+              isAdmin={currentUser.role === 'admin' || appMode === 'staff'}
+              onPublishStore={handlePublishCurrentStore}
             />
           )}
 
@@ -2350,6 +2368,38 @@ export default function App() {
               else triggerCloudSync();
             }}
           />
+
+          {/* Banner de Modo En Construcción en Panel Administrativo */}
+          {company.isPublished === false && activeTenantId !== 'titufaris' && (
+            <div className="bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-slate-950 px-4 py-2 border-b border-amber-600 flex flex-wrap items-center justify-between gap-2 shadow-xs text-xs font-medium z-30">
+              <div className="flex items-center gap-2">
+                <span className="p-1 rounded-md bg-slate-950 text-amber-300 font-bold text-[10px] uppercase tracking-wider flex items-center gap-1">
+                  <Construction className="w-3.5 h-3.5" />
+                  <span>En Construcción</span>
+                </span>
+                <span className="font-semibold text-slate-950">
+                  Esta tienda está actualmente oculta al público mientras cargas tus productos e inventario.
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handlePublishCurrentStore}
+                  className="bg-slate-950 hover:bg-slate-900 text-white font-bold text-xs px-3.5 py-1 rounded-lg transition cursor-pointer flex items-center gap-1.5 shadow-sm hover:scale-[1.02]"
+                >
+                  <Globe className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Publicar Tienda Online</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsCompanyModalOpen(true)}
+                  className="bg-white/80 hover:bg-white text-slate-950 font-bold text-xs px-2.5 py-1 rounded-lg transition cursor-pointer"
+                >
+                  Configurar Mensaje &rarr;
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Main App Navigation Bar */}
           <Navbar
@@ -3369,8 +3419,7 @@ export default function App() {
             onClose={() => setIsCreateTenantModalOpen(false)}
             tenants={saasTenants}
             onTenantCreated={(newTenant) => {
-              setSaaSTenants(prev => [...prev, newTenant]);
-              handleSelectTenant(newTenant.id);
+              setSaaSTenants(prev => [...prev.filter(t => t.id !== newTenant.id), newTenant]);
             }}
             onSelectTenantDirectly={(tenantId) => {
               handleSelectTenant(tenantId);

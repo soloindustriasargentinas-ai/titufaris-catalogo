@@ -34,10 +34,13 @@ export function loadSaaSTenants(): SaaSTenantStore[] {
     }
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed) && parsed.length > 0) {
-      // Ensure titufaris is always present and marked as default
-      const hasTitufaris = parsed.some(t => t.id === 'titufaris');
-      if (!hasTitufaris) {
-        parsed.unshift(initialSaaSTenants[0]);
+      // Ensure core initial stores (titufaris, moncheestanterias, zapas, claudia-soft) are always present
+      for (const init of initialSaaSTenants) {
+        const found = parsed.some(t => t.id === init.id || t.slug.toLowerCase() === init.slug.toLowerCase());
+        if (!found) {
+          if (init.id === 'titufaris') parsed.unshift(init);
+          else parsed.push(init);
+        }
       }
 
       // Normalize legacy prices to match the official realistic SaaS pricing

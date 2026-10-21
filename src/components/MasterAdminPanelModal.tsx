@@ -45,7 +45,8 @@ import {
   Upload,
   CloudDownload,
   CloudUpload,
-  Loader2
+  Loader2,
+  Construction
 } from 'lucide-react';
 import {
   SaaSTenantStore,
@@ -221,6 +222,46 @@ export const MasterAdminPanelModal: React.FC<MasterAdminPanelModalProps> = ({
       setSelectedTenantForDomain(renewed);
     }
     showToast(`Certificado SSL renovado para ${tenant.customDomain}`);
+  };
+
+  const handleTogglePublishStatus = (targetTenant: SaaSTenantStore) => {
+    const nextPublished = targetTenant.isPublished === false ? true : false;
+    const updated = tenants.map(t => {
+      if (t.id === targetTenant.id) {
+        return {
+          ...t,
+          isPublished: nextPublished,
+          technicalHealth: {
+            ...t.technicalHealth,
+            maintenanceMode: !nextPublished
+          }
+        };
+      }
+      return t;
+    });
+
+    onUpdateTenants(updated);
+    saveSaaSTenants(updated);
+
+    const changed = updated.find(t => t.id === targetTenant.id);
+    if (changed) {
+      saveSaaSTenantToFirestore(changed).catch(err => console.warn('Error syncing store visibility:', err));
+    }
+
+    try {
+      const currentComp = loadCompany(targetTenant.id);
+      if (currentComp) {
+        currentComp.isPublished = nextPublished;
+        saveCompany(currentComp, targetTenant.id);
+        saveCompanyToFirestore(currentComp, targetTenant.id).catch(() => {});
+      }
+    } catch {}
+
+    showToast(
+      nextPublished
+        ? `Tienda "${targetTenant.name}" PUBLICADA exitosamente (Visible en la web)`
+        : `Tienda "${targetTenant.name}" puesta EN CONSTRUCCIÓN (Oculta al público)`
+    );
   };
 
   // New Store Form State
@@ -1375,6 +1416,7 @@ export const MasterAdminPanelModal: React.FC<MasterAdminPanelModalProps> = ({
                         <th className="py-3 px-4">Dueño & Contacto</th>
                         <th className="py-3 px-4">Plan & Cobro</th>
                         <th className="py-3 px-4">Estado Suscripción</th>
+                        <th className="py-3 px-4">Visibilidad Web</th>
                         <th className="py-3 px-4">Salud Técnica</th>
                         <th className="py-3 px-4 text-right">Acciones Técnicas</th>
                       </tr>
@@ -1460,6 +1502,30 @@ export const MasterAdminPanelModal: React.FC<MasterAdminPanelModalProps> = ({
                                 <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-600 border border-slate-300 px-2 py-0.5 rounded-full font-bold text-[11px]">
                                   <XCircle className="w-3 h-3 text-slate-500" /> Cancelada
                                 </span>
+                              )}
+                            </td>
+
+                            <td className="py-3 px-4">
+                              {t.isPublished !== false ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleTogglePublishStatus(t)}
+                                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-bold text-[10px] transition cursor-pointer shadow-2xs"
+                                  title="Tienda visible para clientes. Haz clic para cambiar a Modo En Construcción"
+                                >
+                                  <Globe className="w-3 h-3 text-emerald-600" />
+                                  <span>Publicada</span>
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => handleTogglePublishStatus(t)}
+                                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 font-bold text-[10px] transition cursor-pointer shadow-2xs"
+                                  title="Tienda oculta al público (los clientes ven Próximamente). Haz clic para Publicar"
+                                >
+                                  <Construction className="w-3 h-3 text-amber-600" />
+                                  <span>En Construcción</span>
+                                </button>
                               )}
                             </td>
 

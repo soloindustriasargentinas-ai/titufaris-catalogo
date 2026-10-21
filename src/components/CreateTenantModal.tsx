@@ -14,7 +14,8 @@ import {
   Globe,
   Copy,
   Check,
-  ExternalLink
+  ExternalLink,
+  Construction,
 } from 'lucide-react';
 import { CompanyProfile } from '../types';
 import { SaaSTenantStore, SaaSPlanId } from '../types/saas';
@@ -48,6 +49,7 @@ export const CreateTenantModal: React.FC<CreateTenantModalProps> = ({
   const [storeName, setStoreName] = useState('');
   const [storeSlug, setStoreSlug] = useState('');
   const [categoryPreset, setCategoryPreset] = useState<'gastronomia' | 'indumentaria' | 'tecnologia' | 'ferreteria'>('gastronomia');
+  const [initialStoreStatus, setInitialStoreStatus] = useState<'under_construction' | 'published'>('under_construction');
   const [ownerName, setOwnerName] = useState('');
   const [ownerEmail, setOwnerEmail] = useState('');
   const [ownerPhone, setOwnerPhone] = useState('+54 9 11 ');
@@ -56,28 +58,38 @@ export const CreateTenantModal: React.FC<CreateTenantModalProps> = ({
   const [createdTenant, setCreatedTenant] = useState<SaaSTenantStore | null>(null);
   const [copiedUrl, setCopiedUrl] = useState(false);
 
+  const [customUnderConstructionMsg, setCustomUnderConstructionMsg] = useState('');
+  const [cloudSyncStatus, setCloudSyncStatus] = useState<'syncing' | 'synced'>('syncing');
+
   if (!isOpen) return null;
+
+  const sanitizeSlugInput = (input: string) => {
+    return input
+      .toLowerCase()
+      .trim()
+      .replace(/^https?:\/\//i, '')
+      .replace(/\.titufaris\.online.*$/i, '')
+      .replace(/[^a-z0-9-]/g, '')
+      .replace(/-+/g, '-')
+      .replace(/^-+|-+$/g, '');
+  };
 
   const handleNameChange = (name: string) => {
     setStoreName(name);
     // Auto generate clean slug
-    const cleanSlug = name
-      .toLowerCase()
-      .trim()
-      .replace(/[^\w\s-]/g, '')
-      .replace(/[\s_-]+/g, '-')
-      .replace(/^-+|-+$/g, '');
+    const cleanSlug = sanitizeSlugInput(name);
     setStoreSlug(cleanSlug);
   };
 
   const handleCreateStore = async () => {
-    if (!storeName.trim() || !storeSlug.trim() || !ownerEmail.trim()) {
-      alert('Por favor completa todos los campos requeridos.');
+    const cleanSlug = sanitizeSlugInput(storeSlug);
+    if (!storeName.trim() || !cleanSlug || !ownerEmail.trim()) {
+      alert('Por favor completa todos los campos requeridos (Nombre de tienda, subdominio y email).');
       return;
     }
 
     // Check slug collision
-    const existing = tenants.find(t => t.slug === storeSlug || t.id === storeSlug);
+    const existing = tenants.find(t => t.slug === cleanSlug || t.id === cleanSlug);
     if (existing) {
       alert('Este identificador / slug de tienda ya se encuentra en uso. Por favor elige otro.');
       return;
@@ -105,16 +117,23 @@ export const CreateTenantModal: React.FC<CreateTenantModalProps> = ({
       const presetData = getPresetDataForCategory(
         categoryPreset,
         storeName,
-        storeSlug,
+        cleanSlug,
         ownerEmail,
         ownerPhone
       );
 
+      const isPublished = initialStoreStatus === 'published';
+      presetData.company.isPublished = isPublished;
+      presetData.company.underConstructionMessage = isPublished
+        ? undefined
+        : (customUnderConstructionMsg.trim() ||
+           `Estamos preparando nuestro nuevo catálogo oficial de ${storeName.trim()}. ¡Próximamente disponible! Podés contactarnos directamente por WhatsApp para consultas o pedidos.`);
+
       const newTenant: SaaSTenantStore = {
-        id: storeSlug,
+        id: cleanSlug,
         name: storeName.trim(),
-        slug: storeSlug,
-        customDomain: `${storeSlug}.titufaris.online`,
+        slug: cleanSlug,
+        customDomain: `${cleanSlug}.titufaris.online`,
         domainStatus: 'ssl_active',
         isDefaultStore: false,
         ownerName: ownerName.trim() || 'Propietario de ' + storeName,
@@ -122,6 +141,8 @@ export const CreateTenantModal: React.FC<CreateTenantModalProps> = ({
         ownerPhone: ownerPhone.trim(),
         planId: selectedPlan,
         subscriptionStatus: 'trial', // Inicia siempre en período de prueba gratuito bonificado
+        isPublished: isPublished,
+        underConstructionMessage: presetData.company.underConstructionMessage,
         pricePerMonthARS: priceMap[selectedPlan],
         billingCycle: 'monthly',
         mercadoPagoSubscriptionId: 'TRIAL-90D-' + Math.random().toString(36).substring(2, 9).toUpperCase(),
@@ -135,36 +156,41 @@ export const CreateTenantModal: React.FC<CreateTenantModalProps> = ({
           salesCount: 0,
           lastSyncAt: now.toISOString(),
           storageKB: 45,
-          maintenanceMode: false,
+          maintenanceMode: !isPublished,
           issuesDetected: [],
           lastDiagnosticAt: now.toISOString()
         },
-        notes: `Tienda creada con 3 meses gratis sin tarjeta. Rubro: ${categoryPreset}. Plan posterior elegido: ${selectedPlan.toUpperCase()}.`
+        notes: `Tienda creada con 3 meses gratis sin tarjeta. Rubro: ${categoryPreset}. Estado inicial: ${isPublished ? 'Publicada' : 'En Construcción'}. Plan elegido: ${selectedPlan.toUpperCase()}.`
       };
 
-      // 1. Guardar tenant en Firestore y local
-      await saveSaaSTenantToFirestore(newTenant);
-      const updatedList = [...tenants, newTenant];
+      // 1. Guardar de forma inmediata en almacenamiento local persistente (CERO LATENCIA - INSTANTÁNEO)
+      const updatedList = [...tenants.filter(t => t.id !== cleanSlug), newTenant];
       saveSaaSTenants(updatedList);
+      saveCompany(presetData.company, cleanSlug);
+      saveCategories(presetData.categories, cleanSlug);
+      saveProducts(presetData.products, cleanSlug);
 
-      // 2. Guardar Company Profile (con descripción y título de catálogo editable)
-      await saveCompanyToFirestore(presetData.company, storeSlug).catch(() => {});
-      saveCompany(presetData.company, storeSlug);
+      // 2. Disparar sincronización con Firebase en paralelo en segundo plano (NO bloquea al usuario)
+      setCloudSyncStatus('syncing');
+      Promise.allSettled([
+        saveSaaSTenantToFirestore(newTenant),
+        saveCompanyToFirestore(presetData.company, cleanSlug),
+        seedCategoriesToFirestore(presetData.categories, cleanSlug),
+        seedProductsToFirestore(presetData.products, cleanSlug)
+      ]).then(() => {
+        setCloudSyncStatus('synced');
+      }).catch(err => {
+        console.warn('Nota de sincronización Firestore:', err);
+        setCloudSyncStatus('synced');
+      });
 
-      // 3. Guardar Categorías iniciales del rubro
-      await seedCategoriesToFirestore(presetData.categories, storeSlug).catch(() => {});
-      saveCategories(presetData.categories, storeSlug);
-
-      // 4. Guardar Productos iniciales del rubro
-      await seedProductsToFirestore(presetData.products, storeSlug).catch(() => {});
-      saveProducts(presetData.products, storeSlug);
-
+      // 3. Avanzar inmediatamente al paso 3 (ÉXITO TOTAL)
       setCreatedTenant(newTenant);
       onTenantCreated(newTenant);
       setStep(3);
     } catch (e) {
       console.error('Error creando tienda:', e);
-      alert('Ocurrió un error al crear la tienda. Por favor intenta nuevamente.');
+      alert('Ocurrió un error al crear la tienda. Por favor verifica los datos e intenta nuevamente.');
     } finally {
       setIsSubmitting(false);
     }
@@ -314,12 +340,88 @@ export const CreateTenantModal: React.FC<CreateTenantModalProps> = ({
                 </div>
               </div>
 
+              {/* VISIBILIDAD INICIAL DE LA TIENDA (EN CONSTRUCCIÓN VS PUBLICADA) */}
+              <div className="p-3.5 sm:p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-800">
+                      Estado Inicial de la Tienda al Crearse
+                    </label>
+                    <p className="text-[11px] text-slate-500">
+                      Podés cambiarlo en cualquier momento desde el Admin o Configuración de Tienda
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div
+                    onClick={() => setInitialStoreStatus('under_construction')}
+                    className={`p-3 rounded-xl border-2 transition cursor-pointer flex items-start gap-2.5 ${
+                      initialStoreStatus === 'under_construction'
+                        ? 'border-amber-500 bg-amber-50/70 ring-2 ring-amber-400/20'
+                        : 'border-slate-200 hover:border-slate-300 bg-white'
+                    }`}
+                  >
+                    <div className="p-1.5 rounded-lg bg-amber-100 text-amber-700 shrink-0 mt-0.5">
+                      <Construction className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-bold text-xs text-slate-900">En Construcción</span>
+                        <span className="bg-amber-100 text-amber-800 text-[9px] font-black uppercase px-1.5 py-0.2 rounded-full">
+                          Recomendado
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-slate-600 mt-0.5 leading-tight">
+                        Oculta el catálogo al público mientras cargas productos en el admin. Los clientes ven una pantalla de Próximamente con WhatsApp.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div
+                    onClick={() => setInitialStoreStatus('published')}
+                    className={`p-3 rounded-xl border-2 transition cursor-pointer flex items-start gap-2.5 ${
+                      initialStoreStatus === 'published'
+                        ? 'border-emerald-500 bg-emerald-50/70 ring-2 ring-emerald-400/20'
+                        : 'border-slate-200 hover:border-slate-300 bg-white'
+                    }`}
+                  >
+                    <div className="p-1.5 rounded-lg bg-emerald-100 text-emerald-700 shrink-0 mt-0.5">
+                      <Globe className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-bold text-xs text-slate-900">Publicada de Inmediato</span>
+                      </div>
+                      <p className="text-[10px] text-slate-600 mt-0.5 leading-tight">
+                        Visible en línea desde el primer instante con los productos iniciales cargados.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {initialStoreStatus === 'under_construction' && (
+                  <div className="pt-1.5 animate-fadeIn">
+                    <label className="block text-[11px] font-bold text-amber-900 mb-1">
+                      Mensaje de Próximamente para los Clientes (Opcional):
+                    </label>
+                    <input
+                      type="text"
+                      value={customUnderConstructionMsg}
+                      onChange={e => setCustomUnderConstructionMsg(e.target.value)}
+                      placeholder={`Estamos preparando nuestro nuevo catálogo oficial de ${storeName || 'la tienda'}. ¡Próximamente disponible! Podés contactarnos directamente por WhatsApp.`}
+                      className="w-full text-xs px-3 py-1.5 rounded-lg border border-amber-300 bg-white text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    />
+                  </div>
+                )}
+              </div>
+
               <div className="pt-4 flex justify-end">
                 <button
                   type="button"
                   disabled={!storeName.trim() || !storeSlug.trim() || !ownerEmail.trim()}
                   onClick={() => setStep(2)}
-                  className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold text-xs px-5 py-2.5 rounded-xl transition cursor-pointer flex items-center gap-2"
+                  className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold text-xs px-5 py-2.5 rounded-xl transition cursor-pointer flex items-center gap-2 shadow-xs"
                 >
                   Continuar a Selección de Plan <ArrowRight className="w-4 h-4" />
                 </button>
@@ -475,6 +577,16 @@ export const CreateTenantModal: React.FC<CreateTenantModalProps> = ({
                   <span className="font-mono font-bold text-blue-700">https://{createdTenant.slug}.titufaris.online</span>
                 </div>
                 <div className="flex justify-between border-b border-slate-200 pb-1.5">
+                  <span className="text-slate-500">Estado de Publicación:</span>
+                  <span className="font-bold flex items-center gap-1">
+                    {createdTenant.isPublished ? (
+                      <span className="text-emerald-700">🟢 Publicada Online</span>
+                    ) : (
+                      <span className="text-amber-700">🟡 En Construcción (Oculta al público mientras cargas productos)</span>
+                    )}
+                  </span>
+                </div>
+                <div className="flex justify-between border-b border-slate-200 pb-1.5">
                   <span className="text-slate-500">Condición Inicial:</span>
                   <span className="font-bold text-emerald-700">Prueba 3 Meses Gratis (Hasta 50 productos)</span>
                 </div>
@@ -488,7 +600,13 @@ export const CreateTenantModal: React.FC<CreateTenantModalProps> = ({
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-500">Respaldo en la Nube:</span>
-                  <span className="font-mono text-emerald-700 font-semibold">Firebase Firestore Conectado</span>
+                  <span className="font-mono text-xs font-semibold flex items-center gap-1">
+                    {cloudSyncStatus === 'syncing' ? (
+                      <span className="text-indigo-600 font-medium animate-pulse">⏳ Sincronizando con Firestore...</span>
+                    ) : (
+                      <span className="text-emerald-700 font-semibold">✓ Firebase Firestore Conectado</span>
+                    )}
+                  </span>
                 </div>
               </div>
 

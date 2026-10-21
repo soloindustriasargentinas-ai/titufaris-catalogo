@@ -95,6 +95,8 @@ export interface SaaSTenantStore {
   ownerPhone: string;
   planId: SaaSPlanId;
   subscriptionStatus: SaaSSubscriptionStatus;
+  isPublished?: boolean; // true = Tienda publicada, false = En construcción
+  underConstructionMessage?: string;
   pricePerMonthARS: number;
   billingCycle: 'monthly' | 'yearly';
   mercadoPagoSubscriptionId?: string; // Preapproval ID from MP

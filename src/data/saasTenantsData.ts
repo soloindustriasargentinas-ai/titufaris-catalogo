@@ -182,6 +182,52 @@ export const initialSaaSTenants: SaaSTenantStore[] = [
     }
   },
   {
+    id: 'moncheestanterias',
+    name: 'Monche Estanterías - Estanterías Metálicas & Racks',
+    slug: 'moncheestanterias',
+    customDomain: 'moncheestanterias.titufaris.online',
+    domainStatus: 'ssl_active',
+    domainConfig: {
+      domain: 'moncheestanterias.titufaris.online',
+      status: 'ssl_active',
+      sslActive: true,
+      sslIssuer: "Cloudflare Inc ECC CA-3",
+      sslExpiresAt: '2026-12-31T23:59:59.000Z',
+      forceHttps: true,
+      verificationToken: 'monche-verify=cf-subdomain-key',
+      dnsRecords: [
+        { type: 'CNAME', name: 'moncheestanterias', target: 'cname.titufaris.online', status: 'resolved', ttl: 3600, description: 'Subdominio Cloudflare SSL moncheestanterias.titufaris.online' }
+      ],
+      verifiedAt: '2025-01-10T12:00:00.000Z',
+      lastDnsCheckAt: new Date().toISOString()
+    },
+    ownerName: 'Monche Estanterías',
+    ownerEmail: 'contacto@moncheestanterias.titufaris.online',
+    ownerPhone: '+54 9 11 5829-4310',
+    planId: 'pro',
+    subscriptionStatus: 'trial',
+    isPublished: false, // Inicia en Modo En Construcción mientras se cargan productos
+    underConstructionMessage: 'Estamos cargando nuestro catálogo de estanterías metálicas, góndolas comerciales y racks industriales. ¡Próximamente disponible! Podés contactarnos directamente por WhatsApp para cotizaciones inmediatas.',
+    pricePerMonthARS: 16990,
+    billingCycle: 'monthly',
+    mercadoPagoSubscriptionId: 'TRIAL-90D-FREE-MONCHE',
+    createdAt: new Date().toISOString(),
+    trialEndsAt: new Date(Date.now() + 3600000 * 24 * 90).toISOString(),
+    nextBillingDate: new Date(Date.now() + 3600000 * 24 * 90).toISOString(),
+    notes: 'Tienda de estanterías metálicas reforzadas, góndolas comerciales y racks de almacenamiento (moncheestanterias.titufaris.online). Catálogo online y pedidos directos.',
+    technicalHealth: {
+      status: 'healthy',
+      productsCount: 6,
+      categoriesCount: 4,
+      salesCount: 0,
+      lastSyncAt: new Date().toISOString(),
+      storageKB: 140,
+      maintenanceMode: false,
+      issuesDetected: [],
+      lastDiagnosticAt: new Date().toISOString()
+    }
+  },
+  {
     id: 'bazar-gourmet',
     name: 'Bazar Gourmet & Café',
     slug: 'bazargourmet',
