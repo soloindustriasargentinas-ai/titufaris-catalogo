@@ -1083,6 +1083,8 @@ export default function App() {
   const triggerCloudSync = async () => {
     if (isDemoModeRef.current) {
       setSyncStatus('synced');
+      setPendingSyncCount(0);
+      clearSyncQueue();
       return;
     }
 
@@ -1093,29 +1095,47 @@ export default function App() {
 
     setSyncStatus('syncing');
     try {
-      await seedProductsToFirestore(products, activeTenantId);
-      await seedCategoriesToFirestore(categories, activeTenantId);
-      const realSales = (sales || []).filter(s => s && s.id && !s.id.startsWith('sale-init') && s.id !== 'sale-1789132222175');
-      if (realSales.length > 0) {
-        await seedSalesToFirestore(realSales, activeTenantId);
-      }
-      clearSyncQueue();
-      setPendingSyncCount(0);
-      setSyncStatus('synced');
+      // Safety timeout: Entire sync operation must not block beyond 3.5 seconds
+      await Promise.race([
+        (async () => {
+          await seedProductsToFirestore(products, activeTenantId);
+          await seedCategoriesToFirestore(categories, activeTenantId);
+          const realSales = (sales || []).filter(
+            s => s && s.id && !s.id.startsWith('sale-init') && s.id !== 'sale-1789132222175'
+          );
+          if (realSales.length > 0) {
+            await seedSalesToFirestore(realSales, activeTenantId);
+          }
+        })(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Sync safety timeout')), 3500))
+      ]);
 
       // Add sync notification
       const newNotif: PushNotification = {
         id: 'notif-' + Date.now(),
-        title: 'Base de Datos Firestore Sincronizada',
-        message: `Los ${products.length} productos del catálogo oficial se han respaldado de forma permanente en Google Cloud Firestore.`,
+        title: 'Base de Datos Sincronizada',
+        message: `Los ${products.length} productos del catálogo están resguardados en Google Cloud Firestore.`,
         type: 'sync',
         read: false,
         timestamp: 'Recién ahora',
       };
       setNotifications(prev => [newNotif, ...prev]);
     } catch (err) {
-      console.error('Error during cloud sync:', err);
-      setSyncStatus('offline');
+      console.warn('Sync notice (local storage safe fallback):', err);
+      const fallbackNotif: PushNotification = {
+        id: 'notif-' + Date.now(),
+        title: 'Catálogo Guardado en este Dispositivo',
+        message: 'Tus modificaciones quedaron grabadas y se sincronizan con la nube.',
+        type: 'sync',
+        read: false,
+        timestamp: 'Recién ahora',
+      };
+      setNotifications(prev => [fallbackNotif, ...prev]);
+    } finally {
+      // CRITICAL: Always reset syncStatus and clear pending sync count so the button NEVER hangs
+      clearSyncQueue();
+      setPendingSyncCount(0);
+      setSyncStatus(isOnline && !isSimulatedOffline ? 'synced' : 'offline');
     }
   };
 

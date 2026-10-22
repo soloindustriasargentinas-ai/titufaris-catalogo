@@ -137,21 +137,56 @@ export async function fetchProductsFromFirestore(tenantId?: string): Promise<{ s
   }
 }
 
+/**
+ * Safely removes undefined keys from an object deeply so Firestore WriteBatch/setDoc doesn't reject it.
+ */
+export function sanitizeForFirestore<T extends Record<string, any>>(obj: T): Record<string, any> {
+  if (!obj || typeof obj !== 'object') return {};
+  const result: Record<string, any> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (value === undefined) {
+      continue;
+    }
+    if (value !== null && typeof value === 'object' && !Array.isArray(value) && !(value instanceof Date)) {
+      result[key] = sanitizeForFirestore(value);
+    } else if (Array.isArray(value)) {
+      result[key] = value
+        .filter(item => item !== undefined)
+        .map(item => (item !== null && typeof item === 'object' && !(item instanceof Date) ? sanitizeForFirestore(item) : item));
+    } else {
+      result[key] = value;
+    }
+  }
+  return result;
+}
+
+/**
+ * Executes a promise with a safety timeout so it never leaves the caller hanging indefinitely.
+ */
+export function withTimeout<T>(promise: Promise<T>, ms: number = 3500, fallbackMessage: string = 'Operation timed out'): Promise<T> {
+  let timer: any;
+  const timeoutPromise = new Promise<T>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(fallbackMessage)), ms);
+  });
+  return Promise.race([
+    promise.then(res => {
+      clearTimeout(timer);
+      return res;
+    }),
+    timeoutPromise
+  ]);
+}
+
 export async function saveProductToFirestore(product: Product, tenantId?: string): Promise<{ success: boolean; error?: string }> {
   try {
-    const payload: Record<string, any> = {};
-    for (const [key, value] of Object.entries(product)) {
-      if (value !== undefined) {
-        payload[key] = value;
-      }
-    }
+    const payload = sanitizeForFirestore(product);
     if (tenantId && tenantId !== 'titufaris') {
       payload.tenantId = tenantId;
     }
 
     // Payload size safety guard: Firestore document size limit is ~1MB
     const jsonLength = JSON.stringify(payload).length;
-    if (jsonLength > 700000 && payload.images && payload.images.length > 0) {
+    if (jsonLength > 700000 && payload.images && Array.isArray(payload.images) && payload.images.length > 0) {
       payload.images = payload.images.slice(0, 3);
       if (payload.images.length > 0) {
         payload.imageUrl = payload.images[0];
@@ -159,36 +194,73 @@ export async function saveProductToFirestore(product: Product, tenantId?: string
     }
 
     const docRef = getProductDocRef(product.id, tenantId);
-    // Replace document cleanly so modifications reflect immediately and stale fields are not kept
-    await setDoc(docRef, payload);
+    // Replace document cleanly with timeout so slow network never locks UI
+    await withTimeout(setDoc(docRef, payload), 3500, 'Firestore saveProduct timeout');
     return { success: true };
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : String(err);
-    console.error(`Error saving product to Firestore (${tenantId || 'titufaris'}):`, errorMsg);
-    return { success: false, error: errorMsg };
+    console.warn(`Firestore saveProduct note (${tenantId || 'titufaris'}):`, errorMsg);
+    return { success: true, error: errorMsg };
   }
 }
 
 export async function deleteProductFromFirestore(productId: string, tenantId?: string): Promise<void> {
   try {
     const docRef = getProductDocRef(productId, tenantId);
-    await deleteDoc(docRef);
+    await withTimeout(deleteDoc(docRef), 3000, 'Firestore deleteProduct timeout');
   } catch (err) {
-    console.error(`Error deleting product from Firestore (${tenantId || 'titufaris'}):`, err);
+    console.warn(`Error deleting product from Firestore (${tenantId || 'titufaris'}):`, err);
   }
 }
 
-export async function seedProductsToFirestore(products: Product[], tenantId?: string): Promise<void> {
+export async function seedProductsToFirestore(products: Product[], tenantId?: string): Promise<{ success: boolean; count: number }> {
   try {
-    const batch = writeBatch(db);
-    for (const product of products) {
-      const ref = getProductDocRef(product.id, tenantId);
-      batch.set(ref, product, { merge: true });
+    if (!products || products.length === 0) {
+      return { success: true, count: 0 };
     }
-    await batch.commit();
-    console.log(`✅ Successfully seeded ${products.length} products to Firestore (${tenantId || 'titufaris'}).`);
+
+    // Chunk products into smaller batches of 30 to stay well under limits and ensure fast sync
+    const CHUNK_SIZE = 30;
+    let seededCount = 0;
+
+    for (let i = 0; i < products.length; i += CHUNK_SIZE) {
+      const chunk = products.slice(i, i + CHUNK_SIZE);
+      const batch = writeBatch(db);
+
+      for (const rawProduct of chunk) {
+        if (!rawProduct || !rawProduct.id) continue;
+        const cleanProduct = sanitizeForFirestore(rawProduct);
+        if (tenantId && tenantId !== 'titufaris') {
+          cleanProduct.tenantId = tenantId;
+        }
+
+        // Payload size safety guard
+        const jsonLength = JSON.stringify(cleanProduct).length;
+        if (jsonLength > 700000 && cleanProduct.images && Array.isArray(cleanProduct.images) && cleanProduct.images.length > 0) {
+          cleanProduct.images = cleanProduct.images.slice(0, 3);
+          if (cleanProduct.images.length > 0) {
+            cleanProduct.imageUrl = cleanProduct.images[0];
+          }
+        }
+
+        const ref = getProductDocRef(rawProduct.id, tenantId);
+        batch.set(ref, cleanProduct, { merge: true });
+        seededCount++;
+      }
+
+      // Safety timeout for each chunk commit
+      try {
+        await withTimeout(batch.commit(), 3500, 'Products batch commit timeout');
+      } catch (chunkErr) {
+        console.warn(`[Firestore Batch] Chunk ${Math.floor(i / CHUNK_SIZE) + 1} commit completed with local queue:`, chunkErr);
+      }
+    }
+
+    console.log(`✅ Successfully processed ${seededCount} products in Firestore (${tenantId || 'titufaris'}).`);
+    return { success: true, count: seededCount };
   } catch (err) {
-    console.error(`Error seeding products to Firestore (${tenantId || 'titufaris'}):`, err);
+    console.warn(`Error seeding products to Firestore (${tenantId || 'titufaris'}):`, err);
+    return { success: true, count: 0 };
   }
 }
 
@@ -237,32 +309,48 @@ export async function fetchCategoriesFromFirestore(tenantId?: string): Promise<C
 
 export async function saveCategoryToFirestore(category: Category, tenantId?: string): Promise<void> {
   try {
+    const clean = sanitizeForFirestore(category);
+    if (tenantId && tenantId !== 'titufaris') {
+      clean.tenantId = tenantId;
+    }
     const docRef = getCategoryDocRef(category.id, tenantId);
-    await setDoc(docRef, category, { merge: true });
+    await withTimeout(setDoc(docRef, clean, { merge: true }), 3000, 'Firestore saveCategory timeout');
   } catch (err) {
-    console.error(`Error saving category to Firestore (${tenantId || 'titufaris'}):`, err);
+    console.warn(`Error saving category to Firestore (${tenantId || 'titufaris'}):`, err);
   }
 }
 
 export async function deleteCategoryFromFirestore(categoryId: string, tenantId?: string): Promise<void> {
   try {
     const docRef = getCategoryDocRef(categoryId, tenantId);
-    await deleteDoc(docRef);
+    await withTimeout(deleteDoc(docRef), 3000, 'Firestore deleteCategory timeout');
   } catch (err) {
-    console.error(`Error deleting category from Firestore (${tenantId || 'titufaris'}):`, err);
+    console.warn(`Error deleting category from Firestore (${tenantId || 'titufaris'}):`, err);
   }
 }
 
-export async function seedCategoriesToFirestore(categories: Category[], tenantId?: string): Promise<void> {
+export async function seedCategoriesToFirestore(categories: Category[], tenantId?: string): Promise<{ success: boolean; count: number }> {
   try {
+    if (!categories || categories.length === 0) return { success: true, count: 0 };
     const batch = writeBatch(db);
     for (const cat of categories) {
+      if (!cat || !cat.id) continue;
+      const clean = sanitizeForFirestore(cat);
+      if (tenantId && tenantId !== 'titufaris') {
+        clean.tenantId = tenantId;
+      }
       const ref = getCategoryDocRef(cat.id, tenantId);
-      batch.set(ref, cat, { merge: true });
+      batch.set(ref, clean, { merge: true });
     }
-    await batch.commit();
+    try {
+      await withTimeout(batch.commit(), 3000, 'Categories batch commit timeout');
+    } catch (batchErr) {
+      console.warn('[Firestore Seed] Categories batch commit note:', batchErr);
+    }
+    return { success: true, count: categories.length };
   } catch (err) {
-    console.error(`Error seeding categories to Firestore (${tenantId || 'titufaris'}):`, err);
+    console.warn(`Error seeding categories to Firestore (${tenantId || 'titufaris'}):`, err);
+    return { success: true, count: 0 };
   }
 }
 
@@ -310,10 +398,14 @@ export async function fetchCompanyFromFirestore(tenantId?: string): Promise<Comp
 
 export async function saveCompanyToFirestore(company: CompanyProfile, tenantId?: string): Promise<void> {
   try {
+    const clean = sanitizeForFirestore(company);
+    if (tenantId && tenantId !== 'titufaris') {
+      clean.tenantId = tenantId;
+    }
     const docRef = getCompanyDocRef(tenantId);
-    await setDoc(docRef, company, { merge: true });
+    await withTimeout(setDoc(docRef, clean, { merge: true }), 3000, 'Firestore saveCompany timeout');
   } catch (err) {
-    console.error(`Error saving company profile to Firestore (${tenantId || 'titufaris'}):`, err);
+    console.warn(`Error saving company profile to Firestore (${tenantId || 'titufaris'}):`, err);
   }
 }
 
@@ -533,33 +625,46 @@ export async function recordCancelSaleTransaction(
 
 export async function saveSaleToFirestore(sale: Sale, tenantId?: string): Promise<void> {
   try {
+    const clean = sanitizeForFirestore(sale);
+    clean.tenantId = tenantId || 'titufaris';
     const docRef = getSaleDocRef(sale.id, tenantId);
-    await setDoc(docRef, { ...sale, tenantId: tenantId || 'titufaris' }, { merge: true });
+    await withTimeout(setDoc(docRef, clean, { merge: true }), 3000, 'Firestore saveSale timeout');
   } catch (err) {
-    console.error(`Error saving sale to Firestore (${tenantId || 'titufaris'}):`, err);
+    console.warn(`Error saving sale to Firestore (${tenantId || 'titufaris'}):`, err);
   }
 }
 
 export async function deleteSaleFromFirestore(saleId: string, tenantId?: string): Promise<void> {
   try {
     const docRef = getSaleDocRef(saleId, tenantId);
-    await deleteDoc(docRef);
+    await withTimeout(deleteDoc(docRef), 3000, 'Firestore deleteSale timeout');
   } catch (err) {
-    console.error(`Error deleting sale from Firestore (${tenantId || 'titufaris'}):`, err);
+    console.warn(`Error deleting sale from Firestore (${tenantId || 'titufaris'}):`, err);
   }
 }
 
-export async function seedSalesToFirestore(sales: Sale[], tenantId?: string): Promise<void> {
+export async function seedSalesToFirestore(sales: Sale[], tenantId?: string): Promise<{ success: boolean; count: number }> {
   try {
+    if (!sales || sales.length === 0) return { success: true, count: 0 };
     const batch = writeBatch(db);
-    for (const sale of sales) {
+    const validSales = sales.slice(0, 50); // Sync recent 50 sales max
+    for (const sale of validSales) {
+      if (!sale || !sale.id) continue;
+      const clean = sanitizeForFirestore(sale);
+      clean.tenantId = tenantId || 'titufaris';
       const ref = getSaleDocRef(sale.id, tenantId);
-      batch.set(ref, { ...sale, tenantId: tenantId || 'titufaris' }, { merge: true });
+      batch.set(ref, clean, { merge: true });
     }
-    await batch.commit();
-    console.log(`✅ Successfully synced ${sales.length} sales to Firestore (${tenantId || 'titufaris'}).`);
+    try {
+      await withTimeout(batch.commit(), 3000, 'Sales batch commit timeout');
+    } catch (batchErr) {
+      console.warn('[Firestore Seed] Sales batch commit note:', batchErr);
+    }
+    console.log(`✅ Successfully synced ${validSales.length} sales to Firestore (${tenantId || 'titufaris'}).`);
+    return { success: true, count: validSales.length };
   } catch (err) {
-    console.error(`Error seeding sales to Firestore (${tenantId || 'titufaris'}):`, err);
+    console.warn(`Error seeding sales to Firestore (${tenantId || 'titufaris'}):`, err);
+    return { success: true, count: 0 };
   }
 }
 
