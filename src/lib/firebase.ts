@@ -5,8 +5,10 @@ import {
   setLogLevel,
   doc,
   getDoc,
+  getDocFromServer,
   collection,
   getDocs,
+  getDocsFromServer,
   setDoc,
   deleteDoc,
   onSnapshot,
@@ -125,7 +127,7 @@ export function getActivityLogsCollectionRef(tenantId?: string) {
 export async function fetchProductsFromFirestore(tenantId?: string): Promise<{ success: boolean; data: Product[] }> {
   try {
     const colRef = getProductsCollectionRef(tenantId);
-    const querySnapshot = await getDocs(colRef);
+    const querySnapshot = await getDocsFromServer(colRef).catch(() => getDocs(colRef));
     const products: Product[] = [];
     querySnapshot.forEach((docSnap) => {
       products.push(docSnap.data() as Product);
@@ -332,7 +334,7 @@ export function subscribeToProductsFirestore(
 export async function fetchCategoriesFromFirestore(tenantId?: string): Promise<Category[]> {
   try {
     const colRef = getCategoriesCollectionRef(tenantId);
-    const querySnapshot = await getDocs(colRef);
+    const querySnapshot = await getDocsFromServer(colRef).catch(() => getDocs(colRef));
     const categories: Category[] = [];
     querySnapshot.forEach((docSnap) => {
       categories.push(docSnap.data() as Category);
@@ -496,7 +498,7 @@ export async function prepareCompanyForFirestore(company: CompanyProfile, tenant
 export async function fetchCompanyFromFirestore(tenantId?: string): Promise<CompanyProfile | null> {
   try {
     const docRef = getCompanyDocRef(tenantId);
-    const docSnap = await getDoc(docRef);
+    const docSnap = await getDocFromServer(docRef).catch(() => getDoc(docRef));
     if (docSnap.exists()) {
       const data = docSnap.data() as CompanyProfile;
       if (data.logoUrl && !data.logo) {
@@ -1253,7 +1255,7 @@ export async function fetchDailySnapshotFromFirestore(tenantId: string): Promise
     const resolvedTenant = tenantId && tenantId !== 'titufaris' ? tenantId : 'titufaris';
     const snapshotDocId = `snapshot_${resolvedTenant}`;
     const docRef = doc(db, 'snapshots', snapshotDocId);
-    const snap = await withTimeout(getDoc(docRef), 3500, 'Fetch daily snapshot timeout');
+    const snap = await withTimeout(getDocFromServer(docRef).catch(() => getDoc(docRef)), 3500, 'Fetch daily snapshot timeout');
     if (!snap.exists()) {
       return null;
     }
@@ -1264,7 +1266,7 @@ export async function fetchDailySnapshotFromFirestore(tenantId: string): Promise
     // Case 1: Chunked snapshot (v2.0)
     if (typeof data.chunkCount === 'number' && data.chunkCount > 0) {
       const chunksColRef = collection(db, 'snapshots', snapshotDocId, 'chunks');
-      const chunksSnap = await withTimeout(getDocs(chunksColRef), 3500, 'Fetch snapshot chunks timeout');
+      const chunksSnap = await withTimeout(getDocsFromServer(chunksColRef).catch(() => getDocs(chunksColRef)), 3500, 'Fetch snapshot chunks timeout');
       const chunkDocs: { index: number; products: Product[] }[] = [];
       chunksSnap.forEach((cDoc) => {
         const cData = cDoc.data();
