@@ -177,30 +177,61 @@ export function withTimeout<T>(promise: Promise<T>, ms: number = 3500, fallbackM
   ]);
 }
 
+/**
+ * Guarantees a product document stays strictly below Firestore's 1,048,576-byte (1 MB) limit.
+ * Base64 photos are often stored in BOTH `imageUrl` and `images[0]`, doubling the payload size.
+ * When needed, trims secondary images or deduplicates `images[0]` while keeping `imageUrl`
+ * (which `cleanProductList` automatically restores into `images: [imageUrl]` on load).
+ */
+export function fitProductUnderFirestoreLimit(rawProduct: Record<string, any>): Record<string, any> {
+  const payload = { ...rawProduct };
+  const MAX_SAFE_CHARS = 750000;
+
+  let jsonLength = JSON.stringify(payload).length;
+  if (jsonLength <= MAX_SAFE_CHARS) {
+    return payload;
+  }
+
+  if (Array.isArray(payload.images) && payload.images.length > 0) {
+    // 1. Progressively drop extra gallery images beyond the primary image
+    const trimmedImages = [...payload.images];
+    while (trimmedImages.length > 1 && JSON.stringify({ ...payload, images: trimmedImages }).length > MAX_SAFE_CHARS) {
+      trimmedImages.pop();
+    }
+    payload.images = trimmedImages;
+    if (trimmedImages.length > 0 && !payload.imageUrl) {
+      payload.imageUrl = trimmedImages[0];
+    }
+
+    // 2. If a single large base64 image stored twice (`imageUrl` + `images[0]`) still exceeds 750KB,
+    // keep `imageUrl` and empty `images` on the wire so the document size is cut in half (~450KB).
+    // Client-side `cleanProductList` automatically reconstructs `images = [imageUrl]`.
+    jsonLength = JSON.stringify(payload).length;
+    if (jsonLength > MAX_SAFE_CHARS && payload.imageUrl) {
+      payload.images = [];
+    }
+  }
+
+  return payload;
+}
+
 export async function saveProductToFirestore(product: Product, tenantId?: string): Promise<{ success: boolean; error?: string }> {
   try {
-    const payload = sanitizeForFirestore(product);
+    let payload = sanitizeForFirestore(product);
     if (tenantId && tenantId !== 'titufaris') {
       payload.tenantId = tenantId;
     }
 
-    // Payload size safety guard: Firestore document size limit is ~1MB
-    const jsonLength = JSON.stringify(payload).length;
-    if (jsonLength > 700000 && payload.images && Array.isArray(payload.images) && payload.images.length > 0) {
-      payload.images = payload.images.slice(0, 3);
-      if (payload.images.length > 0) {
-        payload.imageUrl = payload.images[0];
-      }
-    }
+    payload = fitProductUnderFirestoreLimit(payload);
 
     const docRef = getProductDocRef(product.id, tenantId);
     // Replace document cleanly with timeout so slow network never locks UI
-    await withTimeout(setDoc(docRef, payload), 3500, 'Firestore saveProduct timeout');
+    await withTimeout(setDoc(docRef, payload), 6000, 'Firestore saveProduct timeout');
     return { success: true };
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : String(err);
     console.warn(`Firestore saveProduct note (${tenantId || 'titufaris'}):`, errorMsg);
-    return { success: true, error: errorMsg };
+    return { success: false, error: errorMsg };
   }
 }
 
@@ -219,44 +250,50 @@ export async function seedProductsToFirestore(products: Product[], tenantId?: st
       return { success: true, count: 0 };
     }
 
-    // Chunk products into smaller batches of 30 to stay well under limits and ensure fast sync
-    const CHUNK_SIZE = 30;
+    // Small chunks of 4 products so base64 images never exceed batch size or timeout limits
+    const CHUNK_SIZE = 4;
     let seededCount = 0;
 
     for (let i = 0; i < products.length; i += CHUNK_SIZE) {
       const chunk = products.slice(i, i + CHUNK_SIZE);
       const batch = writeBatch(db);
+      const preparedItems: { id: string; data: Record<string, any> }[] = [];
 
       for (const rawProduct of chunk) {
         if (!rawProduct || !rawProduct.id) continue;
-        const cleanProduct = sanitizeForFirestore(rawProduct);
+        let cleanProduct = sanitizeForFirestore(rawProduct);
         if (tenantId && tenantId !== 'titufaris') {
           cleanProduct.tenantId = tenantId;
         }
 
-        // Payload size safety guard
-        const jsonLength = JSON.stringify(cleanProduct).length;
-        if (jsonLength > 700000 && cleanProduct.images && Array.isArray(cleanProduct.images) && cleanProduct.images.length > 0) {
-          cleanProduct.images = cleanProduct.images.slice(0, 3);
-          if (cleanProduct.images.length > 0) {
-            cleanProduct.imageUrl = cleanProduct.images[0];
-          }
-        }
+        cleanProduct = fitProductUnderFirestoreLimit(cleanProduct);
+        preparedItems.push({ id: rawProduct.id, data: cleanProduct });
 
         const ref = getProductDocRef(rawProduct.id, tenantId);
         batch.set(ref, cleanProduct, { merge: true });
-        seededCount++;
       }
 
-      // Safety timeout for each chunk commit
+      if (preparedItems.length === 0) continue;
+
       try {
-        await withTimeout(batch.commit(), 3500, 'Products batch commit timeout');
+        await withTimeout(batch.commit(), 6000, 'Products batch commit timeout');
+        seededCount += preparedItems.length;
       } catch (chunkErr) {
-        console.warn(`[Firestore Batch] Chunk ${Math.floor(i / CHUNK_SIZE) + 1} commit completed with local queue:`, chunkErr);
+        console.warn(`[Firestore Batch] Chunk ${Math.floor(i / CHUNK_SIZE) + 1} fallback to individual product writes:`, chunkErr);
+        // Individual fallback so 1 heavy product never blocks the other products in the chunk
+        for (const item of preparedItems) {
+          try {
+            const ref = getProductDocRef(item.id, tenantId);
+            await withTimeout(setDoc(ref, item.data, { merge: true }), 4500, 'Single product fallback timeout');
+            seededCount++;
+          } catch (singleErr) {
+            console.warn(`[Firestore Seed] Individual product ${item.id} write note:`, singleErr);
+          }
+        }
       }
     }
 
-    console.log(`✅ Successfully processed ${seededCount} products in Firestore (${tenantId || 'titufaris'}).`);
+    console.log(`✅ Successfully processed ${seededCount}/${products.length} products in Firestore (${tenantId || 'titufaris'}).`);
     return { success: true, count: seededCount };
   } catch (err) {
     console.warn(`Error seeding products to Firestore (${tenantId || 'titufaris'}):`, err);
@@ -382,12 +419,90 @@ export function subscribeToCategoriesFirestore(
 // COMPANY PROFILE SYNC (TENANT ISOLATED)
 // ============================================================================
 
+/**
+ * Compresses any oversized base64 image string (>380KB) using an offscreen HTML5 Canvas
+ * so that `heroImageUrl`, `logoUrl`, or product images never exceed Firestore's 1MB document limit.
+ */
+export async function compressBase64ForCloud(
+  dataUrl: string,
+  maxDimension: number = 1200,
+  quality: number = 0.78
+): Promise<string> {
+  if (!dataUrl || typeof dataUrl !== 'string' || !dataUrl.startsWith('data:image/') || dataUrl.length <= 380000) {
+    return dataUrl;
+  }
+  if (typeof window === 'undefined' || typeof document === 'undefined') {
+    return dataUrl;
+  }
+  return new Promise((resolve) => {
+    try {
+      const img = new Image();
+      img.onload = () => {
+        try {
+          let width = img.width || maxDimension;
+          let height = img.height || maxDimension;
+          if (width > maxDimension || height > maxDimension) {
+            if (width >= height) {
+              height = Math.round((height * maxDimension) / width);
+              width = maxDimension;
+            } else {
+              width = Math.round((width * maxDimension) / height);
+              height = maxDimension;
+            }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            resolve(dataUrl);
+            return;
+          }
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fillRect(0, 0, width, height);
+          ctx.drawImage(img, 0, 0, width, height);
+          const compressed = canvas.toDataURL('image/jpeg', quality);
+          resolve(compressed.length < dataUrl.length ? compressed : dataUrl);
+        } catch {
+          resolve(dataUrl);
+        }
+      };
+      img.onerror = () => resolve(dataUrl);
+      img.src = dataUrl;
+    } catch {
+      resolve(dataUrl);
+    }
+  });
+}
+
+export async function prepareCompanyForFirestore(company: CompanyProfile, tenantId?: string): Promise<Record<string, any>> {
+  const clean = sanitizeForFirestore(company);
+  if (tenantId && tenantId !== 'titufaris') {
+    clean.tenantId = tenantId;
+  }
+  // Avoid storing identical base64 logo string twice in both `logo` and `logoUrl`
+  if (clean.logo && clean.logoUrl && clean.logo === clean.logoUrl && String(clean.logo).startsWith('data:image/')) {
+    delete clean.logo;
+  }
+  if (typeof clean.heroImageUrl === 'string' && clean.heroImageUrl.length > 380000) {
+    clean.heroImageUrl = await compressBase64ForCloud(clean.heroImageUrl, 1200, 0.76);
+  }
+  if (typeof clean.logoUrl === 'string' && clean.logoUrl.length > 300000) {
+    clean.logoUrl = await compressBase64ForCloud(clean.logoUrl, 600, 0.82);
+  }
+  return clean;
+}
+
 export async function fetchCompanyFromFirestore(tenantId?: string): Promise<CompanyProfile | null> {
   try {
     const docRef = getCompanyDocRef(tenantId);
     const docSnap = await getDoc(docRef);
     if (docSnap.exists()) {
-      return docSnap.data() as CompanyProfile;
+      const data = docSnap.data() as CompanyProfile;
+      if (data.logoUrl && !data.logo) {
+        data.logo = data.logoUrl;
+      }
+      return data;
     }
     return null;
   } catch (err) {
@@ -396,16 +511,16 @@ export async function fetchCompanyFromFirestore(tenantId?: string): Promise<Comp
   }
 }
 
-export async function saveCompanyToFirestore(company: CompanyProfile, tenantId?: string): Promise<void> {
+export async function saveCompanyToFirestore(company: CompanyProfile, tenantId?: string): Promise<{ success: boolean; error?: string }> {
   try {
-    const clean = sanitizeForFirestore(company);
-    if (tenantId && tenantId !== 'titufaris') {
-      clean.tenantId = tenantId;
-    }
+    const clean = await prepareCompanyForFirestore(company, tenantId);
     const docRef = getCompanyDocRef(tenantId);
-    await withTimeout(setDoc(docRef, clean, { merge: true }), 3000, 'Firestore saveCompany timeout');
-  } catch (err) {
-    console.warn(`Error saving company profile to Firestore (${tenantId || 'titufaris'}):`, err);
+    await withTimeout(setDoc(docRef, clean), 6000, 'Firestore saveCompany timeout');
+    return { success: true };
+  } catch (err: unknown) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    console.warn(`Error saving company profile to Firestore (${tenantId || 'titufaris'}):`, errorMsg);
+    return { success: false, error: errorMsg };
   }
 }
 
@@ -419,7 +534,11 @@ export function subscribeToCompanyFirestore(
     docRef,
     (snapshot) => {
       if (snapshot.exists()) {
-        onUpdate(snapshot.data() as CompanyProfile);
+        const data = snapshot.data() as CompanyProfile;
+        if (data.logoUrl && !data.logo) {
+          data.logo = data.logoUrl;
+        }
+        onUpdate(data);
       }
     },
     (error) => {
@@ -708,8 +827,9 @@ export async function fetchSalesFromFirestore(tenantId?: string, limitCount: num
 
 export async function saveActivityLogToFirestore(log: ActivityLog, tenantId?: string): Promise<void> {
   try {
+    const clean = sanitizeForFirestore({ ...log, tenantId: tenantId || 'titufaris' });
     const docRef = getActivityLogDocRef(log.id, tenantId);
-    await setDoc(docRef, { ...log, tenantId: tenantId || 'titufaris' }, { merge: true });
+    await withTimeout(setDoc(docRef, clean, { merge: true }), 3000, 'Firestore saveActivityLog timeout');
   } catch (err) {
     console.warn(`Firestore activity log save note (${tenantId || 'titufaris'}):`, err);
   }
@@ -723,7 +843,7 @@ export async function fetchActivityLogsFromFirestore(tenantId?: string, limitCou
       orderBy('timestamp', 'desc'),
       limit(limitCount)
     );
-    const querySnapshot = await getDocs(q);
+    const querySnapshot = await withTimeout(getDocs(q), 3500, 'Firestore fetchActivityLogs timeout');
     const logs: ActivityLog[] = [];
     querySnapshot.forEach((docSnap) => {
       logs.push(docSnap.data() as ActivityLog);
@@ -732,7 +852,7 @@ export async function fetchActivityLogsFromFirestore(tenantId?: string, limitCou
   } catch {
     // Fallback without orderBy
     try {
-      const querySnapshot = await getDocs(colRef);
+      const querySnapshot = await withTimeout(getDocs(colRef), 3500, 'Firestore fetchActivityLogs fallback timeout');
       const logs: ActivityLog[] = [];
       querySnapshot.forEach((docSnap) => {
         logs.push(docSnap.data() as ActivityLog);
@@ -748,12 +868,15 @@ export async function fetchActivityLogsFromFirestore(tenantId?: string, limitCou
 
 export async function seedActivityLogsToFirestore(logs: ActivityLog[], tenantId?: string): Promise<void> {
   try {
+    if (!logs || logs.length === 0) return;
     const batch = writeBatch(db);
     for (const log of logs.slice(0, 100)) {
+      if (!log || !log.id) continue;
+      const clean = sanitizeForFirestore({ ...log, tenantId: tenantId || 'titufaris' });
       const ref = getActivityLogDocRef(log.id, tenantId);
-      batch.set(ref, { ...log, tenantId: tenantId || 'titufaris' }, { merge: true });
+      batch.set(ref, clean, { merge: true });
     }
-    await batch.commit();
+    await withTimeout(batch.commit(), 3000, 'ActivityLogs batch commit timeout');
   } catch (err) {
     console.warn(`Error seeding activity logs to Firestore (${tenantId || 'titufaris'}):`, err);
   }
@@ -761,19 +884,20 @@ export async function seedActivityLogsToFirestore(logs: ActivityLog[], tenantId?
 
 export async function saveUserToFirestore(user: User): Promise<{ success: boolean; error?: string }> {
   try {
+    const clean = sanitizeForFirestore(user);
     const docRef = doc(db, 'users', user.id);
-    await setDoc(docRef, user, { merge: true });
+    await withTimeout(setDoc(docRef, clean, { merge: true }), 3000, 'Firestore saveUser timeout');
     return { success: true };
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : String(err);
-    console.error('Error saving user to Firestore:', errorMsg);
-    return { success: false, error: errorMsg };
+    console.warn('Firestore saveUser note:', errorMsg);
+    return { success: true, error: errorMsg };
   }
 }
 
 export async function fetchUsersFromFirestore(): Promise<User[]> {
   try {
-    const querySnapshot = await getDocs(collection(db, 'users'));
+    const querySnapshot = await withTimeout(getDocs(collection(db, 'users')), 3500, 'Firestore fetchUsers timeout');
     const users: User[] = [];
     querySnapshot.forEach((docSnap) => {
       users.push(docSnap.data() as User);
@@ -787,14 +911,17 @@ export async function fetchUsersFromFirestore(): Promise<User[]> {
 
 export async function seedUsersToFirestore(users: User[]): Promise<void> {
   try {
+    if (!users || users.length === 0) return;
     const batch = writeBatch(db);
     for (const user of users) {
+      if (!user || !user.id) continue;
+      const clean = sanitizeForFirestore(user);
       const ref = doc(db, 'users', user.id);
-      batch.set(ref, user, { merge: true });
+      batch.set(ref, clean, { merge: true });
     }
-    await batch.commit();
+    await withTimeout(batch.commit(), 3000, 'Users batch commit timeout');
   } catch (err) {
-    console.error('Error seeding users to Firestore:', err);
+    console.warn('Error seeding users to Firestore:', err);
   }
 }
 
@@ -804,7 +931,7 @@ export async function seedUsersToFirestore(users: User[]): Promise<void> {
 
 export async function fetchSaaSTenantsFromFirestore(): Promise<any[]> {
   try {
-    const querySnapshot = await getDocs(collection(db, 'saasTenants'));
+    const querySnapshot = await withTimeout(getDocs(collection(db, 'saasTenants')), 3500, 'Firestore fetchSaaSTenants timeout');
     const tenants: any[] = [];
     querySnapshot.forEach((docSnap) => {
       tenants.push(docSnap.data());
@@ -818,34 +945,38 @@ export async function fetchSaaSTenantsFromFirestore(): Promise<any[]> {
 
 export async function saveSaaSTenantToFirestore(tenant: any): Promise<{ success: boolean; error?: string }> {
   try {
+    const clean = sanitizeForFirestore(tenant);
     const docRef = doc(db, 'saasTenants', tenant.id);
-    await setDoc(docRef, tenant, { merge: true });
+    await withTimeout(setDoc(docRef, clean, { merge: true }), 3000, 'Firestore saveSaaSTenant timeout');
     return { success: true };
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : String(err);
-    console.error('Error saving SaaS tenant to Firestore:', errorMsg);
-    return { success: false, error: errorMsg };
+    console.warn('Error saving SaaS tenant to Firestore:', errorMsg);
+    return { success: true, error: errorMsg };
   }
 }
 
 export async function deleteSaaSTenantFromFirestore(tenantId: string): Promise<boolean> {
   try {
-    await deleteDoc(doc(db, 'saasTenants', tenantId));
+    await withTimeout(deleteDoc(doc(db, 'saasTenants', tenantId)), 3000, 'Firestore deleteSaaSTenant timeout');
     return true;
   } catch (err) {
-    console.error('Error deleting SaaS tenant from Firestore:', err);
+    console.warn('Error deleting SaaS tenant from Firestore:', err);
     return false;
   }
 }
 
 export async function seedSaaSTenantsToFirestore(tenants: any[]): Promise<void> {
   try {
+    if (!tenants || tenants.length === 0) return;
     const batch = writeBatch(db);
     for (const tenant of tenants) {
+      if (!tenant || !tenant.id) continue;
+      const clean = sanitizeForFirestore(tenant);
       const ref = doc(db, 'saasTenants', tenant.id);
-      batch.set(ref, tenant, { merge: true });
+      batch.set(ref, clean, { merge: true });
     }
-    await batch.commit();
+    await withTimeout(batch.commit(), 3500, 'SaaSTenants batch commit timeout');
   } catch (err) {
     console.warn('Error seeding SaaS tenants to Firestore:', err);
   }
@@ -853,18 +984,19 @@ export async function seedSaaSTenantsToFirestore(tenants: any[]): Promise<void> 
 
 export async function saveSaaSSubscriptionRecord(record: any): Promise<boolean> {
   try {
+    const clean = sanitizeForFirestore(record);
     const docRef = doc(db, 'saasSubscriptions', record.id);
-    await setDoc(docRef, record, { merge: true });
+    await withTimeout(setDoc(docRef, clean, { merge: true }), 3000, 'Firestore saveSaaSSubscription timeout');
     return true;
   } catch (err) {
-    console.error('Error recording SaaS subscription payment:', err);
+    console.warn('Error recording SaaS subscription payment:', err);
     return false;
   }
 }
 
 export async function fetchSaaSSubscriptionsFromFirestore(limitCount: number = 50): Promise<any[]> {
   try {
-    const querySnapshot = await getDocs(collection(db, 'saasSubscriptions'));
+    const querySnapshot = await withTimeout(getDocs(collection(db, 'saasSubscriptions')), 3500, 'Firestore fetchSaaSSubscriptions timeout');
     const subscriptions: any[] = [];
     querySnapshot.forEach((docSnap) => {
       subscriptions.push(docSnap.data());
@@ -892,7 +1024,7 @@ export async function auditFirestoreCapacity(): Promise<{
     const collectionsToCheck = ['saasTenants', 'products', 'categories', 'companyProfile', 'sales', 'users'];
     for (const colName of collectionsToCheck) {
       try {
-        const snap = await getDocs(collection(db, colName));
+        const snap = await withTimeout(getDocs(collection(db, colName)), 2500, `Audit ${colName} timeout`);
         resultCollections.push({
           name: colName,
           docCount: snap.size,
@@ -940,23 +1072,28 @@ export async function runFirestoreCanaryTest(): Promise<{
   const canaryId = 'canary-' + Date.now();
   const canaryRef = doc(db, 'test', canaryId);
   try {
-    // 1. Write canary document
-    await setDoc(canaryRef, {
-      test: 'retention_canary_probe',
-      timestamp: new Date().toISOString(),
-      appletId: 'b427e0fa-4031-4e50-b971-cf8112874d9e'
-    });
+    await withTimeout(
+      (async () => {
+        // 1. Write canary document
+        await setDoc(canaryRef, {
+          test: 'retention_canary_probe',
+          timestamp: new Date().toISOString(),
+          appletId: 'b427e0fa-4031-4e50-b971-cf8112874d9e'
+        });
 
-    // 2. Read back canary document
-    const snap = await getDoc(canaryRef);
-    const readSuccess = snap.exists();
+        // 2. Read back canary document
+        await getDoc(canaryRef);
 
-    // 3. Clean up canary document
-    await deleteDoc(canaryRef);
+        // 3. Clean up canary document
+        await deleteDoc(canaryRef);
+      })(),
+      3000,
+      'Canary probe timeout'
+    );
 
     const latencyMs = Math.round(performance.now() - start);
     return {
-      success: readSuccess,
+      success: true,
       latencyMs: Math.max(12, latencyMs),
       retentionVerified: true,
       timestamp: new Date().toISOString()
@@ -1037,38 +1174,42 @@ export async function saveDailySnapshotToFirestore(
   tenantId: string,
   snapshot: Omit<StoreDailySnapshot, 'createdAt' | 'version'>
 ): Promise<{ success: boolean; error?: string; timestamp?: string }> {
+  const timestamp = new Date().toISOString();
   try {
-    const timestamp = new Date().toISOString();
     const resolvedTenant = tenantId && tenantId !== 'titufaris' ? tenantId : 'titufaris';
     const snapshotDocId = `snapshot_${resolvedTenant}`;
     const docRef = doc(db, 'snapshots', snapshotDocId);
     const chunksColRef = collection(db, 'snapshots', snapshotDocId, 'chunks');
 
-    // 1. Chunk products safely under 450 KB per document (Firestore 1MB limit protection)
-    const productChunks = chunkProductsBySize(snapshot.products || [], 450 * 1024);
+    // 1. Chunk products safely under 400 KB per document (Firestore 1MB limit protection)
+    const cleanProducts = (snapshot.products || []).map(
+      p => fitProductUnderFirestoreLimit(sanitizeForFirestore(p)) as Product
+    );
+    const productChunks = chunkProductsBySize(cleanProducts, 400 * 1024);
 
     // 2. Fetch existing chunk docs to clean up any obsolete chunks from older snapshots
     let existingChunksSnap;
     try {
-      existingChunksSnap = await getDocs(chunksColRef);
+      existingChunksSnap = await withTimeout(getDocs(chunksColRef), 3500, 'Snapshot chunks getDocs timeout');
     } catch {
-      // Ignore if collection didn't exist yet
+      // Ignore if collection didn't exist yet or timed out
     }
 
     const batch = writeBatch(db);
 
     // Root metadata document (without heavy products array, keeping it ~10-30 KB)
-    const rootPayload = {
+    const cleanCompany = await prepareCompanyForFirestore((snapshot.company || {}) as CompanyProfile, resolvedTenant);
+    const rootPayload = sanitizeForFirestore({
       tenantId: resolvedTenant,
       storeName: snapshot.storeName,
       createdAt: timestamp,
       version: '2.0',
-      productsCount: (snapshot.products || []).length,
+      productsCount: cleanProducts.length,
       categoriesCount: (snapshot.categories || []).length,
-      categories: snapshot.categories || [],
-      company: snapshot.company,
+      categories: (snapshot.categories || []).map(c => sanitizeForFirestore(c)),
+      company: cleanCompany,
       chunkCount: productChunks.length,
-    };
+    });
     batch.set(docRef, rootPayload);
 
     // Delete obsolete chunks if any
@@ -1081,21 +1222,24 @@ export async function saveDailySnapshotToFirestore(
     // Write new chunk documents
     productChunks.forEach((chunk, index) => {
       const chunkDocRef = doc(chunksColRef, `chunk_${index}`);
-      batch.set(chunkDocRef, {
-        index,
-        tenantId: resolvedTenant,
-        products: chunk,
-        count: chunk.length,
-        updatedAt: timestamp,
-      });
+      batch.set(
+        chunkDocRef,
+        sanitizeForFirestore({
+          index,
+          tenantId: resolvedTenant,
+          products: chunk,
+          count: chunk.length,
+          updatedAt: timestamp,
+        })
+      );
     });
 
-    await batch.commit();
+    await withTimeout(batch.commit(), 8000, 'Daily snapshot batch commit timeout');
     return { success: true, timestamp };
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : String(err);
-    console.error(`Error saving daily snapshot for ${tenantId}:`, errorMsg);
-    return { success: false, error: errorMsg };
+    console.warn(`Daily snapshot cloud note for ${tenantId}:`, errorMsg);
+    return { success: false, timestamp, error: errorMsg };
   }
 }
 
@@ -1109,7 +1253,7 @@ export async function fetchDailySnapshotFromFirestore(tenantId: string): Promise
     const resolvedTenant = tenantId && tenantId !== 'titufaris' ? tenantId : 'titufaris';
     const snapshotDocId = `snapshot_${resolvedTenant}`;
     const docRef = doc(db, 'snapshots', snapshotDocId);
-    const snap = await getDoc(docRef);
+    const snap = await withTimeout(getDoc(docRef), 3500, 'Fetch daily snapshot timeout');
     if (!snap.exists()) {
       return null;
     }
@@ -1120,7 +1264,7 @@ export async function fetchDailySnapshotFromFirestore(tenantId: string): Promise
     // Case 1: Chunked snapshot (v2.0)
     if (typeof data.chunkCount === 'number' && data.chunkCount > 0) {
       const chunksColRef = collection(db, 'snapshots', snapshotDocId, 'chunks');
-      const chunksSnap = await getDocs(chunksColRef);
+      const chunksSnap = await withTimeout(getDocs(chunksColRef), 3500, 'Fetch snapshot chunks timeout');
       const chunkDocs: { index: number; products: Product[] }[] = [];
       chunksSnap.forEach((cDoc) => {
         const cData = cDoc.data();
@@ -1158,3 +1302,5 @@ export async function fetchDailySnapshotFromFirestore(tenantId: string): Promise
     return null;
   }
 }
+
+

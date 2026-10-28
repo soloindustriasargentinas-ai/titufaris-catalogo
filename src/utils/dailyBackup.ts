@@ -38,56 +38,20 @@ export function getLastBackupDateKey(tenantId?: string): string {
 /**
  * Loads the local cached daily snapshot for a tenant if available
  */
-export function loadLocalDailyBackup(tenantId?: string): StoreDailySnapshot | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    const raw = localStorage.getItem(getTenantDailyBackupKey(tenantId));
-    if (!raw) return null;
-    return JSON.parse(raw) as StoreDailySnapshot;
-  } catch (e) {
-    console.warn('Error reading local daily backup:', e);
-    return null;
-  }
+export function loadLocalDailyBackup(_tenantId?: string): StoreDailySnapshot | null {
+  return null;
 }
 
-/**
- * Saves the daily snapshot locally in localStorage (overwriting previous single backup)
- */
-export function saveLocalDailyBackup(tenantId: string, snapshot: StoreDailySnapshot): void {
-  if (typeof window === 'undefined') return;
-  const today = new Date().toISOString().slice(0, 10);
-  try {
-    localStorage.setItem(getTenantDailyBackupKey(tenantId), JSON.stringify(snapshot));
-    localStorage.setItem(getLastBackupDateKey(tenantId), today);
-  } catch (e) {
-    console.warn('LocalStorage quota limit reached, saving optimized backup cache:', e);
-    try {
-      // Store compact snapshot cache (truncating oversized data URL strings to stay within quota)
-      const compactProducts = (snapshot.products || []).map(p => ({
-        ...p,
-        imageUrl: p.imageUrl && p.imageUrl.startsWith('data:') && p.imageUrl.length > 500
-          ? p.imageUrl.slice(0, 100) + '...[cached-in-firestore]'
-          : p.imageUrl
-      }));
-      const compactSnapshot: StoreDailySnapshot = {
-        ...snapshot,
-        products: compactProducts
-      };
-      localStorage.setItem(getTenantDailyBackupKey(tenantId), JSON.stringify(compactSnapshot));
-      localStorage.setItem(getLastBackupDateKey(tenantId), today);
-    } catch {
-      // Even if localStorage is completely exhausted, Firestore holds the complete chunked backup
-    }
-  }
+export function saveLocalDailyBackup(_tenantId: string, _snapshot: StoreDailySnapshot): void {
+  // 100% Cloud Architecture: no local storage backup cache
 }
 
 let autoBackupDebounceTimers: Record<string, ReturnType<typeof setTimeout>> = {};
+let lastCloudBackupSignature: Record<string, string> = {};
 
 /**
- * Automatically triggers a daily backup for a store.
- * - Checks if a backup for today has already been created or if forced.
- * - Saves to both Firestore and localStorage.
- * - Overwrites the single daily snapshot so only 1 copy is kept per store (minimal memory & cloud quota).
+ * Automatically triggers a cloud backup snapshot for a store in Firestore.
+ * Overwrites the single cloud snapshot per store (`snapshots/snapshot_{tenantId}`).
  */
 export async function triggerStoreDailyBackup(
   tenantId: string,
@@ -99,20 +63,15 @@ export async function triggerStoreDailyBackup(
 ): Promise<{ success: boolean; snapshot?: StoreDailySnapshot; error?: string }> {
   const resolvedTenantId = tenantId && tenantId !== 'titufaris' ? tenantId : 'titufaris';
 
-  // Do not backup if there are 0 products and no custom company name (empty mock state)
   if (products.length === 0 && (!company.name || company.name === 'Mi Empresa')) {
     return { success: false, error: 'Tienda sin datos para respaldar' };
   }
 
   const today = new Date().toISOString().slice(0, 10);
-  const lastDate = typeof window !== 'undefined' ? localStorage.getItem(getLastBackupDateKey(resolvedTenantId)) : null;
+  const signature = `${today}_${products.length}_${categories.length}_${company.updatedAt || ''}`;
 
-  // If not forced and already backed up today with matching product count, skip to save network
-  if (!options?.force && lastDate === today) {
-    const local = loadLocalDailyBackup(resolvedTenantId);
-    if (local && local.productsCount === products.length && local.categoriesCount === categories.length) {
-      return { success: true, snapshot: local };
-    }
+  if (!options?.force && lastCloudBackupSignature[resolvedTenantId] === signature) {
+    return { success: true };
   }
 
   const performBackup = async () => {
@@ -122,7 +81,7 @@ export async function triggerStoreDailyBackup(
         tenantId: resolvedTenantId,
         storeName: storeName || company.name || resolvedTenantId,
         createdAt: timestamp,
-        version: '1.0',
+        version: '2.0',
         productsCount: products.length,
         categoriesCount: categories.length,
         products,
@@ -130,10 +89,6 @@ export async function triggerStoreDailyBackup(
         company,
       };
 
-      // 1. Save local snapshot immediately
-      saveLocalDailyBackup(resolvedTenantId, snapshot);
-
-      // 2. Persist to Firestore
       const cloudRes = await saveDailySnapshotToFirestore(resolvedTenantId, {
         tenantId: resolvedTenantId,
         storeName: snapshot.storeName,
@@ -144,11 +99,13 @@ export async function triggerStoreDailyBackup(
         company,
       });
 
-      if (!cloudRes.success) {
+      if (cloudRes.success) {
+        lastCloudBackupSignature[resolvedTenantId] = signature;
+      } else {
         console.warn(`Firestore daily snapshot warning for ${resolvedTenantId}:`, cloudRes.error);
       }
 
-      return { success: true, snapshot };
+      return { success: cloudRes.success, snapshot, error: cloudRes.error };
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error(`Daily backup failed for ${resolvedTenantId}:`, msg);
@@ -164,7 +121,7 @@ export async function triggerStoreDailyBackup(
       autoBackupDebounceTimers[resolvedTenantId] = setTimeout(async () => {
         const result = await performBackup();
         resolve(result);
-      }, 3000); // 3 seconds debounce
+      }, 3000);
     });
   }
 
@@ -172,12 +129,7 @@ export async function triggerStoreDailyBackup(
 }
 
 /**
- * Restores a store from its daily snapshot (either from Firestore or local fallback).
- * Guarantees recovery of:
- * - All products with descriptions, prices, and photos.
- * - All categories.
- * - Company profile (logo, whatsapp, address, config).
- * Updates both localStorage and Firestore collections.
+ * Restores a store directly from its Firestore cloud snapshot.
  */
 export async function restoreStoreFromDailySnapshot(
   tenantId: string,
@@ -192,29 +144,17 @@ export async function restoreStoreFromDailySnapshot(
   try {
     let targetSnapshot = snapshotToRestore;
 
-    // 1. If not supplied, fetch from Firestore
     if (!targetSnapshot) {
       targetSnapshot = await fetchDailySnapshotFromFirestore(resolvedTenantId);
-    }
-
-    // 2. Fallback to local daily backup if Firestore didn't have it
-    if (!targetSnapshot) {
-      targetSnapshot = loadLocalDailyBackup(resolvedTenantId);
     }
 
     if (!targetSnapshot || !Array.isArray(targetSnapshot.products)) {
       return {
         success: false,
-        error: `No se encontró copia de seguridad diaria para la tienda "${resolvedTenantId}".`,
+        error: `No se encontró copia de seguridad en la nube para la tienda "${resolvedTenantId}".`,
       };
     }
 
-    // 3. Restore to localStorage
-    saveProducts(targetSnapshot.products, resolvedTenantId);
-    saveCategories(targetSnapshot.categories, resolvedTenantId);
-    saveCompany(targetSnapshot.company, resolvedTenantId);
-
-    // 4. Push restored data to Firestore collections to ensure all devices see it
     await seedProductsToFirestore(targetSnapshot.products, resolvedTenantId);
     await seedCategoriesToFirestore(targetSnapshot.categories, resolvedTenantId);
     await saveCompanyToFirestore(targetSnapshot.company, resolvedTenantId);

@@ -206,7 +206,7 @@ export const initialSaaSTenants: SaaSTenantStore[] = [
     ownerPhone: '+54 9 11 5829-4310',
     planId: 'pro',
     subscriptionStatus: 'trial',
-    isPublished: false, // Inicia en Modo En Construcción mientras se cargan productos
+    isPublished: true,
     underConstructionMessage: 'Estamos cargando nuestro catálogo de estanterías metálicas, góndolas comerciales y racks industriales. ¡Próximamente disponible! Podés contactarnos directamente por WhatsApp para cotizaciones inmediatas.',
     pricePerMonthARS: 16990,
     billingCycle: 'monthly',
@@ -214,14 +214,14 @@ export const initialSaaSTenants: SaaSTenantStore[] = [
     createdAt: new Date().toISOString(),
     trialEndsAt: new Date(Date.now() + 3600000 * 24 * 90).toISOString(),
     nextBillingDate: new Date(Date.now() + 3600000 * 24 * 90).toISOString(),
-    notes: 'Tienda de estanterías metálicas reforzadas, góndolas comerciales y racks de almacenamiento (moncheestanterias.titufaris.online). Catálogo online y pedidos directos.',
+    notes: 'Tienda independiente en moncheestanterias.titufaris.online. Catálogo completo, precios y pedidos directos.',
     technicalHealth: {
       status: 'healthy',
-      productsCount: 6,
-      categoriesCount: 4,
+      productsCount: 35,
+      categoriesCount: 6,
       salesCount: 0,
       lastSyncAt: new Date().toISOString(),
-      storageKB: 140,
+      storageKB: 420,
       maintenanceMode: false,
       issuesDetected: [],
       lastDiagnosticAt: new Date().toISOString()

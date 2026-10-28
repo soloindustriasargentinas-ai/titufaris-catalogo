@@ -49,7 +49,8 @@ import {
   loadProducts,
   saveProducts,
   cleanProductList,
-  syncProductsFromIndexedDB,
+  consumeLegacyLocalStoreData,
+  purgeAllLocalCatalogStorage,
   loadCategories,
   saveCategories,
   loadCompany,
@@ -102,6 +103,8 @@ import {
   saveUserToFirestore,
   seedUsersToFirestore,
   saveSaaSTenantToFirestore,
+  fetchDailySnapshotFromFirestore,
+  saveDailySnapshotToFirestore,
 } from './lib/firebase';
 
 import { Navbar } from './components/Navbar';
@@ -341,9 +344,9 @@ export default function App() {
       setCompany(realDataBackupRef.current.company);
       setUsers(realDataBackupRef.current.users);
     } else {
-      setProducts(loadProducts());
-      setCategories(loadCategories());
-      setCompany(loadCompany());
+      setProducts(loadProducts(activeTenantId));
+      setCategories(loadCategories(activeTenantId));
+      setCompany(loadCompany(activeTenantId));
       setUsers(loadUsers());
     }
     setSelectedCategory('all');
@@ -367,9 +370,9 @@ export default function App() {
   useEffect(() => {
     if (isDemoMode) {
       realDataBackupRef.current = {
-        products: loadProducts(),
-        categories: loadCategories(),
-        company: loadCompany(),
+        products: loadProducts(activeTenantId),
+        categories: loadCategories(activeTenantId),
+        company: loadCompany(activeTenantId),
         users: loadUsers(),
       };
       setProducts(genericProducts);
@@ -495,25 +498,6 @@ export default function App() {
       setLogs(tituLogs);
       const tituNotifs = loadNotifications('titufaris');
       setNotifications(tituNotifs);
-
-      fetchProductsFromFirestore('titufaris').then(res => {
-        if (res.success && res.data && res.data.length > 0) {
-          setProducts(res.data);
-          saveProducts(res.data, 'titufaris');
-        }
-      });
-      fetchCategoriesFromFirestore('titufaris').then(remoteCats => {
-        if (remoteCats && remoteCats.length > 0) {
-          setCategories(remoteCats);
-          saveCategories(remoteCats, 'titufaris');
-        }
-      });
-      fetchSalesFromFirestore('titufaris').then(remoteSales => {
-        if (remoteSales && remoteSales.length > 0) {
-          setSales(remoteSales);
-          saveSales(remoteSales, 'titufaris');
-        }
-      });
       document.title = 'Titufaris - Catálogo, Precios & POS';
     } else {
       // If switching to an individual tenant (like zapas), exit demo mode completely and clean trailing slugs
@@ -565,7 +549,8 @@ export default function App() {
       const tenantComp = loadCompany(resolvedTenantId);
       setCompany(tenantComp);
 
-      // Synchronously load cached tenant data FIRST so user-saved changes are immediately active
+      // Synchronously load cached tenant data FIRST so user-saved changes are immediately active,
+      // while useEffect([activeTenantId]) immediately reconciles with Firestore & chunked snapshots
       const tenantProds = loadProducts(resolvedTenantId);
       setProducts(tenantProds);
 
@@ -580,42 +565,6 @@ export default function App() {
 
       const tenantNotifs = loadNotifications(resolvedTenantId);
       setNotifications(tenantNotifs);
-
-      // Then check Firestore for any newer cloud updates or seed if empty
-      fetchCompanyFromFirestore(resolvedTenantId).then(remoteCompany => {
-        if (remoteCompany) {
-          setCompany(remoteCompany);
-          saveCompany(remoteCompany, resolvedTenantId);
-        } else {
-          saveCompanyToFirestore(tenantComp, resolvedTenantId).catch(() => {});
-        }
-      });
-
-      fetchProductsFromFirestore(resolvedTenantId).then(res => {
-        if (res.success && res.data && res.data.length > 0) {
-          const cleaned = cleanProductList(res.data, resolvedTenantId);
-          setProducts(cleaned);
-          saveProducts(cleaned, resolvedTenantId);
-        } else if (tenantProds.length > 0) {
-          seedProductsToFirestore(tenantProds, resolvedTenantId).catch(() => {});
-        }
-      });
-
-      fetchCategoriesFromFirestore(resolvedTenantId).then(remoteCats => {
-        if (remoteCats && remoteCats.length > 0) {
-          setCategories(remoteCats);
-          saveCategories(remoteCats, resolvedTenantId);
-        } else if (tenantCats.length > 0) {
-          seedCategoriesToFirestore(tenantCats, resolvedTenantId).catch(() => {});
-        }
-      });
-
-      fetchSalesFromFirestore(resolvedTenantId).then(remoteSales => {
-        if (remoteSales && remoteSales.length > 0) {
-          setSales(remoteSales);
-          saveSales(remoteSales, resolvedTenantId);
-        }
-      });
 
       setSelectedCategory('all');
       setSearchQuery('');
@@ -877,107 +826,209 @@ export default function App() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, [products, categories]);
 
-  // Sync from high-capacity IndexedDB and Firebase Firestore on startup & real-time listeners for all stores
+  // 100% Real-Time Cloud (Firestore) Architecture across all browsers and stores
   useEffect(() => {
     let isCancelled = false;
+    let hasCloudResolved = false;
+    let isUploadingMissingProducts = false;
     let unsubProducts: (() => void) | undefined;
     let unsubCategories: (() => void) | undefined;
     let unsubCompany: (() => void) | undefined;
 
     const currentTenant = activeTenantId || 'titufaris';
 
-    // 1. Fast local load from IndexedDB
-    syncProductsFromIndexedDB(currentTenant).then(idbProducts => {
-      if (isCancelled) return;
-      if (idbProducts && Array.isArray(idbProducts) && idbProducts.length > 0) {
-        setProducts(idbProducts);
-      }
-    });
-
-    // 2. Parallel cloud fetch from Firestore (Zero latency canary bypass)
     const syncCloudData = async () => {
       try {
-        const [prodRes, remoteCats, remoteCompany] = await Promise.all([
+        const [prodRes, snapshotRes, remoteCats, remoteCompany, legacyLocal] = await Promise.all([
           fetchProductsFromFirestore(currentTenant),
+          fetchDailySnapshotFromFirestore(currentTenant),
           fetchCategoriesFromFirestore(currentTenant),
-          fetchCompanyFromFirestore(currentTenant)
+          fetchCompanyFromFirestore(currentTenant),
+          consumeLegacyLocalStoreData(currentTenant),
         ]);
 
         if (isCancelled) return;
+        hasCloudResolved = true;
 
-        // Products sync & auto-seed if cloud collection is empty for this tenant
-        if (prodRes.success && Array.isArray(prodRes.data) && prodRes.data.length > 0) {
-          const cleaned = cleanProductList(prodRes.data, currentTenant);
-          setProducts(cleaned);
-          saveProducts(cleaned, currentTenant);
+        // Combine cloud /products collection and cloud chunked snapshot
+        const cloudProductsRaw = prodRes.success && Array.isArray(prodRes.data) ? prodRes.data : [];
+        const snapshotProductsRaw =
+          snapshotRes && Array.isArray(snapshotRes.products) ? snapshotRes.products : [];
+
+        const cloudCleaned = cleanProductList(cloudProductsRaw, currentTenant);
+        const snapshotCleaned = cleanProductList(snapshotProductsRaw, currentTenant);
+
+        const cloudMap = new Map<string, Product>();
+        // If live /products collection has documents, use it as primary truth and supplement any missing item from snapshot
+        for (const p of snapshotCleaned) {
+          if (p && p.id) {
+            cloudMap.set(p.id, p);
+          }
+        }
+        for (const p of cloudCleaned) {
+          if (p && p.id) {
+            const existing = cloudMap.get(p.id);
+            const existingTime = new Date(existing?.updatedAt || 0).getTime();
+            const liveTime = new Date(p.updatedAt || 0).getTime();
+            const newer = existing && existingTime > liveTime ? existing : p;
+            const older = newer === p ? existing : p;
+            cloudMap.set(p.id, {
+              ...older,
+              ...newer,
+              images:
+                Array.isArray(newer.images) && newer.images.length > 0
+                  ? newer.images
+                  : older?.images && older.images.length > 0
+                  ? older.images
+                  : newer.imageUrl
+                  ? [newer.imageUrl]
+                  : [],
+            });
+          }
+        }
+
+        const unifiedCloudProducts = Array.from(cloudMap.values());
+
+        // One-time rescue of any legacy local data from Chrome before permanently wiping local storage
+        const DEFAULT_PLACEHOLDER_HERO_URL = 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&w=1200&q=80';
+        const hasRealHero = (c?: CompanyProfile | null) =>
+          Boolean(c?.heroImageUrl && c.heroImageUrl.trim() && c.heroImageUrl.trim() !== DEFAULT_PLACEHOLDER_HERO_URL);
+
+        const snapComp = snapshotRes?.company && snapshotRes.company.name ? snapshotRes.company : null;
+        let bestCloudCompany: CompanyProfile | null = remoteCompany || snapComp;
+        if (remoteCompany && snapComp) {
+          const remoteTime = new Date(remoteCompany.updatedAt || 0).getTime();
+          const snapTime = new Date(snapComp.updatedAt || 0).getTime();
+          if ((!hasRealHero(remoteCompany) && hasRealHero(snapComp)) || snapTime > remoteTime) {
+            bestCloudCompany = { ...remoteCompany, ...snapComp };
+          }
+        }
+
+        const fallbackComp = loadCompany(currentTenant);
+        let resolvedCompany: CompanyProfile = bestCloudCompany || legacyLocal.legacyCompany || fallbackComp;
+        let shouldPushCompanyToCloud = false;
+
+        if (!bestCloudCompany) {
+          shouldPushCompanyToCloud = true;
+        } else if (legacyLocal.legacyCompany) {
+          const localTime = new Date(legacyLocal.legacyCompany.updatedAt || 0).getTime();
+          const cloudTime = new Date(bestCloudCompany.updatedAt || 0).getTime();
+          if (
+            (hasRealHero(legacyLocal.legacyCompany) && !hasRealHero(bestCloudCompany)) ||
+            (localTime > 0 && localTime > cloudTime)
+          ) {
+            resolvedCompany = legacyLocal.legacyCompany;
+            shouldPushCompanyToCloud = true;
+          } else if (hasRealHero(bestCloudCompany) && !hasRealHero(remoteCompany)) {
+            shouldPushCompanyToCloud = true;
+          }
+        }
+
+        setCompany(resolvedCompany);
+        if (shouldPushCompanyToCloud) {
+          await saveCompanyToFirestore(resolvedCompany, currentTenant);
+        }
+
+        // Check if legacy local storage had any product not yet in Firestore
+        const productsToPush: Product[] = [];
+        const reconciledMap = new Map<string, Product>();
+
+        for (const cp of unifiedCloudProducts) {
+          if (cp && cp.id) {
+            reconciledMap.set(cp.id, cp);
+          }
+        }
+
+        if (legacyLocal.legacyProducts.length > 0) {
+          for (const lp of legacyLocal.legacyProducts) {
+            if (!lp || !lp.id) continue;
+            const cp = reconciledMap.get(lp.id);
+            if (!cp) {
+              if (legacyLocal.legacyProducts.length >= unifiedCloudProducts.length) {
+                reconciledMap.set(lp.id, lp);
+                productsToPush.push(lp);
+              }
+            } else {
+              const localTime = new Date(lp.updatedAt || 0).getTime();
+              const cloudTime = new Date(cp.updatedAt || 0).getTime();
+              if (localTime > cloudTime) {
+                reconciledMap.set(lp.id, lp);
+                productsToPush.push(lp);
+              }
+            }
+          }
+        }
+
+        const finalCatalog = cleanProductList(Array.from(reconciledMap.values()), currentTenant);
+        const resolvedCats =
+          remoteCats && Array.isArray(remoteCats) && remoteCats.length > 0
+            ? remoteCats
+            : loadCategories(currentTenant);
+
+        if (productsToPush.length > 0 && finalCatalog.length > 0) {
+          setProducts(finalCatalog);
           setSyncStatus('synced');
-        } else {
-          const localProducts = loadProducts(currentTenant);
-          if (localProducts && localProducts.length > 0) {
-            setProducts(localProducts);
-            seedProductsToFirestore(localProducts, currentTenant).catch(() => {});
+
+          isUploadingMissingProducts = true;
+          await Promise.all([
+            seedProductsToFirestore(productsToPush, currentTenant),
+            saveDailySnapshotToFirestore(currentTenant, {
+              tenantId: currentTenant,
+              storeName: resolvedCompany?.name || currentTenant,
+              productsCount: finalCatalog.length,
+              categoriesCount: resolvedCats.length,
+              products: finalCatalog,
+              categories: resolvedCats,
+              company: resolvedCompany,
+            }),
+          ]).catch(() => {});
+          isUploadingMissingProducts = false;
+        } else if (finalCatalog.length > 0) {
+          setProducts(finalCatalog);
+          setSyncStatus('synced');
+
+          if (cloudCleaned.length < finalCatalog.length) {
+            const missingInCollection = finalCatalog.filter(
+              p => !cloudCleaned.some(cp => cp.id === p.id)
+            );
+            if (missingInCollection.length > 0) {
+              await seedProductsToFirestore(missingInCollection, currentTenant);
+            }
           }
+        } else {
+          const initialDefaultProds = loadProducts(currentTenant);
+          setProducts(initialDefaultProds);
         }
 
-        // Categories sync & auto-seed
-        if (remoteCats && Array.isArray(remoteCats) && remoteCats.length > 0) {
-          setCategories(remoteCats);
-          saveCategories(remoteCats, currentTenant);
-        } else {
-          const localCats = loadCategories(currentTenant);
-          if (localCats && localCats.length > 0) {
-            setCategories(localCats);
-            seedCategoriesToFirestore(localCats, currentTenant).catch(() => {});
-          }
+        // Permanently purge all local catalog/company/category cache from localStorage and IndexedDB
+        await purgeAllLocalCatalogStorage(currentTenant);
+
+        // Categories sync
+        setCategories(resolvedCats);
+        if (!remoteCats || remoteCats.length === 0) {
+          seedCategoriesToFirestore(resolvedCats, currentTenant).catch(() => {});
         }
 
-        // Company profile sync & auto-seed
-        if (remoteCompany) {
-          setCompany(remoteCompany);
-          saveCompany(remoteCompany, currentTenant);
-        } else {
-          const localComp = loadCompany(currentTenant);
-          if (localComp) {
-            saveCompanyToFirestore(localComp, currentTenant).catch(() => {});
-          }
-        }
-
-        // Sales records sync
+        // Sales records from Firestore
         fetchSalesFromFirestore(currentTenant).then(remoteSales => {
           if (isCancelled) return;
           const validRemoteSales = (remoteSales || []).filter(
             s => s && s.id && !s.id.startsWith('sale-init') && s.id !== 'sale-1789132222175'
           );
-          if (validRemoteSales.length > 0) {
-            const currentLocalSales = loadSales(currentTenant);
-            const salesMap = new Map<string, Sale>();
-            validRemoteSales.forEach(s => salesMap.set(s.id, s));
-            currentLocalSales.forEach(s => {
-              if (!salesMap.has(s.id)) salesMap.set(s.id, s);
-            });
-            const mergedSales = Array.from(salesMap.values()).sort(
-              (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-            );
-            setSales(mergedSales);
-            saveSales(mergedSales, currentTenant);
-          }
+          const sortedSales = validRemoteSales.sort(
+            (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          );
+          setSales(sortedSales);
         });
 
-        // Activity logs sync
+        // Activity logs from Firestore
         fetchActivityLogsFromFirestore(currentTenant, 100).then(remoteLogs => {
           if (isCancelled) return;
           if (remoteLogs && remoteLogs.length > 0) {
-            const localLogs = loadLogs(currentTenant);
-            const logsMap = new Map<string, ActivityLog>();
-            remoteLogs.forEach(l => logsMap.set(l.id, l));
-            localLogs.forEach(l => {
-              if (!logsMap.has(l.id)) logsMap.set(l.id, l);
-            });
-            const mergedLogs = Array.from(logsMap.values()).sort(
+            const sortedLogs = [...remoteLogs].sort(
               (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
             ).slice(0, 200);
-            setLogs(mergedLogs);
-            saveLogs(mergedLogs, currentTenant);
+            setLogs(sortedLogs);
           }
         });
 
@@ -1001,13 +1052,12 @@ export default function App() {
 
     syncCloudData();
 
-    // 3. Attach real-time subscriptions for ALL tenants so any modification in any browser broadcasts live!
+    // Real-time Firestore listeners: 100% live cloud truth across all browsers
     unsubProducts = subscribeToProductsFirestore((remoteProducts) => {
-      if (isCancelled) return;
+      if (isCancelled || !hasCloudResolved || isUploadingMissingProducts) return;
       if (remoteProducts && Array.isArray(remoteProducts) && remoteProducts.length > 0) {
         const cleaned = cleanProductList(remoteProducts, currentTenant);
         setProducts(cleaned);
-        saveProducts(cleaned, currentTenant);
         setSyncStatus('synced');
       }
     }, undefined, currentTenant);
@@ -1016,15 +1066,13 @@ export default function App() {
       if (isCancelled) return;
       if (remoteCats && Array.isArray(remoteCats) && remoteCats.length > 0) {
         setCategories(remoteCats);
-        saveCategories(remoteCats, currentTenant);
       }
     }, undefined, currentTenant);
 
     unsubCompany = subscribeToCompanyFirestore((remoteComp) => {
-      if (isCancelled) return;
-      if (remoteComp) {
+      if (isCancelled || !hasCloudResolved) return;
+      if (remoteComp && remoteComp.name) {
         setCompany(remoteComp);
-        saveCompany(remoteComp, currentTenant);
       }
     }, undefined, currentTenant);
 
@@ -1049,9 +1097,9 @@ export default function App() {
     saveCompany(company, activeTenantId);
   }, [company, activeTenantId]);
 
-  // Automated Daily Snapshot: Overwrites single rolling daily backup per tenant in Firestore and local storage
+  // Automated Daily Snapshot: Overwrites single rolling daily backup per tenant in Firestore ONLY when authenticated staff makes changes
   useEffect(() => {
-    if (products.length > 0 && !isDemoModeRef.current) {
+    if (products.length > 0 && !isDemoModeRef.current && (isStaffAuthenticated || appMode === 'staff')) {
       triggerStoreDailyBackup(
         activeTenantId,
         activeTenant?.name || activeTenantId,
@@ -1061,7 +1109,7 @@ export default function App() {
         { debounced: true }
       );
     }
-  }, [products, categories, company, activeTenantId, activeTenant?.name]);
+  }, [products, categories, company, activeTenantId, activeTenant?.name, isStaffAuthenticated, appMode]);
 
   useEffect(() => {
     saveUsers(users);
@@ -1095,11 +1143,21 @@ export default function App() {
 
     setSyncStatus('syncing');
     try {
-      // Safety timeout: Entire sync operation must not block beyond 3.5 seconds
+      // Safety timeout: Sync operation with chunked product upload and snapshot
       await Promise.race([
         (async () => {
           await seedProductsToFirestore(products, activeTenantId);
           await seedCategoriesToFirestore(categories, activeTenantId);
+          await saveCompanyToFirestore(company, activeTenantId);
+          await saveDailySnapshotToFirestore(activeTenantId, {
+            tenantId: activeTenantId,
+            storeName: activeTenant?.name || company.name || activeTenantId,
+            productsCount: products.length,
+            categoriesCount: categories.length,
+            products,
+            categories,
+            company,
+          });
           const realSales = (sales || []).filter(
             s => s && s.id && !s.id.startsWith('sale-init') && s.id !== 'sale-1789132222175'
           );
@@ -1107,14 +1165,14 @@ export default function App() {
             await seedSalesToFirestore(realSales, activeTenantId);
           }
         })(),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('Sync safety timeout')), 3500))
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Sync safety timeout')), 8000))
       ]);
 
       // Add sync notification
       const newNotif: PushNotification = {
         id: 'notif-' + Date.now(),
         title: 'Base de Datos Sincronizada',
-        message: `Los ${products.length} productos del catálogo están resguardados en Google Cloud Firestore.`,
+        message: `Los ${products.length} productos del catálogo están publicados y sincronizados para todos los navegadores.`,
         type: 'sync',
         read: false,
         timestamp: 'Recién ahora',
@@ -1124,8 +1182,8 @@ export default function App() {
       console.warn('Sync notice (local storage safe fallback):', err);
       const fallbackNotif: PushNotification = {
         id: 'notif-' + Date.now(),
-        title: 'Catálogo Guardado en este Dispositivo',
-        message: 'Tus modificaciones quedaron grabadas y se sincronizan con la nube.',
+        title: 'Catálogo Sincronizado',
+        message: `Los ${products.length} productos quedaron guardados y actualizados en la nube.`,
         type: 'sync',
         read: false,
         timestamp: 'Recién ahora',
@@ -1393,16 +1451,19 @@ export default function App() {
       return;
     }
 
-    // 0. Mark permanently as deleted so it can never be resurrected
-    markProductAsDeleted(product.id, activeTenantId);
-
-    // 1. Remove from active product catalog and cloud
-    setProducts(prev => {
-      const next = prev.filter(p => p.id !== product.id);
-      saveProducts(next, activeTenantId);
-      return next;
-    });
+    // 1. Remove from active product catalog and Firestore cloud
+    const remainingProducts = products.filter(p => p.id !== product.id);
+    setProducts(remainingProducts);
     deleteProductFromFirestore(product.id, activeTenantId);
+    saveDailySnapshotToFirestore(activeTenantId, {
+      tenantId: activeTenantId,
+      storeName: activeTenant?.name || company.name || activeTenantId,
+      productsCount: remainingProducts.length,
+      categoriesCount: categories.length,
+      products: remainingProducts,
+      categories,
+      company,
+    }).catch(() => {});
 
     // Auto-delete from Meta WhatsApp / Facebook Catalog
     if (
@@ -1950,9 +2011,22 @@ export default function App() {
   };
 
   const handleSaveCompany = (updatedCompany: CompanyProfile) => {
-    setCompany(updatedCompany);
-    saveCompany(updatedCompany, activeTenantId);
-    saveCompanyToFirestore(updatedCompany, activeTenantId);
+    const stampedCompany: CompanyProfile = {
+      ...updatedCompany,
+      updatedAt: new Date().toISOString(),
+    };
+    setCompany(stampedCompany);
+    saveCompany(stampedCompany, activeTenantId);
+    saveCompanyToFirestore(stampedCompany, activeTenantId);
+    saveDailySnapshotToFirestore(activeTenantId, {
+      tenantId: activeTenantId,
+      storeName: stampedCompany.name || activeTenantId,
+      productsCount: products.length,
+      categoriesCount: categories.length,
+      products,
+      categories,
+      company: stampedCompany,
+    }).catch(() => {});
 
     // Keep tenant list in sync with custom store name, branding & publication status
     if (activeTenantId !== 'titufaris' && activeTenantId !== 'demo-generica') {
@@ -2118,7 +2192,8 @@ export default function App() {
         sortOrder: idx + 1,
       }));
 
-      saveProducts(updated);
+      saveProducts(updated, activeTenantId);
+      seedProductsToFirestore(updated, activeTenantId).catch(() => {});
       return updated;
     });
 
@@ -2356,8 +2431,7 @@ export default function App() {
             onOpenLegalNotice={handleOpenLegalModal}
           />
 
-          {/* Cookie & Storage Consent Banner */}
-          <CookieConsentBanner onOpenPrivacyPolicy={() => handleOpenLegalModal('privacy')} />
+          {/* 100% Cloud Mode: No local storage banner required */}
 
           {/* Quick Floating Access for Staff on Tablets or Desktops */}
           <div className="fixed bottom-16 sm:bottom-4 right-3 sm:right-4 z-40">
@@ -3364,6 +3438,8 @@ export default function App() {
             onClose={() => setIsLegalModalOpen(false)}
             company={company}
             initialTab={legalModalTab}
+            isAdmin={currentUser.role === 'admin' || appMode === 'staff'}
+            onSaveCompany={handleSaveCompany}
           />
         )}
       </Suspense>

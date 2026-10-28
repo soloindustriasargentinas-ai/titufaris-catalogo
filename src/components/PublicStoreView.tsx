@@ -164,13 +164,31 @@ export const PublicStoreView: React.FC<PublicStoreViewProps> = ({
       : 'Fabricación directa de soluciones de exhibición y almacenamiento: Góndolas comerciales reforzadas, Estanterías Metálicas de alta durabilidad, Racks Livianos para carga manual, Racks Selectivos para cargas pesadas paletizadas, Lockers y Guardarropas para personal e instituciones. Asesoramiento técnico en layouts y envíos a todo el país.'
   );
 
-  const heroImageSrc = company.heroImageUrl?.trim() || (
-    isCustomStore
-      ? 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&w=1200&q=80'
-      : isGenericDemo
-      ? 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=1200&q=80'
-      : 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&w=1200&q=80'
-  );
+  const DEFAULT_PLACEHOLDER_HERO_URL = 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&w=1200&q=80';
+  const rawHeroUrl = company.heroImageUrl?.trim() || '';
+  const hasCustomHeroImage = Boolean(rawHeroUrl && rawHeroUrl !== DEFAULT_PLACEHOLDER_HERO_URL);
+
+  const firstStoreProductImage = useMemo(() => {
+    const featuredWithImg = products.find(p => p.featured && p.active !== false && (p.imageUrl || (p.images && p.images[0])));
+    if (featuredWithImg) {
+      return (featuredWithImg.images && featuredWithImg.images[0]) || featuredWithImg.imageUrl || '';
+    }
+    const anyWithImg = products.find(p => p.active !== false && (p.imageUrl || (p.images && p.images[0])));
+    if (anyWithImg) {
+      return (anyWithImg.images && anyWithImg.images[0]) || anyWithImg.imageUrl || '';
+    }
+    return '';
+  }, [products]);
+
+  const heroImageSrc = hasCustomHeroImage
+    ? rawHeroUrl
+    : (firstStoreProductImage || (
+        isCustomStore
+          ? 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&w=1200&q=80'
+          : isGenericDemo
+          ? 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=1200&q=80'
+          : DEFAULT_PLACEHOLDER_HERO_URL
+      ));
 
   const heroCtaLabel = company.heroCtaText?.trim() || (
     isCustomStore ? `Consultar a ${company.name}` : isGenericDemo ? 'Hacer Consulta por WhatsApp' : 'Asesoramiento por WhatsApp'
@@ -1490,7 +1508,7 @@ export const PublicStoreView: React.FC<PublicStoreViewProps> = ({
                   className="text-left text-slate-600 hover:text-orange-600 transition-colors underline-offset-2 hover:underline cursor-pointer block"
                   title="Ver los términos y condiciones de venta oficiales"
                 >
-                  Términos y Condiciones de Venta
+                  {company.termsTitle?.trim() || 'Términos y Condiciones de Venta'}
                 </a>
               </li>
               <li>
@@ -1518,7 +1536,7 @@ export const PublicStoreView: React.FC<PublicStoreViewProps> = ({
                   className="text-left text-slate-600 hover:text-orange-600 transition-colors underline-offset-2 hover:underline cursor-pointer block"
                   title="Consultar la cobertura y plazos de garantía oficial de fábrica"
                 >
-                  {isDemoMode ? 'Políticas de Garantía & Cambios' : 'Garantía de Fábrica & Logística'}
+                  {company.warrantyTitle?.trim() || (isDemoMode ? 'Políticas de Garantía & Cambios' : 'Garantía de Fábrica & Logística')}
                 </a>
               </li>
               <li className="text-[11px] text-slate-500 pt-1">

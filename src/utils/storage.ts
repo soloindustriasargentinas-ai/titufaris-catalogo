@@ -14,45 +14,19 @@ const STORAGE_KEYS = {
   DELETED_PRODUCT_IDS: 'titufaris_deleted_product_ids_v1',
 };
 
-export function getDeletedProductIds(tenantId?: string): Set<string> {
-  try {
-    const key = getTenantStorageKey(STORAGE_KEYS.DELETED_PRODUCT_IDS, tenantId);
-    const raw = localStorage.getItem(key);
-    if (!raw) return new Set();
-    const arr = JSON.parse(raw);
-    return new Set(Array.isArray(arr) ? arr : []);
-  } catch {
-    return new Set();
-  }
+export function getDeletedProductIds(_tenantId?: string): Set<string> {
+  return new Set();
 }
 
-export function markProductAsDeleted(productId: string, tenantId?: string): void {
-  try {
-    const key = getTenantStorageKey(STORAGE_KEYS.DELETED_PRODUCT_IDS, tenantId);
-    const deleted = getDeletedProductIds(tenantId);
-    deleted.add(productId);
-    localStorage.setItem(key, JSON.stringify(Array.from(deleted)));
-    idbSet(key, Array.from(deleted)).catch(() => {});
-  } catch (err) {
-    console.warn('Error marking product as deleted:', err);
-  }
+export function markProductAsDeleted(_productId: string, _tenantId?: string): void {
+  // 100% Cloud Architecture: deletions happen directly in Firestore
 }
 
-export function unmarkProductAsDeleted(productId: string, tenantId?: string): void {
-  try {
-    const key = getTenantStorageKey(STORAGE_KEYS.DELETED_PRODUCT_IDS, tenantId);
-    const deleted = getDeletedProductIds(tenantId);
-    if (deleted.has(productId)) {
-      deleted.delete(productId);
-      localStorage.setItem(key, JSON.stringify(Array.from(deleted)));
-      idbSet(key, Array.from(deleted)).catch(() => {});
-    }
-  } catch (err) {
-    console.warn('Error unmarking product as deleted:', err);
-  }
+export function unmarkProductAsDeleted(_productId: string, _tenantId?: string): void {
+  // 100% Cloud Architecture: no local deletion tombstones
 }
 
-// Safe JSON parser
+// Safe JSON parser (used only for active user session ID)
 function safeGet<T>(key: string, defaultValue: T): T {
   try {
     const item = localStorage.getItem(key);
@@ -66,15 +40,11 @@ function safeGet<T>(key: string, defaultValue: T): T {
 function safeSet<T>(key: string, value: T): void {
   try {
     localStorage.setItem(key, JSON.stringify(value));
-  } catch (err) {
-    console.warn('Storage quota exceeded or error saving to localStorage:', err);
+  } catch {
+    // ignore
   }
 }
 
-// ==========================================
-// IndexedDB High-Capacity Storage Engine
-// (No 5MB quota limit - persists gigabytes safely)
-// ==========================================
 const IDB_NAME = 'titufaris_secure_db_v1';
 const IDB_VERSION = 1;
 const IDB_STORE = 'app_state';
@@ -112,19 +82,8 @@ export async function idbGet<T>(key: string): Promise<T | null> {
   }
 }
 
-export async function idbSet<T>(key: string, value: T): Promise<boolean> {
-  try {
-    const db = await openIndexedDB();
-    return new Promise((resolve) => {
-      const tx = db.transaction(IDB_STORE, 'readwrite');
-      const store = tx.objectStore(IDB_STORE);
-      const req = store.put(value, key);
-      req.onsuccess = () => resolve(true);
-      req.onerror = () => resolve(false);
-    });
-  } catch {
-    return false;
-  }
+export async function idbSet<T>(_key: string, _value: T): Promise<boolean> {
+  return true;
 }
 
 export const FAKE_ITEMS_TO_PURGE = new Set([
@@ -168,20 +127,19 @@ export const FAKE_ITEMS_TO_PURGE = new Set([
   'prod-exh-cuadrado',
   'prod-exh-minigondolita',
   'prod-exh-oval',
-  'prod-exh-rectangular'
+  'prod-exh-rectangular',
+  'monche-estanteria-200-90-30',
+  'monche-gondola-central-160',
+  'monche-rack-minicarga-200',
+  'monche-mostrador-caja-120'
 ]);
 
-export function cleanProductList(list: Product[], tenantId?: string): Product[] {
-  const deletedIds = getDeletedProductIds(tenantId);
-
-  // Purge user-deleted items and fake/demo items
-  const filtered = list.filter(
-    p => p && p.id && !deletedIds.has(p.id) && !FAKE_ITEMS_TO_PURGE.has(p.id) && !FAKE_ITEMS_TO_PURGE.has(p.sku)
+export function cleanProductList(list: Product[], _tenantId?: string): Product[] {
+  const filtered = (list || []).filter(
+    p => p && p.id && !FAKE_ITEMS_TO_PURGE.has(p.id) && !FAKE_ITEMS_TO_PURGE.has(p.sku)
   );
 
   return filtered.map(p => {
-    // Preserve exactly what the user configured without altering or constraining categories, specs, or images
-    // If the product has images array with user-uploaded image(s), ensure imageUrl points to it
     const primaryImg = (p.images && p.images.length > 0 && p.images[0]) ? p.images[0] : (p.imageUrl || '');
     const finalImages = Array.isArray(p.images) && p.images.length > 0 ? p.images : (primaryImg ? [primaryImg] : []);
 
@@ -204,95 +162,147 @@ export function getTenantStorageKey(baseKey: string, tenantId?: string): string 
   return `tenant_${tenantId}_${baseKey}`;
 }
 
-export async function syncProductsFromIndexedDB(tenantId?: string): Promise<Product[] | null> {
+/**
+ * One-time helper that extracts any unmigrated products or company settings from a browser's
+ * old localStorage/IndexedDB so App.tsx can ensure they are saved in Firestore before wiping local storage.
+ */
+export async function consumeLegacyLocalStoreData(tenantId?: string): Promise<{
+  legacyProducts: Product[];
+  legacyCompany: CompanyProfile | null;
+}> {
+  if (typeof window === 'undefined') {
+    return { legacyProducts: [], legacyCompany: null };
+  }
+
+  let legacyProducts: Product[] = [];
+  let legacyCompany: CompanyProfile | null = null;
+
   try {
-    const key = getTenantStorageKey(STORAGE_KEYS.PRODUCTS, tenantId);
-    const idbProducts = await idbGet<Product[]>(key);
-    if (idbProducts && Array.isArray(idbProducts) && idbProducts.length > 0) {
-      const cleaned = cleanProductList(idbProducts, tenantId);
-      await idbSet(key, cleaned);
-      return cleaned;
+    const prodKey = getTenantStorageKey(STORAGE_KEYS.PRODUCTS, tenantId);
+    const compKey = getTenantStorageKey(STORAGE_KEYS.COMPANY, tenantId);
+
+    const [idbProds, idbComp] = await Promise.all([
+      idbGet<Product[]>(prodKey),
+      idbGet<CompanyProfile>(compKey),
+    ]);
+
+    const lsProds = safeGet<Product[]>(prodKey, []);
+    const lsComp = safeGet<CompanyProfile | null>(compKey, null);
+
+    const rawProds =
+      idbProds && Array.isArray(idbProds) && idbProds.length >= (lsProds?.length || 0)
+        ? idbProds
+        : lsProds;
+
+    if (Array.isArray(rawProds) && rawProds.length > 0) {
+      legacyProducts = cleanProductList(rawProds, tenantId);
+    }
+
+    if (idbComp && idbComp.name) {
+      legacyCompany = idbComp;
+    } else if (lsComp && lsComp.name) {
+      legacyCompany = lsComp;
     }
   } catch {
     // ignore
   }
+
+  return { legacyProducts, legacyCompany };
+}
+
+/**
+ * Permanently deletes all local catalog, company, category, backup, and tombstone keys
+ * from both localStorage and IndexedDB so the browser operates 100% from Firestore Cloud.
+ */
+export async function purgeAllLocalCatalogStorage(tenantId?: string): Promise<void> {
+  if (typeof window === 'undefined') return;
+  try {
+    const keysToPurge = [
+      getTenantStorageKey(STORAGE_KEYS.PRODUCTS, tenantId),
+      getTenantStorageKey(STORAGE_KEYS.CATEGORIES, tenantId),
+      getTenantStorageKey(STORAGE_KEYS.COMPANY, tenantId),
+      getTenantStorageKey(STORAGE_KEYS.SALES, tenantId),
+      getTenantStorageKey(STORAGE_KEYS.LOGS, tenantId),
+      getTenantStorageKey(STORAGE_KEYS.DELETED_PRODUCT_IDS, tenantId),
+      STORAGE_KEYS.SYNC_QUEUE,
+      `titufaris_daily_backup_${tenantId && tenantId !== 'titufaris' ? tenantId : 'titufaris'}`,
+      `titufaris_last_backup_date_${tenantId && tenantId !== 'titufaris' ? tenantId : 'titufaris'}`,
+    ];
+
+    keysToPurge.forEach(k => {
+      try {
+        localStorage.removeItem(k);
+      } catch {}
+    });
+
+    const db = await openIndexedDB();
+    await new Promise<void>((resolve) => {
+      const tx = db.transaction(IDB_STORE, 'readwrite');
+      const store = tx.objectStore(IDB_STORE);
+      keysToPurge.forEach(k => {
+        try {
+          store.delete(k);
+        } catch {}
+      });
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+    });
+  } catch {
+    // ignore
+  }
+}
+
+export async function syncProductsFromIndexedDB(_tenantId?: string): Promise<Product[] | null> {
+  return null;
+}
+
+export async function syncCompanyFromIndexedDB(_tenantId?: string): Promise<CompanyProfile | null> {
   return null;
 }
 
 import { getTenantDefaultData } from '../data/tenantPresetsData';
 
 export function loadProducts(tenantId?: string, fallbackProducts?: Product[]): Product[] {
-  const key = getTenantStorageKey(STORAGE_KEYS.PRODUCTS, tenantId);
   const tenantDefault = tenantId ? getTenantDefaultData(tenantId) : null;
   const defaultFallback = tenantDefault ? tenantDefault.products : ((!tenantId || tenantId === 'titufaris') ? initialProducts : []);
   const fallback = fallbackProducts !== undefined ? fallbackProducts : defaultFallback;
-  const raw = safeGet<Product[]>(key, fallback);
-  const cleaned = cleanProductList(raw, tenantId);
-  saveProducts(cleaned, tenantId);
-  return cleaned;
+  return JSON.parse(JSON.stringify(cleanProductList(fallback, tenantId)));
 }
 
-export function saveProducts(products: Product[], tenantId?: string): void {
-  const key = getTenantStorageKey(STORAGE_KEYS.PRODUCTS, tenantId);
-  // 1. Persist asynchronously to unlimited-capacity IndexedDB
-  idbSet(key, products).catch(() => {});
-
-  // 2. Persist synchronously to localStorage for immediate next-load
-  try {
-    localStorage.setItem(key, JSON.stringify(products));
-  } catch (err) {
-    console.warn('LocalStorage quota limit reached, saving optimized copy in localStorage while IndexedDB retains full fidelity:', err);
-    try {
-      const optimized = products.map(p => ({
-        ...p,
-        images: p.images ? p.images.slice(0, 1) : [],
-      }));
-      localStorage.setItem(key, JSON.stringify(optimized));
-    } catch {
-      // IndexedDB has already safely written the full product catalogue
-    }
-  }
+export function saveProducts(_products: Product[], _tenantId?: string): void {
+  // 100% Cloud Architecture: products are persisted exclusively in Firestore
 }
 
 export function loadCategories(tenantId?: string, fallbackCategories?: Category[]): Category[] {
-  const key = getTenantStorageKey(STORAGE_KEYS.CATEGORIES, tenantId);
   const tenantDefault = tenantId ? getTenantDefaultData(tenantId) : null;
   const defaultFallback = tenantDefault ? tenantDefault.categories : initialCategories;
   const fallback = fallbackCategories !== undefined ? fallbackCategories : defaultFallback;
-  const loaded = safeGet<Category[]>(key, fallback);
-  return Array.isArray(loaded) && loaded.length > 0 ? loaded : fallback;
+  return JSON.parse(JSON.stringify(fallback));
 }
 
-export function saveCategories(categories: Category[], tenantId?: string): void {
-  const key = getTenantStorageKey(STORAGE_KEYS.CATEGORIES, tenantId);
-  safeSet(key, categories);
+export function saveCategories(_categories: Category[], _tenantId?: string): void {
+  // 100% Cloud Architecture: categories are persisted exclusively in Firestore
 }
 
 export function loadCompany(tenantId?: string, fallbackCompany?: CompanyProfile): CompanyProfile {
-  const key = getTenantStorageKey(STORAGE_KEYS.COMPANY, tenantId);
   const tenantDefault = tenantId ? getTenantDefaultData(tenantId) : null;
   const defaultFallback = tenantDefault ? tenantDefault.company : initialCompany;
   const fallback = fallbackCompany || defaultFallback;
-  return safeGet<CompanyProfile>(key, fallback);
+  return JSON.parse(JSON.stringify(fallback));
 }
 
-export function saveCompany(company: CompanyProfile, tenantId?: string): void {
-  const key = getTenantStorageKey(STORAGE_KEYS.COMPANY, tenantId);
-  safeSet(key, company);
+export function saveCompany(_company: CompanyProfile, _tenantId?: string): void {
+  // 100% Cloud Architecture: company profile & Portada are persisted exclusively in Firestore
 }
 
 export const GENERIC_COMPANY_STORAGE_KEY = 'titufaris_generic_company_custom';
 
 export function loadGenericCompany(fallback?: CompanyProfile): CompanyProfile {
-  const custom = safeGet<CompanyProfile | null>(GENERIC_COMPANY_STORAGE_KEY, null);
-  if (custom && custom.name) {
-    return custom;
-  }
   return fallback || initialCompany;
 }
 
-export function saveGenericCompany(company: CompanyProfile): void {
-  safeSet(GENERIC_COMPANY_STORAGE_KEY, company);
+export function saveGenericCompany(_company: CompanyProfile): void {
+  // no-op
 }
 
 export function loadUsers(): User[] {
@@ -319,43 +329,28 @@ export function saveUsers(users: User[]): void {
   safeSet(STORAGE_KEYS.USERS, users);
 }
 
-export function loadSales(tenantId?: string): Sale[] {
-  const key = getTenantStorageKey(STORAGE_KEYS.SALES, tenantId);
-  const loaded = safeGet<Sale[]>(key, []);
-  if (!loaded || loaded.length === 0) {
-    return [];
-  }
-  // Strip out any legacy demo/mock sales
-  const clean = loaded.filter(s => s && s.id && !s.id.startsWith('sale-init') && s.id !== 'sale-1789132222175');
-  if (clean.length !== loaded.length) {
-    safeSet(key, clean);
-  }
-  return clean;
+export function loadSales(_tenantId?: string): Sale[] {
+  return [];
 }
 
-export function saveSales(sales: Sale[], tenantId?: string): void {
-  const key = getTenantStorageKey(STORAGE_KEYS.SALES, tenantId);
-  safeSet(key, sales);
+export function saveSales(_sales: Sale[], _tenantId?: string): void {
+  // 100% Cloud Architecture: sales are persisted in Firestore
 }
 
-export function loadLogs(tenantId?: string): ActivityLog[] {
-  const key = getTenantStorageKey(STORAGE_KEYS.LOGS, tenantId);
-  return safeGet<ActivityLog[]>(key, initialActivityLogs);
+export function loadLogs(_tenantId?: string): ActivityLog[] {
+  return initialActivityLogs;
 }
 
-export function saveLogs(logs: ActivityLog[], tenantId?: string): void {
-  const key = getTenantStorageKey(STORAGE_KEYS.LOGS, tenantId);
-  safeSet(key, logs);
+export function saveLogs(_logs: ActivityLog[], _tenantId?: string): void {
+  // 100% Cloud Architecture: activity logs are persisted in Firestore
 }
 
-export function loadNotifications(tenantId?: string): PushNotification[] {
-  const key = getTenantStorageKey(STORAGE_KEYS.NOTIFICATIONS, tenantId);
-  return safeGet<PushNotification[]>(key, initialNotifications);
+export function loadNotifications(_tenantId?: string): PushNotification[] {
+  return initialNotifications;
 }
 
-export function saveNotifications(notifs: PushNotification[], tenantId?: string): void {
-  const key = getTenantStorageKey(STORAGE_KEYS.NOTIFICATIONS, tenantId);
-  safeSet(key, notifs);
+export function saveNotifications(_notifs: PushNotification[], _tenantId?: string): void {
+  // In-memory session notifications
 }
 
 export function getActiveUserId(): string {
@@ -366,7 +361,7 @@ export function setActiveUserId(id: string): void {
   safeSet(STORAGE_KEYS.ACTIVE_USER_ID, id);
 }
 
-// Queue for offline mutations
+// Queue for offline mutations (disabled in 100% cloud real-time mode)
 export interface QueuedAction {
   id: string;
   type: string;
@@ -375,21 +370,15 @@ export interface QueuedAction {
 }
 
 export function getSyncQueue(): QueuedAction[] {
-  return safeGet<QueuedAction[]>(STORAGE_KEYS.SYNC_QUEUE, []);
+  return [];
 }
 
-export function addToSyncQueue(action: Omit<QueuedAction, 'id' | 'timestamp'>): void {
-  const queue = getSyncQueue();
-  queue.push({
-    id: 'sync-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7),
-    timestamp: new Date().toISOString(),
-    ...action
-  });
-  safeSet(STORAGE_KEYS.SYNC_QUEUE, queue);
+export function addToSyncQueue(_action: Omit<QueuedAction, 'id' | 'timestamp'>): void {
+  // no-op in 100% Cloud mode
 }
 
 export function clearSyncQueue(): void {
-  safeSet(STORAGE_KEYS.SYNC_QUEUE, []);
+  // no-op in 100% Cloud mode
 }
 
 // Currency formatter

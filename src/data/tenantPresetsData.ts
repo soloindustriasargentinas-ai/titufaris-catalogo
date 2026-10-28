@@ -1,4 +1,5 @@
 import { CompanyProfile, Product, Category } from '../types';
+import { initialCompany, initialCategories, initialProducts } from './initialData';
 
 // ============================================================================
 // PRESET OFICIAL: ZAPAS (zapas.titufaris.online) - Calzado, Sneakers & Moda Urbana
@@ -500,180 +501,19 @@ export const claudiaSoftProducts: Product[] = [
 
 // ============================================================================
 // PRESET OFICIAL: MONCHE ESTANTERÍAS (moncheestanterias.titufaris.online)
+// Copia exacta e independiente por única vez de la tienda matriz (titufaris.online)
 // ============================================================================
 
 export const moncheCompany: CompanyProfile = {
-  name: 'Monche Estanterías - Estanterías Metálicas & Racks',
-  tagline: 'ESTANTERÍAS METÁLICAS, GÓNDOLAS Y EQUIPAMIENTO COMERCIAL',
-  legalName: 'Monche Estanterías S.A.',
-  taxId: '30-71649281-9',
-  address: 'Polo Industrial y Comercial',
-  city: 'Buenos Aires / Envíos a todo el país',
-  phone: '+54 9 11 5829-4310',
-  email: 'contacto@moncheestanterias.titufaris.online',
+  ...(JSON.parse(JSON.stringify(initialCompany)) as CompanyProfile),
   website: 'https://moncheestanterias.titufaris.online',
-  currency: 'ARS',
-  currencySymbol: '$',
-  bankAccount: {
-    bank: 'Banco Galicia',
-    alias: 'MONCHE.ESTANTERIAS.ARG',
-    cbu: '0070123456789012345699',
-    holder: 'Monche Estanterías S.A.',
-    mercadoPagoAlias: 'MONCHE.MP',
-    mercadoPagoLink: 'https://link.mercadopago.com.ar/moncheestanterias'
-  },
-  catalogNotes: 'Estanterías y racks metálicos de alta resistencia. Pintura epoxi termoconvertible anticorrosiva horneada a 200°C. Envíos a todo el país con embalaje reforzado.',
-  termsAndConditions: 'Garantía estructural de fábrica de 12 meses. Factura A y B. Medios de pago: Transferencia bancaria directa con descuento, tarjetas en cuotas y Mercado Pago.',
-  whatsappCatalogUrl: 'https://wa.me/c/5491158294310',
-  showWhatsAppCatalogButton: true,
-  isPublished: false, // Inicia en Modo En Construcción mientras el admin carga productos
-  underConstructionMessage: 'Estamos cargando nuestro catálogo oficial de estanterías metálicas, góndolas y racks industriales. ¡Próximamente disponible! Podés contactarnos directamente por WhatsApp para presupuestos inmediatos.',
-  catalogTitle: 'Catálogo Oficial de Estanterías Metálicas y Racks',
-  catalogDescription: 'Línea completa de estanterías metálicas reforzadas, góndolas para comercios y autoservicios, racks industriales y mostradores con entrega inmediata.',
-  heroTitle: 'Estanterías Metálicas, Góndolas Comerciales & Racks de Carga',
-  heroSubtitle: 'Soluciones profesionales de almacenamiento y exhibición comercial. Diseños modulares, alta capacidad de carga y asesoramiento técnico especializado.',
-  heroImageUrl: 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=1200&q=80',
-  heroCtaText: 'Cotizar por WhatsApp',
-  metaDescription: 'Tienda oficial de Monche Estanterías. Estanterías metálicas desarmables, góndolas de supermercado y racks industriales.',
-  brandColors: {
-    primary: '#1D4ED8',
-    secondary: '#0F172A',
-    accent: '#3B82F6',
-    topBarBg: '#0F172A',
-    headerBg: '#FFFFFF',
-    heroBg: '#172554',
-  },
-  fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
-  wholesaleEnabled: true,
-  wholesaleMinUnits: 3,
-  valueBadges: [
-    { id: 'b1', title: 'Directo de Fábrica', subtitle: 'Sin intermediarios ni sobreprecios', iconName: 'ShieldCheck' },
-    { id: 'b2', title: 'Envíos Nacionales', subtitle: 'Embalaje técnico reforzado para transporte', iconName: 'Truck' },
-    { id: 'b3', title: 'Asesoramiento Técnico', subtitle: 'Renders y cálculo de cargas sin costo', iconName: 'MessageCircle' },
-    { id: 'b4', title: 'Facturación A y B', subtitle: 'Venta a empresas, depósitos y comercios', iconName: 'CreditCard' }
-  ]
+  isPublished: true,
 };
 
-export const moncheCategories: Category[] = [
-  {
-    id: 'estanterias-pesadas',
-    name: 'Estanterías Metálicas Reforzadas',
-    iconName: 'Layers',
-    color: '#1D4ED8',
-    description: 'Estanterías metálicas desarmables con bandejas reforzadas para depósitos, archivos y comercios.'
-  },
-  {
-    id: 'gondolas-comerciales',
-    name: 'Góndolas para Comercios',
-    iconName: 'Store',
-    color: '#EA580C',
-    description: 'Góndolas centrales y contra pared con porta precios y fondos lisos o perforados.'
-  },
-  {
-    id: 'racks-industriales',
-    name: 'Racks & Minicarga',
-    iconName: 'Package',
-    color: '#0284C7',
-    description: 'Estructuras de acero de alta resistencia para almacenamiento manual y paletizado.'
-  },
-  {
-    id: 'mostradores-organizadores',
-    name: 'Mostradores & Organizadores',
-    iconName: 'Wrench',
-    color: '#10B981',
-    description: 'Mostradores de cobro con tapa de acero inoxidable y gaveteros modulares para tornillería.'
-  }
-];
+export const moncheCategories: Category[] = JSON.parse(JSON.stringify(initialCategories)) as Category[];
 
-export const moncheProducts: Product[] = [
-  {
-    id: 'monche-estanteria-200-90-30',
-    sku: 'MON-EST-200',
-    name: 'Estantería Metálica Reforzada 2.00 x 0.90 x 0.30m (5 Estantes)',
-    category: 'estanterias-pesadas',
-    description: 'Estantería modular de chapa de acero DD reforzada. Soporta hasta 90 kg por estante distribuidos uniformemente. Pintura epoxi al horno.',
-    retailPrice: 49500,
-    wholesalePrice: 42000,
-    wholesaleMinQty: 3,
-    stock: 25,
-    minStock: 5,
-    unit: 'unidad',
-    imageUrl: 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=800&q=80',
-    images: ['https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=800&q=80'],
-    featured: true,
-    active: true,
-    specifications: [
-      { key: 'Alto', value: '2.00 metros' },
-      { key: 'Ancho', value: '0.90 metros' },
-      { key: 'Profundidad', value: '0.30 metros' },
-      { key: 'Carga por estante', value: '90 kg reales' }
-    ]
-  },
-  {
-    id: 'monche-gondola-central-160',
-    sku: 'MON-GON-C160',
-    name: 'Góndola Central Doble Faz 1.60 x 1.00m con 8 Estantes Regulables',
-    category: 'gondolas-comerciales',
-    description: 'Módulo central para autoservicio y supermercados. Doble frente con porta precios de color a elección y fondo de chapa.',
-    retailPrice: 185000,
-    wholesalePrice: 162000,
-    wholesaleMinQty: 2,
-    stock: 14,
-    minStock: 2,
-    unit: 'unidad',
-    imageUrl: 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&w=800&q=80',
-    images: ['https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&w=800&q=80'],
-    featured: true,
-    active: true,
-    specifications: [
-      { key: 'Altura', value: '1.60 metros' },
-      { key: 'Largo', value: '1.00 metro' },
-      { key: 'Capacidad por bandeja', value: '65 kg' }
-    ]
-  },
-  {
-    id: 'monche-rack-minicarga-200',
-    sku: 'MON-RCK-M200',
-    name: 'Rack Minicarga Manual 2.00 x 1.50 x 0.60m (3 Niveles)',
-    category: 'racks-industriales',
-    description: 'Rack para almacenamiento de cajas y mercadería pesada. Vigas encastrables con traba de seguridad y planos de apoyo metálicos.',
-    retailPrice: 198000,
-    wholesalePrice: 175000,
-    wholesaleMinQty: 2,
-    stock: 10,
-    minStock: 2,
-    unit: 'unidad',
-    imageUrl: 'https://images.unsplash.com/photo-1587293852726-70cdb56c2866?auto=format&fit=crop&w=800&q=80',
-    images: ['https://images.unsplash.com/photo-1587293852726-70cdb56c2866?auto=format&fit=crop&w=800&q=80'],
-    featured: true,
-    active: true,
-    specifications: [
-      { key: 'Carga por nivel', value: '350 kg' },
-      { key: 'Acabado', value: 'Pintura epoxi horneada' }
-    ]
-  },
-  {
-    id: 'monche-mostrador-caja-120',
-    sku: 'MON-MST-120',
-    name: 'Mostrador de Cobro y Atención al Público 1.20m Tapa Acero Inox',
-    category: 'mostradores-organizadores',
-    description: 'Mostrador para línea de cajas con cajón con llave, pasacables para posnet/computadora y estantes internos de guardado.',
-    retailPrice: 145000,
-    wholesalePrice: 128000,
-    wholesaleMinQty: 2,
-    stock: 8,
-    minStock: 1,
-    unit: 'unidad',
-    imageUrl: 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&w=800&q=80',
-    images: ['https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&w=800&q=80'],
-    featured: false,
-    active: true,
-    specifications: [
-      { key: 'Medidas', value: '1.20 x 0.55 x 0.95m' },
-      { key: 'Tapa', value: 'Acero Inoxidable sanitario' }
-    ]
-  }
-];
+export const moncheProducts: Product[] = JSON.parse(JSON.stringify(initialProducts)) as Product[];
+
 
 // ============================================================================
 // PRESETS POR RUBRO PARA NUEVAS TIENDAS
@@ -1160,25 +1000,25 @@ export function getTenantDefaultData(tenantId: string): {
 
   if (clean === 'zapas' || clean.includes('zapas')) {
     return {
-      company: zapasCompany,
-      categories: zapasCategories,
-      products: zapasProducts
+      company: JSON.parse(JSON.stringify(zapasCompany)),
+      categories: JSON.parse(JSON.stringify(zapasCategories)),
+      products: JSON.parse(JSON.stringify(zapasProducts))
     };
   }
 
   if (clean === 'claudia-soft' || clean.includes('claudia')) {
     return {
-      company: claudiaSoftCompany,
-      categories: claudiaSoftCategories,
-      products: claudiaSoftProducts
+      company: JSON.parse(JSON.stringify(claudiaSoftCompany)),
+      categories: JSON.parse(JSON.stringify(claudiaSoftCategories)),
+      products: JSON.parse(JSON.stringify(claudiaSoftProducts))
     };
   }
 
   if (clean === 'moncheestanterias' || clean.includes('monche')) {
     return {
-      company: moncheCompany,
-      categories: moncheCategories,
-      products: moncheProducts
+      company: JSON.parse(JSON.stringify(moncheCompany)),
+      categories: JSON.parse(JSON.stringify(moncheCategories)),
+      products: JSON.parse(JSON.stringify(moncheProducts))
     };
   }
 

@@ -45,6 +45,7 @@ import {
   extractPaletteFromImage,
   ExtractedPalette
 } from '../utils/brandColorExtractor';
+import { getDefaultTermsText, getDefaultWarrantyText } from './LegalNoticeModal';
 
 interface CompanySettingsModalProps {
   company: CompanyProfile;
@@ -1542,6 +1543,124 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
                       className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-xl outline-none"
                     />
                   </div>
+                </div>
+              </div>
+
+              {/* TÉRMINOS Y CONDICIONES DE VENTA (EDITABLE PARA TODAS LAS TIENDAS) */}
+              <div className="p-4 sm:p-5 bg-gradient-to-br from-orange-50/70 to-white border border-orange-200 rounded-2xl space-y-3">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 rounded-lg bg-orange-100 text-orange-700">
+                      <FileText className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h3 className="text-xs font-black uppercase tracking-wider text-slate-900">
+                        Términos y Condiciones de Venta
+                      </h3>
+                      <p className="text-[11px] text-slate-600">
+                        Personalizá el título y las cláusulas comerciales visibles en el pie de página de esta tienda
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleChange('termsTitle', 'Términos y Condiciones de Venta');
+                      handleChange('termsAndConditions', getDefaultTermsText({ ...formData, termsAndConditions: '' }));
+                    }}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 text-[10.5px] font-bold transition cursor-pointer"
+                  >
+                    <RotateCcw className="w-3 h-3" />
+                    <span>Cargar Plantilla Sugerida</span>
+                  </button>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                    Título del Enlace y Pestaña
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.termsTitle ?? 'Términos y Condiciones de Venta'}
+                    onChange={e => handleChange('termsTitle', e.target.value)}
+                    placeholder="Términos y Condiciones de Venta"
+                    className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-xl font-bold text-slate-900 focus:border-orange-500 outline-none"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                    Texto Completo de Términos y Condiciones de Venta
+                  </label>
+                  <textarea
+                    rows={6}
+                    value={formData.termsAndConditions ?? getDefaultTermsText(formData)}
+                    onChange={e => handleChange('termsAndConditions', e.target.value)}
+                    placeholder="Escribí aquí las condiciones de venta minorista, mayorista, validez de presupuestos y medios de pago..."
+                    className="w-full px-3.5 py-2 text-xs bg-white border border-slate-300 rounded-xl focus:border-orange-500 outline-none leading-relaxed text-slate-800"
+                  />
+                  <span className="text-[10px] text-slate-500 block">
+                    Podés separar cada sección con una línea en blanco para que se muestre organizada en tarjetas.
+                  </span>
+                </div>
+              </div>
+
+              {/* GARANTÍA DE FÁBRICA & LOGÍSTICA (EDITABLE PARA TODAS LAS TIENDAS) */}
+              <div className="p-4 sm:p-5 bg-gradient-to-br from-emerald-50/70 to-white border border-emerald-200 rounded-2xl space-y-3">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 rounded-lg bg-emerald-100 text-emerald-700">
+                      <ShieldCheck className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h3 className="text-xs font-black uppercase tracking-wider text-slate-900">
+                        Garantía de Fábrica & Logística
+                      </h3>
+                      <p className="text-[11px] text-slate-600">
+                        Personalizá la cobertura de garantía, cambios, despachos y envíos de esta tienda
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleChange('warrantyTitle', 'Garantía de Fábrica & Logística');
+                      handleChange('warrantyAndLogistics', getDefaultWarrantyText({ ...formData, warrantyAndLogistics: '' }));
+                    }}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 text-[10.5px] font-bold transition cursor-pointer"
+                  >
+                    <RotateCcw className="w-3 h-3" />
+                    <span>Cargar Plantilla Sugerida</span>
+                  </button>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                    Título del Enlace y Pestaña
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.warrantyTitle ?? 'Garantía de Fábrica & Logística'}
+                    onChange={e => handleChange('warrantyTitle', e.target.value)}
+                    placeholder="Garantía de Fábrica & Logística"
+                    className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-xl font-bold text-slate-900 focus:border-emerald-500 outline-none"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                    Texto Completo de Garantía & Logística
+                  </label>
+                  <textarea
+                    rows={6}
+                    value={formData.warrantyAndLogistics || getDefaultWarrantyText(formData)}
+                    onChange={e => handleChange('warrantyAndLogistics', e.target.value)}
+                    placeholder="Escribí aquí las políticas de garantía, plazos de cobertura, despachos y recepción de pedidos..."
+                    className="w-full px-3.5 py-2 text-xs bg-white border border-slate-300 rounded-xl focus:border-emerald-500 outline-none leading-relaxed text-slate-800"
+                  />
+                  <span className="text-[10px] text-slate-500 block">
+                    Podés separar cada sección con una línea en blanco para que se muestre organizada en tarjetas.
+                  </span>
                 </div>
               </div>
             </div>

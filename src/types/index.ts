@@ -136,6 +136,9 @@ export interface CompanyProfile {
   showAnnouncementBar?: boolean;
   catalogNotes: string;
   termsAndConditions: string;
+  termsTitle?: string;
+  warrantyTitle?: string;
+  warrantyAndLogistics?: string;
   whatsappCatalogUrl?: string;
   showWhatsAppCatalogButton?: boolean;
   metaCatalogConfig?: MetaCatalogConfig;
@@ -154,6 +157,7 @@ export interface CompanyProfile {
   heroImageUrl?: string;
   heroCtaText?: string;
   metaDescription?: string;
+  updatedAt?: string;
 
   // Venta Mayorista Configurable
   wholesaleEnabled?: boolean; // True si la tienda ofrece venta mayorista (default: true)
