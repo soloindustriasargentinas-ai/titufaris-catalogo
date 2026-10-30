@@ -34,9 +34,8 @@ service cloud.firestore {
     // Company contact details and configuration: Publicly readable, validated writes
     match /companyProfile/{docId} {
       allow read: if true;
-      allow create, update: if request.resource.data.keys().hasAll(['name', 'phone'])
-        && isValidString(request.resource.data.name, 1, 200)
-        && isValidString(request.resource.data.phone, 1, 50);
+      allow create, update: if request.resource.data.keys().hasAll(['name'])
+        && isValidString(request.resource.data.name, 1, 200);
       allow delete: if true;
     }
 

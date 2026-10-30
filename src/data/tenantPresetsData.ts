@@ -1,5 +1,7 @@
 import { CompanyProfile, Product, Category } from '../types';
 import { initialCompany, initialCategories, initialProducts } from './initialData';
+import { moncheClonedCompany, moncheClonedCategories, moncheClonedProducts } from './moncheClonedData';
+import { ZAPAS_OFFICIAL_LOGO_BASE64 } from './zapasLogoData';
 
 // ============================================================================
 // PRESET OFICIAL: ZAPAS (zapas.titufaris.online) - Calzado, Sneakers & Moda Urbana
@@ -7,13 +9,15 @@ import { initialCompany, initialCategories, initialProducts } from './initialDat
 
 export const zapasCompany: CompanyProfile = {
   name: 'Zapas - Calzado & Sneakers Oficial',
-  tagline: 'CALZADO, SNEAKERS & MODA URBANA',
+  tagline: 'LAS ZAPATILLAS DE TUS SUEÑOS',
+  logo: ZAPAS_OFFICIAL_LOGO_BASE64,
+  logoUrl: ZAPAS_OFFICIAL_LOGO_BASE64,
   legalName: 'Zapas Argentina S.A.',
   taxId: '30-71649281-4',
-  address: 'Av. Corrientes 2450, CABA, Argentina',
+  address: 'Viamonte Nº 564, Quilmes',
   city: 'Buenos Aires / Envíos a todo el país',
-  phone: '+54 9 11 5829-4310',
-  email: 'contacto@zapas.titufaris.online',
+  phone: '+54 9 11 7067-4920',
+  email: 'titufaris@gmail.com',
   website: 'https://zapas.titufaris.online',
   currency: 'ARS',
   currencySymbol: '$',
@@ -27,7 +31,7 @@ export const zapasCompany: CompanyProfile = {
   },
   catalogNotes: 'Calzado 100% original con cambio asegurado. Envíos express en 24/48hs a todo el país. Venta minorista y mayorista con descuento automático por curva o volumen.',
   termsAndConditions: 'Cambio gratis dentro de los 30 días de recibido el producto. Garantía de autenticidad y factura A o B. Medios de pago: Tarjetas de crédito en hasta 6 cuotas, débito, transferencia bancaria (10% OFF adicional) y Mercado Pago.',
-  whatsappCatalogUrl: 'https://wa.me/c/5491158294310',
+  whatsappCatalogUrl: 'https://wa.me/c/5491170674920',
   showWhatsAppCatalogButton: true,
   catalogTitle: 'Catálogo de Sneakers, Calzado Urbano & Zapatillas',
   catalogDescription: 'Explorá los modelos más buscados en zapatillas urbanas, running, botines y calzado casual con stock en tiempo real y pedidos directos por WhatsApp.',
@@ -269,14 +273,14 @@ export const zapasProducts: Product[] = [
 // ============================================================================
 
 export const claudiaSoftCompany: CompanyProfile = {
-  name: 'Claudia Soft - Lencería & Moda Femenina',
+  name: 'Claudia Soft',
   tagline: 'LENCERÍA, PIJAMAS & MODA CONFORT',
   legalName: 'Claudia Soft Confecciones S.R.L.',
   taxId: '30-71894523-2',
   address: 'Av. Santa Fe 3200, Palermo, CABA, Argentina',
   city: 'Buenos Aires / Envíos a todo el país',
-  phone: '+54 9 11 5829-4310',
-  email: 'contacto@claudia-soft.titufaris.online',
+  phone: '+54 9 11 2251-2906',
+  email: 'claudia@cinco-cero.com',
   website: 'https://claudia-soft.titufaris.online',
   currency: 'ARS',
   currencySymbol: '$',
@@ -290,7 +294,7 @@ export const claudiaSoftCompany: CompanyProfile = {
   },
   catalogNotes: 'Prendas confeccionadas con materias primas de primera calidad: satén elastizado, algodón pima y encajes suaves hipoalergénicos. Atención personalizada y curva completa de talles.',
   termsAndConditions: 'Envíos discretos en packaging cerrado a todo el país. Garantía por defectos de confección. Medios de pago: Transferencia bancaria (10% descuento), tarjetas en 3 cuotas sin interés y Mercado Pago.',
-  whatsappCatalogUrl: 'https://wa.me/c/5491158294310',
+  whatsappCatalogUrl: 'https://wa.me/c/5491122512906',
   showWhatsAppCatalogButton: true,
   catalogTitle: 'Catálogo Oficial de Pijamas, Lencería & Homewear',
   catalogDescription: 'Confort, suavidad y diseño en pijamas de satén, lencería soft y camisones con curva completa de talles y envíos a todo el país.',
@@ -505,14 +509,19 @@ export const claudiaSoftProducts: Product[] = [
 // ============================================================================
 
 export const moncheCompany: CompanyProfile = {
-  ...(JSON.parse(JSON.stringify(initialCompany)) as CompanyProfile),
+  ...moncheClonedCompany,
   website: 'https://moncheestanterias.titufaris.online',
   isPublished: true,
 };
 
-export const moncheCategories: Category[] = JSON.parse(JSON.stringify(initialCategories)) as Category[];
+export const moncheCategories: Category[] = moncheClonedCategories.map(c => ({ ...c }));
 
-export const moncheProducts: Product[] = JSON.parse(JSON.stringify(initialProducts)) as Product[];
+export const moncheProducts: Product[] = moncheClonedProducts.map(p => ({
+  ...p,
+  images: Array.isArray(p.images) ? [...p.images] : (p.imageUrl ? [p.imageUrl] : []),
+  specifications: Array.isArray(p.specifications) ? p.specifications.map(s => ({ ...s })) : [],
+  tags: Array.isArray(p.tags) ? [...p.tags] : []
+}));
 
 
 // ============================================================================

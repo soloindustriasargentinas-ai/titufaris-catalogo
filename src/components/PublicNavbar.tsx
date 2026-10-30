@@ -84,14 +84,14 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
                   Fábrica Directa
                 </span>
                 <span className="text-slate-200 hidden sm:inline">
-                  {wholesaleEnabled
+                  {company.announcementBarText || (wholesaleEnabled
                     ? `Venta Mayorista (a partir de ${wholesaleMin} unidades) y Minorista con asesoramiento de fábrica.`
-                    : 'Venta Minorista oficial con asesoramiento directo de fábrica.'}
+                    : 'Venta Minorista oficial con asesoramiento directo de fábrica.')}
                 </span>
                 <span className="text-slate-200 sm:hidden">
-                  {wholesaleEnabled
+                  {company.announcementBarText || (wholesaleEnabled
                     ? `Venta Mayorista (${wholesaleMin}+ u.) y Minorista Titufaris`
-                    : 'Venta oficial de fábrica Titufaris'}
+                    : 'Venta oficial de fábrica Titufaris')}
                 </span>
               </>
             ) : (
@@ -167,7 +167,7 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
               className="h-9 sm:h-11 w-auto max-w-[200px] object-contain"
             />
           ) : isTitufarisBrand ? (
-            <TitufarisLogo className="h-9 sm:h-11 w-auto" />
+            <TitufarisLogo className="h-9 sm:h-11 w-auto" tagline={company.tagline} brandName={company.name} />
           ) : (
             <div className="flex items-center gap-2.5">
               <div

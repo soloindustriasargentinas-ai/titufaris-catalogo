@@ -2,9 +2,9 @@ import { Product, Category, CompanyProfile, User, ActivityLog, PushNotification,
 import { initialProducts, initialCategories, initialCompany, initialUsers, initialActivityLogs, initialNotifications, initialSales, DEFAULT_INITIAL_PASSWORD } from '../data/initialData';
 
 const STORAGE_KEYS = {
-  PRODUCTS: 'titufaris_products_v1',
-  CATEGORIES: 'titufaris_categories_v1',
-  COMPANY: 'titufaris_company_v1',
+  PRODUCTS: 'titufaris_products_v2_35',
+  CATEGORIES: 'titufaris_categories_v2_35',
+  COMPANY: 'titufaris_company_v2_35',
   USERS: 'titufaris_users_v1',
   SALES: 'titufaris_sales_v1',
   LOGS: 'titufaris_activity_logs_v1',
@@ -82,11 +82,23 @@ export async function idbGet<T>(key: string): Promise<T | null> {
   }
 }
 
-export async function idbSet<T>(_key: string, _value: T): Promise<boolean> {
-  return true;
+export async function idbSet<T>(key: string, value: T): Promise<boolean> {
+  try {
+    const db = await openIndexedDB();
+    return new Promise((resolve) => {
+      const tx = db.transaction(IDB_STORE, 'readwrite');
+      const store = tx.objectStore(IDB_STORE);
+      store.put(value, key);
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => resolve(false);
+    });
+  } catch {
+    return false;
+  }
 }
 
 export const FAKE_ITEMS_TO_PURGE = new Set([
+  'GON-CEN-160',
   'prod-2',
   'prod-3',
   'prod-4',
@@ -94,6 +106,29 @@ export const FAKE_ITEMS_TO_PURGE = new Set([
   'prod-6',
   'prod-7',
   'prod-8',
+  'prod-9',
+  'prod-10',
+  'prod-11',
+  'prod-12',
+  'prod-13',
+  'prod-14',
+  'prod-15',
+  'prod-16',
+  'prod-17',
+  'prod-18',
+  'prod-19',
+  'prod-20',
+  'prod-21',
+  'prod-22',
+  'prod-23',
+  'prod-24',
+  'prod-25',
+  'prod-26',
+  'prod-27',
+  'prod-28',
+  'prod-29',
+  'prod-30',
+  'prod-31',
   'GON-MUR-220',
   'CHK-ERG-180',
   'VIT-LED-120',
@@ -163,100 +198,68 @@ export function getTenantStorageKey(baseKey: string, tenantId?: string): string 
 }
 
 /**
- * One-time helper that extracts any unmigrated products or company settings from a browser's
- * old localStorage/IndexedDB so App.tsx can ensure they are saved in Firestore before wiping local storage.
+ * Checks whether a CompanyProfile object contains outdated factory template placeholders
+ * (such as the old +54 9 11 5824-9100 phone, Av. Juan B. Justo 4850, or supermarket aisle photo).
  */
-export async function consumeLegacyLocalStoreData(tenantId?: string): Promise<{
+export function isStalePlaceholderCompany(c: CompanyProfile | null | undefined, tenantId?: string): boolean {
+  if (!c || !c.name) return true;
+  if (
+    c.phone === '+54 9 11 5824-9100' ||
+    c.email === 'soloindustriasargentinas@gmail.com' ||
+    c.email === 'ventas@titufaris.com.ar' ||
+    c.legalName === 'Titufaris Soluciones Comerciales S.R.L.' ||
+    c.taxId === '30-71548921-9' ||
+    c.tagline === 'EQUIPAMIENTO COMERCIAL & LAYOUT' ||
+    (c.address && c.address.includes('Juan B. Justo 4850')) ||
+    (c.heroImageUrl && c.heroImageUrl.includes('photo-1578916171728-46686eac8d58')) ||
+    (c.heroTitle && c.heroTitle.startsWith('Instalaciones comerciales e industriales:'))
+  ) {
+    return true;
+  }
+  if (!tenantId || tenantId === 'titufaris' || tenantId === 'moncheestanterias') {
+    if (!c.heroImageUrl || !c.heroTitle) {
+      return true;
+    }
+  }
+  if (tenantId === 'zapas') {
+    if (c.name.toLowerCase().includes('titufaris') || !c.logoUrl || c.phone === '+54 9 11 5829-4310') {
+      return true;
+    }
+  }
+  if (tenantId === 'claudia-soft') {
+    if (c.phone === '+54 9 11 5829-4310' || c.email === 'contacto@claudia-soft.titufaris.online') {
+      return true;
+    }
+  }
+  return false;
+}
+
+export async function consumeLegacyLocalStoreData(_tenantId?: string): Promise<{
   legacyProducts: Product[];
   legacyCompany: CompanyProfile | null;
 }> {
-  if (typeof window === 'undefined') {
-    return { legacyProducts: [], legacyCompany: null };
-  }
-
-  let legacyProducts: Product[] = [];
-  let legacyCompany: CompanyProfile | null = null;
-
-  try {
-    const prodKey = getTenantStorageKey(STORAGE_KEYS.PRODUCTS, tenantId);
-    const compKey = getTenantStorageKey(STORAGE_KEYS.COMPANY, tenantId);
-
-    const [idbProds, idbComp] = await Promise.all([
-      idbGet<Product[]>(prodKey),
-      idbGet<CompanyProfile>(compKey),
-    ]);
-
-    const lsProds = safeGet<Product[]>(prodKey, []);
-    const lsComp = safeGet<CompanyProfile | null>(compKey, null);
-
-    const rawProds =
-      idbProds && Array.isArray(idbProds) && idbProds.length >= (lsProds?.length || 0)
-        ? idbProds
-        : lsProds;
-
-    if (Array.isArray(rawProds) && rawProds.length > 0) {
-      legacyProducts = cleanProductList(rawProds, tenantId);
-    }
-
-    if (idbComp && idbComp.name) {
-      legacyCompany = idbComp;
-    } else if (lsComp && lsComp.name) {
-      legacyCompany = lsComp;
-    }
-  } catch {
-    // ignore
-  }
-
-  return { legacyProducts, legacyCompany };
+  return { legacyProducts: [], legacyCompany: null };
 }
 
-/**
- * Permanently deletes all local catalog, company, category, backup, and tombstone keys
- * from both localStorage and IndexedDB so the browser operates 100% from Firestore Cloud.
- */
-export async function purgeAllLocalCatalogStorage(tenantId?: string): Promise<void> {
-  if (typeof window === 'undefined') return;
-  try {
-    const keysToPurge = [
-      getTenantStorageKey(STORAGE_KEYS.PRODUCTS, tenantId),
-      getTenantStorageKey(STORAGE_KEYS.CATEGORIES, tenantId),
-      getTenantStorageKey(STORAGE_KEYS.COMPANY, tenantId),
-      getTenantStorageKey(STORAGE_KEYS.SALES, tenantId),
-      getTenantStorageKey(STORAGE_KEYS.LOGS, tenantId),
-      getTenantStorageKey(STORAGE_KEYS.DELETED_PRODUCT_IDS, tenantId),
-      STORAGE_KEYS.SYNC_QUEUE,
-      `titufaris_daily_backup_${tenantId && tenantId !== 'titufaris' ? tenantId : 'titufaris'}`,
-      `titufaris_last_backup_date_${tenantId && tenantId !== 'titufaris' ? tenantId : 'titufaris'}`,
-    ];
-
-    keysToPurge.forEach(k => {
-      try {
-        localStorage.removeItem(k);
-      } catch {}
-    });
-
-    const db = await openIndexedDB();
-    await new Promise<void>((resolve) => {
-      const tx = db.transaction(IDB_STORE, 'readwrite');
-      const store = tx.objectStore(IDB_STORE);
-      keysToPurge.forEach(k => {
-        try {
-          store.delete(k);
-        } catch {}
-      });
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => resolve();
-    });
-  } catch {
-    // ignore
-  }
+export async function purgeAllLocalCatalogStorage(_tenantId?: string): Promise<void> {
+  // No-op: instant local cache is preserved and self-healed to guarantee 0ms page load
 }
 
-export async function syncProductsFromIndexedDB(_tenantId?: string): Promise<Product[] | null> {
+export async function syncProductsFromIndexedDB(tenantId?: string): Promise<Product[] | null> {
+  const key = getTenantStorageKey(STORAGE_KEYS.PRODUCTS, tenantId);
+  const stored = await idbGet<Product[]>(key);
+  if (stored && Array.isArray(stored) && stored.length > 0) {
+    return cleanProductList(stored, tenantId);
+  }
   return null;
 }
 
-export async function syncCompanyFromIndexedDB(_tenantId?: string): Promise<CompanyProfile | null> {
+export async function syncCompanyFromIndexedDB(tenantId?: string): Promise<CompanyProfile | null> {
+  const key = getTenantStorageKey(STORAGE_KEYS.COMPANY, tenantId);
+  const stored = await idbGet<CompanyProfile>(key);
+  if (stored && !isStalePlaceholderCompany(stored, tenantId)) {
+    return stored;
+  }
   return null;
 }
 
@@ -266,33 +269,104 @@ export function loadProducts(tenantId?: string, fallbackProducts?: Product[]): P
   const tenantDefault = tenantId ? getTenantDefaultData(tenantId) : null;
   const defaultFallback = tenantDefault ? tenantDefault.products : ((!tenantId || tenantId === 'titufaris') ? initialProducts : []);
   const fallback = fallbackProducts !== undefined ? fallbackProducts : defaultFallback;
+
+  const key = getTenantStorageKey(STORAGE_KEYS.PRODUCTS, tenantId);
+  const stored = safeGet<Product[] | null>(key, null);
+
+  if (stored && Array.isArray(stored) && stored.length > 0) {
+    const cleanedStored = cleanProductList(stored, tenantId);
+    const cleanedFallback = cleanProductList(fallback, tenantId);
+
+    // Self-heal: if stored catalog has fewer items than the official 35-item catalog (e.g. old 23 or 31 cached list),
+    // merge missing official items immediately so 0ms render always shows all 35 products
+    if (cleanedStored.length < cleanedFallback.length) {
+      const map = new Map<string, Product>();
+      for (const p of cleanedStored) {
+        if (p && p.id) map.set(p.id, p);
+      }
+      for (const fp of cleanedFallback) {
+        if (fp && fp.id && !map.has(fp.id)) {
+          map.set(fp.id, fp);
+        }
+      }
+      const healed = Array.from(map.values());
+      safeSet(key, healed);
+      return healed;
+    }
+
+    if (cleanedStored.length > 0) {
+      return cleanedStored;
+    }
+  }
+
   return JSON.parse(JSON.stringify(cleanProductList(fallback, tenantId)));
 }
 
-export function saveProducts(_products: Product[], _tenantId?: string): void {
-  // 100% Cloud Architecture: products are persisted exclusively in Firestore
+export function saveProducts(products: Product[], tenantId?: string): void {
+  if (!products || products.length === 0) return;
+  const key = getTenantStorageKey(STORAGE_KEYS.PRODUCTS, tenantId);
+  const cleaned = cleanProductList(products, tenantId);
+  safeSet(key, cleaned);
+  idbSet(key, cleaned).catch(() => {});
 }
 
 export function loadCategories(tenantId?: string, fallbackCategories?: Category[]): Category[] {
   const tenantDefault = tenantId ? getTenantDefaultData(tenantId) : null;
   const defaultFallback = tenantDefault ? tenantDefault.categories : initialCategories;
   const fallback = fallbackCategories !== undefined ? fallbackCategories : defaultFallback;
+
+  const key = getTenantStorageKey(STORAGE_KEYS.CATEGORIES, tenantId);
+  const stored = safeGet<Category[] | null>(key, null);
+  if (stored && Array.isArray(stored) && stored.length > 0) {
+    return stored;
+  }
+
   return JSON.parse(JSON.stringify(fallback));
 }
 
-export function saveCategories(_categories: Category[], _tenantId?: string): void {
-  // 100% Cloud Architecture: categories are persisted exclusively in Firestore
+export function saveCategories(categories: Category[], tenantId?: string): void {
+  if (!categories || categories.length === 0) return;
+  const key = getTenantStorageKey(STORAGE_KEYS.CATEGORIES, tenantId);
+  safeSet(key, categories);
+  idbSet(key, categories).catch(() => {});
 }
 
 export function loadCompany(tenantId?: string, fallbackCompany?: CompanyProfile): CompanyProfile {
   const tenantDefault = tenantId ? getTenantDefaultData(tenantId) : null;
   const defaultFallback = tenantDefault ? tenantDefault.company : initialCompany;
   const fallback = fallbackCompany || defaultFallback;
-  return JSON.parse(JSON.stringify(fallback));
+
+  const key = getTenantStorageKey(STORAGE_KEYS.COMPANY, tenantId);
+  const stored = safeGet<CompanyProfile | null>(key, null);
+
+  if (stored && !isStalePlaceholderCompany(stored, tenantId)) {
+    const healed = { ...fallback, ...stored };
+    if (
+      (!tenantId || tenantId === 'titufaris' || tenantId === 'moncheestanterias') &&
+      healed.tagline === 'EQUIPAMIENTO COMERCIAL & LAYOUT'
+    ) {
+      healed.tagline = 'ESPACIOS QUE RINDEN - NEGOCIOS QUE CRECEN';
+    }
+    if (!healed.heroImageUrl && fallback.heroImageUrl) {
+      healed.heroImageUrl = fallback.heroImageUrl;
+    }
+    if (tenantId === 'zapas' && !healed.logoUrl && fallback.logoUrl) {
+      healed.logoUrl = fallback.logoUrl;
+      healed.logo = fallback.logoUrl;
+    }
+    return healed;
+  }
+
+  const fresh = JSON.parse(JSON.stringify(fallback)) as CompanyProfile;
+  safeSet(key, fresh);
+  return fresh;
 }
 
-export function saveCompany(_company: CompanyProfile, _tenantId?: string): void {
-  // 100% Cloud Architecture: company profile & Portada are persisted exclusively in Firestore
+export function saveCompany(company: CompanyProfile, tenantId?: string): void {
+  if (!company || !company.name || isStalePlaceholderCompany(company, tenantId)) return;
+  const key = getTenantStorageKey(STORAGE_KEYS.COMPANY, tenantId);
+  safeSet(key, company);
+  idbSet(key, company).catch(() => {});
 }
 
 export const GENERIC_COMPANY_STORAGE_KEY = 'titufaris_generic_company_custom';

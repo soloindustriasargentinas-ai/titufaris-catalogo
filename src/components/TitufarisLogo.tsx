@@ -4,17 +4,23 @@ interface TitufarisLogoProps {
   className?: string;
   size?: 'sm' | 'md' | 'lg';
   showTagline?: boolean;
+  tagline?: string;
+  brandName?: string;
 }
 
 export const TitufarisLogo: React.FC<TitufarisLogoProps> = ({
   className = '',
   size = 'md',
   showTagline = true,
+  tagline,
+  brandName,
 }) => {
   const isSmall = size === 'sm';
   const isLarge = size === 'lg';
 
   const iconSize = isSmall ? 32 : isLarge ? 48 : 38;
+  const resolvedTagline = tagline && tagline.trim() ? tagline.trim() : 'ESPACIOS QUE RINDEN - NEGOCIOS QUE CRECEN';
+  const resolvedName = brandName && brandName.trim() ? brandName.trim() : 'Titufaris';
 
   return (
     <div className={`flex items-center gap-3 select-none ${className}`}>
@@ -71,7 +77,7 @@ export const TitufarisLogo: React.FC<TitufarisLogoProps> = ({
               isSmall ? 'text-lg' : isLarge ? 'text-2xl' : 'text-xl'
             }`}
           >
-            Titufaris
+            {resolvedName}
           </span>
         </div>
 
@@ -80,11 +86,11 @@ export const TitufarisLogo: React.FC<TitufarisLogoProps> = ({
 
         {showTagline && (
           <span
-            className={`font-bold tracking-[0.18em] text-slate-600 uppercase ${
-              isSmall ? 'text-[7.5px]' : isLarge ? 'text-[10px]' : 'text-[8.5px]'
+            className={`font-bold tracking-[0.14em] text-slate-600 uppercase ${
+              isSmall ? 'text-[7px]' : isLarge ? 'text-[9.5px]' : 'text-[8px]'
             }`}
           >
-            Equipamiento Comercial & Layout
+            {resolvedTagline}
           </span>
         )}
       </div>

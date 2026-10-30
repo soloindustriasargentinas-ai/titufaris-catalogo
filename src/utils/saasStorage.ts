@@ -311,18 +311,14 @@ export async function syncTenantsWithFirestore(
   try {
     const cloudTenants = await fetchSaaSTenantsFromFirestore();
     if (cloudTenants && cloudTenants.length > 0) {
-      // Merge: Keep Firestore data, ensuring titufaris is present
       const map = new Map<string, SaaSTenantStore>();
       for (const t of localTenants) map.set(t.id, t);
       for (const t of cloudTenants) map.set(t.id, t as SaaSTenantStore);
       const merged = Array.from(map.values());
       saveSaaSTenants(merged);
       return merged;
-    } else {
-      // Seed initial to Firestore for persistence
-      await seedSaaSTenantsToFirestore(localTenants);
-      return localTenants;
     }
+    return localTenants;
   } catch (err) {
     console.warn('SaaS tenants sync note:', err);
     return localTenants;

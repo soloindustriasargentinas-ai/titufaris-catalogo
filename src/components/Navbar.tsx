@@ -150,8 +150,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </div>
               ) : (
                 <>
-                  <TitufarisLogo size="sm" showTagline={false} className="sm:hidden" />
-                  <TitufarisLogo size="md" showTagline={true} className="hidden sm:flex" />
+                  <TitufarisLogo size="sm" showTagline={false} className="sm:hidden" tagline={company?.tagline} brandName={company?.name} />
+                  <TitufarisLogo size="md" showTagline={true} className="hidden sm:flex" tagline={company?.tagline} brandName={company?.name} />
                 </>
               )}
             </div>
