@@ -163,38 +163,68 @@ export function getTenantStorageKey(baseKey: string, tenantId?: string): string 
 }
 
 /**
- * Local storage consumption is permanently disabled in 100% Cloud mode
- * so no browser with old cached data can ever overwrite Firestore.
+ * One-time helper that extracts any unmigrated products or company settings from a browser's
+ * old localStorage/IndexedDB so App.tsx can ensure they are saved in Firestore before wiping local storage.
  */
 export async function consumeLegacyLocalStoreData(tenantId?: string): Promise<{
   legacyProducts: Product[];
   legacyCompany: CompanyProfile | null;
 }> {
-  await purgeAllLocalCatalogStorage(tenantId);
-  return { legacyProducts: [], legacyCompany: null };
+  if (typeof window === 'undefined') {
+    return { legacyProducts: [], legacyCompany: null };
+  }
+
+  let legacyProducts: Product[] = [];
+  let legacyCompany: CompanyProfile | null = null;
+
+  try {
+    const prodKey = getTenantStorageKey(STORAGE_KEYS.PRODUCTS, tenantId);
+    const compKey = getTenantStorageKey(STORAGE_KEYS.COMPANY, tenantId);
+
+    const [idbProds, idbComp] = await Promise.all([
+      idbGet<Product[]>(prodKey),
+      idbGet<CompanyProfile>(compKey),
+    ]);
+
+    const lsProds = safeGet<Product[]>(prodKey, []);
+    const lsComp = safeGet<CompanyProfile | null>(compKey, null);
+
+    const rawProds =
+      idbProds && Array.isArray(idbProds) && idbProds.length >= (lsProds?.length || 0)
+        ? idbProds
+        : lsProds;
+
+    if (Array.isArray(rawProds) && rawProds.length > 0) {
+      legacyProducts = cleanProductList(rawProds, tenantId);
+    }
+
+    if (idbComp && idbComp.name) {
+      legacyCompany = idbComp;
+    } else if (lsComp && lsComp.name) {
+      legacyCompany = lsComp;
+    }
+  } catch {
+    // ignore
+  }
+
+  return { legacyProducts, legacyCompany };
 }
 
 /**
  * Permanently deletes all local catalog, company, category, backup, and tombstone keys
- * from localStorage, IndexedDB, and browser CacheStorage so the browser operates 100% from Firestore Cloud.
+ * from both localStorage and IndexedDB so the browser operates 100% from Firestore Cloud.
  */
 export async function purgeAllLocalCatalogStorage(tenantId?: string): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
     const keysToPurge = [
-      STORAGE_KEYS.PRODUCTS,
-      STORAGE_KEYS.CATEGORIES,
-      STORAGE_KEYS.COMPANY,
-      STORAGE_KEYS.SALES,
-      STORAGE_KEYS.LOGS,
-      STORAGE_KEYS.DELETED_PRODUCT_IDS,
-      STORAGE_KEYS.SYNC_QUEUE,
       getTenantStorageKey(STORAGE_KEYS.PRODUCTS, tenantId),
       getTenantStorageKey(STORAGE_KEYS.CATEGORIES, tenantId),
       getTenantStorageKey(STORAGE_KEYS.COMPANY, tenantId),
       getTenantStorageKey(STORAGE_KEYS.SALES, tenantId),
       getTenantStorageKey(STORAGE_KEYS.LOGS, tenantId),
       getTenantStorageKey(STORAGE_KEYS.DELETED_PRODUCT_IDS, tenantId),
+      STORAGE_KEYS.SYNC_QUEUE,
       `titufaris_daily_backup_${tenantId && tenantId !== 'titufaris' ? tenantId : 'titufaris'}`,
       `titufaris_last_backup_date_${tenantId && tenantId !== 'titufaris' ? tenantId : 'titufaris'}`,
     ];
@@ -205,54 +235,18 @@ export async function purgeAllLocalCatalogStorage(tenantId?: string): Promise<vo
       } catch {}
     });
 
-    // Also remove any tenant_* or titufaris_products_* / titufaris_company_* keys in localStorage
-    try {
-      const allKeys: string[] = [];
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key) allKeys.push(key);
-      }
-      for (const key of allKeys) {
-        if (
-          key.includes('products_v1') ||
-          key.includes('company_v1') ||
-          key.includes('categories_v1') ||
-          key.includes('daily_backup') ||
-          key.includes('deleted_product_ids') ||
-          key.includes('sync_queue')
-        ) {
-          localStorage.removeItem(key);
-        }
-      }
-    } catch {}
-
-    // Clear all entries in IndexedDB app_state object store
-    try {
-      const db = await openIndexedDB();
-      await new Promise<void>((resolve) => {
-        const tx = db.transaction(IDB_STORE, 'readwrite');
-        const store = tx.objectStore(IDB_STORE);
+    const db = await openIndexedDB();
+    await new Promise<void>((resolve) => {
+      const tx = db.transaction(IDB_STORE, 'readwrite');
+      const store = tx.objectStore(IDB_STORE);
+      keysToPurge.forEach(k => {
         try {
-          store.clear();
-        } catch {
-          keysToPurge.forEach(k => {
-            try {
-              store.delete(k);
-            } catch {}
-          });
-        }
-        tx.oncomplete = () => resolve();
-        tx.onerror = () => resolve();
+          store.delete(k);
+        } catch {}
       });
-    } catch {}
-
-    // Clear browser CacheStorage (Service Worker / PWA caches) if any exist
-    if ('caches' in window && window.caches) {
-      try {
-        const cacheNames = await window.caches.keys();
-        await Promise.all(cacheNames.map(name => window.caches.delete(name)));
-      } catch {}
-    }
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+    });
   } catch {
     // ignore
   }
